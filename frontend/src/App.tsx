@@ -3,14 +3,17 @@ import { useCallback, useEffect, useState } from 'react'
 import type { CategoriePublique, ComptePublic, UtilisateurPublic } from './api/client'
 import { api } from './api/client'
 import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
+import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
 import { FeuilleSaisie } from './composants/FeuilleSaisie'
 import { Accueil } from './ecrans/Accueil'
+import { Agenda } from './ecrans/Agenda'
 import { Connexion } from './ecrans/Connexion'
 import { PremierCompte } from './ecrans/PremierCompte'
 import { Reglages } from './ecrans/Reglages'
 
 const ONGLETS: readonly Onglet[] = [
   { cle: 'accueil', libelle: 'Accueil', icone: '◎' },
+  { cle: 'agenda', libelle: 'Agenda', icone: '▤' },
   { cle: 'reglages', libelle: 'Réglages', icone: '⚙' },
 ]
 
@@ -21,6 +24,7 @@ export function App() {
   const [comptes, setComptes] = useState<readonly ComptePublic[]>([])
   const [categories, setCategories] = useState<readonly CategoriePublique[]>([])
   const [saisieOuverte, setSaisieOuverte] = useState(false)
+  const [recurrenceOuverte, setRecurrenceOuverte] = useState(false)
   // Compteur d'invalidation : incrémenté après chaque écriture, il force les écrans à
   // relire le serveur. Recalculer un solde côté client dupliquerait la règle métier.
   const [rafraichissement, setRafraichissement] = useState(0)
@@ -44,6 +48,7 @@ export function App() {
 
   const apresEcriture = useCallback(async () => {
     setSaisieOuverte(false)
+    setRecurrenceOuverte(false)
     await chargerReferentiels()
     setRafraichissement((n) => n + 1)
   }, [chargerReferentiels])
@@ -65,14 +70,26 @@ export function App() {
 
   return (
     <>
-      {onglet === 'accueil' ? (
+      {onglet === 'accueil' && (
         <Accueil
           comptes={comptes}
           categories={categories}
           rafraichissement={rafraichissement}
           surSaisie={() => setSaisieOuverte(true)}
         />
-      ) : (
+      )}
+
+      {onglet === 'agenda' && (
+        <Agenda
+          comptes={comptes}
+          categories={categories}
+          rafraichissement={rafraichissement}
+          surChangement={() => setRafraichissement((n) => n + 1)}
+          surNouvelleRecurrence={() => setRecurrenceOuverte(true)}
+        />
+      )}
+
+      {onglet === 'reglages' && (
         <Reglages
           utilisateur={utilisateur}
           categories={categories}
@@ -91,6 +108,15 @@ export function App() {
           comptes={comptes}
           categories={categories}
           surFermeture={() => setSaisieOuverte(false)}
+          surEnregistrement={apresEcriture}
+        />
+      )}
+
+      {recurrenceOuverte && (
+        <FeuilleRecurrence
+          comptes={comptes}
+          categories={categories}
+          surFermeture={() => setRecurrenceOuverte(false)}
           surEnregistrement={apresEcriture}
         />
       )}

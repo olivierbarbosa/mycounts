@@ -13,6 +13,20 @@ export type ComptePublic = components['schemas']['ComptePublic']
 export type CategoriePublique = components['schemas']['CategoriePublique']
 export type OperationPublique = components['schemas']['OperationPublique']
 export type ResumePublic = components['schemas']['ResumePublic']
+export type RecurrencePublique = components['schemas']['RecurrencePublique']
+export type EcheanceAgenda = components['schemas']['EcheanceAgenda']
+export type UniteRecurrence = components['schemas']['UniteRecurrence']
+
+export type SaisieRecurrence = {
+  compte_id: string
+  libelle: string
+  montant_centimes: number
+  ancre: string
+  unite: UniteRecurrence
+  intervalle?: number
+  categorie_id?: string | null
+  fin?: string | null
+}
 export type NatureCategorie = components['schemas']['NatureCategorie']
 export type TeinteCategorie = components['schemas']['TeinteCategorie']
 
@@ -118,4 +132,22 @@ export const api = {
     }),
 
   resume: () => appeler<ResumePublic>('/resume'),
+
+  agenda: (jours = 60) => appeler<EcheanceAgenda[]>(`/agenda?jours=${jours}`),
+
+  recurrences: () => appeler<RecurrencePublique[]>('/recurrences'),
+
+  creerRecurrence: (saisie: SaisieRecurrence) =>
+    appeler<RecurrencePublique>('/recurrences', {
+      method: 'POST',
+      body: JSON.stringify(saisie),
+    }),
+
+  arreterRecurrence: (id: string) =>
+    appeler<void>(`/recurrences/${id}`, { method: 'DELETE' }),
+
+  aConfirmer: () => appeler<OperationPublique[]>('/operations/a-confirmer'),
+
+  confirmer: (id: string) =>
+    appeler<OperationPublique>(`/operations/${id}/confirmer`, { method: 'POST' }),
 }

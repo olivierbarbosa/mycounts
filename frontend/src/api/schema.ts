@@ -4,6 +4,29 @@
  */
 
 export interface paths {
+    "/api/agenda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Agenda
+         * @description Échéances à venir, calculées à la volée.
+         *
+         *     Rien n'est stocké : l'agenda est une **projection**, et le recalculer à chaque appel
+         *     garantit qu'il suit toute modification d'une récurrence sans travail de mise à jour.
+         */
+        get: operations["agenda_api_agenda_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/connexion": {
         parameters: {
             query?: never;
@@ -194,6 +217,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operations/a-confirmer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister A Confirmer */
+        get: operations["lister_a_confirmer_api_operations_a_confirmer_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operations/{operation_id}/confirmer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirmer
+         * @description Confirme qu'une échéance matérialisée est bien passée.
+         *
+         *     Le montant n'est pas modifiable ici : confirmer, c'est dire « c'est passé ainsi ».
+         *     Le solde projeté ne doit pas bouger — seule la répartition entre réel et à-confirmer
+         *     change.
+         */
+        post: operations["confirmer_api_operations__operation_id__confirmer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Recurrences */
+        get: operations["lister_recurrences_api_recurrences_get"];
+        put?: never;
+        /** Creer Recurrence */
+        post: operations["creer_recurrence_api_recurrences_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recurrences/{recurrence_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Arreter Recurrence
+         * @description Désactive la récurrence. Les opérations déjà matérialisées restent en place :
+         *     supprimer l'historique parce qu'un abonnement s'arrête réécrirait le passé.
+         */
+        delete: operations["arreter_recurrence_api_recurrences__recurrence_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/resume": {
         parameters: {
             query?: never;
@@ -327,6 +430,63 @@ export interface components {
              */
             montant_centimes: number;
         };
+        /** DemandeRecurrence */
+        DemandeRecurrence: {
+            /**
+             * Ancre
+             * Format: date
+             * @description Date de la PREMIÈRE échéance. Toutes les suivantes s'en déduisent — jamais de l'échéance précédente, sinon une récurrence au 31 resterait bloquée au 28 après son premier février.
+             */
+            ancre: string;
+            /** Categorie Id */
+            categorie_id?: string | null;
+            /**
+             * Compte Id
+             * Format: uuid
+             */
+            compte_id: string;
+            /** Fin */
+            fin?: string | null;
+            /**
+             * Intervalle
+             * @default 1
+             */
+            intervalle: number;
+            /** Libelle */
+            libelle: string;
+            /**
+             * Montant Centimes
+             * @description Entier signé. Négatif = prélèvement, positif = revenu régulier.
+             */
+            montant_centimes: number;
+            unite: components["schemas"]["UniteRecurrence"];
+        };
+        /**
+         * EcheanceAgenda
+         * @description Une échéance à venir, telle qu'affichée dans l'agenda.
+         *
+         *     Une échéance n'est PAS une opération : elle n'a pas d'identifiant propre tant qu'elle
+         *     n'a pas été matérialisée. Les confondre ferait croire qu'on peut la modifier
+         *     individuellement, alors qu'elle est recalculée à chaque affichage.
+         */
+        EcheanceAgenda: {
+            /** Categorie Id */
+            categorie_id: string | null;
+            /**
+             * Date Echeance
+             * Format: date
+             */
+            date_echeance: string;
+            /** Libelle */
+            libelle: string;
+            /** Montant Centimes */
+            montant_centimes: number;
+            /**
+             * Recurrence Id
+             * Format: uuid
+             */
+            recurrence_id: string;
+        };
         /**
          * EtatOperation
          * @description Cycle de vie d'une opération.
@@ -418,6 +578,37 @@ export interface components {
             /** Fin Estimee */
             fin_estimee: boolean;
         };
+        /** RecurrencePublique */
+        RecurrencePublique: {
+            /** Active */
+            active: boolean;
+            /**
+             * Ancre
+             * Format: date
+             */
+            ancre: string;
+            /** Categorie Id */
+            categorie_id: string | null;
+            /**
+             * Compte Id
+             * Format: uuid
+             */
+            compte_id: string;
+            /** Fin */
+            fin: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Intervalle */
+            intervalle: number;
+            /** Libelle */
+            libelle: string;
+            /** Montant Centimes */
+            montant_centimes: number;
+            unite: components["schemas"]["UniteRecurrence"];
+        };
         /**
          * ResumePublic
          * @description Les quatre grandeurs, toutes exposées.
@@ -442,6 +633,11 @@ export interface components {
          * @enum {string}
          */
         TeinteCategorie: "violet" | "cyan" | "vert" | "ambre" | "rose" | "ardoise";
+        /**
+         * UniteRecurrence
+         * @enum {string}
+         */
+        UniteRecurrence: "jour" | "semaine" | "mois" | "an";
         /** UtilisateurPublic */
         UtilisateurPublic: {
             /** Courriel */
@@ -481,6 +677,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    agenda_api_agenda_get: {
+        parameters: {
+            query?: {
+                jours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EcheanceAgenda"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     connexion_api_auth_connexion_post: {
         parameters: {
             query?: never;
@@ -895,6 +1124,167 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OperationPublique"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lister_a_confirmer_api_operations_a_confirmer_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationPublique"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirmer_api_operations__operation_id__confirmer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationPublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lister_recurrences_api_recurrences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurrencePublique"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creer_recurrence_api_recurrences_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeRecurrence"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurrencePublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arreter_recurrence_api_recurrences__recurrence_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recurrence_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
