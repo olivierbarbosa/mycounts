@@ -457,3 +457,37 @@ sinon un filtre qui exclurait tout passerait le test.
 **Généralisation.** Vérifier qu'une table est complète ne dit rien de savoir si elle a les
 bonnes colonnes. Et un jeu d'essai qui ne contient qu'un type de donnée ne peut pas
 révéler une confusion entre les types.
+
+---
+
+## 014 — La même erreur qu'en #002, refaite dans l'autre langage
+
+**Zone** : `frontend/src/composants/__tests__/montant.test.ts`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Qu'un balayage exhaustif de 20 000 montants, plus un cas « grand
+montant », prouvait que le formatage côté client n'utilisait pas de flottant. J'avais
+écrit dans le test, noir sur blanc : « rejette une implémentation qui passerait par
+`toFixed(2)` ».
+
+**Ce que j'ai mesuré.** J'ai implémenté la version par `toFixed(2)` et relancé la suite :
+**12 tests sur 12 passent**. Aucun de mes deux témoins ne la distingue. En parcourant les
+montants jusqu'à 3 000 €, l'écart entre les deux implémentations est nul ; il n'apparaît
+qu'au-delà de `Number.MAX_SAFE_INTEGER`, c'est-à-dire là où le `number` lui-même ne
+représente déjà plus l'entier reçu du serveur.
+
+**Pourquoi c'est plus grave que #002.** C'est exactement la même erreur, sur exactement le
+même sujet, quelques heures après l'avoir consignée — mais dans l'autre langage. J'ai
+transposé la *forme* du test (« balayage + grand montant ») sans refaire la mesure qui lui
+donnait son sens. Un test recopié depuis un autre contexte est une supposition déguisée en
+vérification.
+
+**Ce qui est vrai, et qui remplace le faux témoin.** En JavaScript, arithmétique entière
+et `toFixed(2)` coïncident sur tout le domaine représentable. `Math.trunc` reste préférable
+par cohérence avec l'invariant du projet, mais ce n'est pas une correction de bug — et le
+prétendre trompait le prochain lecteur. Le test dit désormais ce qu'il vérifie vraiment :
+l'exactitude jusqu'à la limite des entiers sûrs, et l'existence de cette limite.
+
+**Généralisation.** La leçon d'une erreur ne se transporte pas d'un langage à l'autre par
+la forme du test. Ce qui se transporte, c'est la question : *quelle implémentation fautive
+ce test rejette-t-il ?* — et il faut la reposer à chaque fois, en l'exécutant.

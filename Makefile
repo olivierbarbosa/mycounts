@@ -11,6 +11,7 @@ aide:
 	@echo "make db-haut            Démarre PostgreSQL et applique les migrations"
 	@echo "make tests-integration  Tests contre le vrai PostgreSQL"
 	@echo "make tests-e2e          Mise en page sur 390 / 820 / 1280 px, dans un vrai navigateur"
+	@echo "make front-tests        Tests unitaires du frontend"
 
 installer:
 	python3 -m venv .venv
@@ -51,6 +52,11 @@ front-installer:
 
 front-lint:
 	cd frontend && npx tsc --noEmit
+
+# Fonctions pures du frontend (formatage des montants). Les écrans relèvent des tests
+# de bout en bout : ce qui se voit se vérifie dans un navigateur.
+front-tests:
+	cd frontend && npx vitest run
 
 # Le compte de démonstration est créé par le globalSetup de Playwright, pas ici : la
 # suite doit être lançable seule, sans dépendre d'une étape make exécutée avant.

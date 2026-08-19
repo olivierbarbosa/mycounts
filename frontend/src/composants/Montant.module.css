@@ -1,0 +1,40 @@
+.montant {
+  font-family: var(--typo-famille-chiffres);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+/* Les centimes plus petits : la lecture porte sur les euros, le détail suit. */
+.centimes {
+  font-size: 0.62em;
+  font-weight: var(--typo-gras-moyen);
+  vertical-align: baseline;
+}
+
+.credit {
+  color: var(--couleur-credit);
+}
+
+.debit {
+  color: var(--couleur-debit);
+}
+
+.neutre {
+  color: var(--couleur-texte);
+}
+
+.display {
+  font-size: 40px;
+  font-weight: var(--typo-gras-display);
+}
+
+.titre {
+  font-size: 22px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.ligne {
+  font-size: 16px;
+  font-weight: var(--typo-gras-moyen);
+}

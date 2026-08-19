@@ -55,6 +55,9 @@ jobs:
       - name: Types du frontend
         run: make front-lint
 
+      - name: Tests unitaires du frontend
+        run: make front-tests
+
       # Mise en page sur 390 / 820 / 1280 px dans un vrai navigateur. Playwright démarre
       # lui-même uvicorn et Vite : aucun processus n'est lancé à la main.
       - name: Tests de bout en bout (navigateur réel)

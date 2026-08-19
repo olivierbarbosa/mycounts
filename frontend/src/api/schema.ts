@@ -127,6 +127,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/categories/{categorie_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Supprimer Categorie
+         * @description Suppression définitive, refusée si la catégorie sert à une opération.
+         *
+         *     Le message propose l'archivage : supprimer une catégorie utilisée changerait
+         *     rétroactivement les totaux d'un mois déjà clos.
+         */
+        delete: operations["supprimer_categorie_categories__categorie_id__delete"];
+        options?: never;
+        head?: never;
+        /** Modifier Categorie */
+        patch: operations["modifier_categorie_categories__categorie_id__patch"];
+        trace?: never;
+    };
     "/comptes": {
         parameters: {
             query?: never;
@@ -262,6 +286,12 @@ export interface components {
              * @default true
              */
             prive: boolean;
+            /**
+             * Solde Ouverture Centimes
+             * @description Solde du compte au moment de sa création, en centimes. Enregistré comme une opération d'ouverture — un solde reste une somme d'opérations. Zéro n'en crée aucune.
+             * @default 0
+             */
+            solde_ouverture_centimes: number;
         };
         /** DemandeConnexion */
         DemandeConnexion: {
@@ -328,6 +358,18 @@ export interface components {
             expire_le: string;
         };
         /**
+         * ModificationCategorie
+         * @description La `nature` est absente volontairement : la changer inverserait le signe attendu
+         *     de toutes les opérations déjà classées, et donc les totaux de mois déjà clos.
+         */
+        ModificationCategorie: {
+            /** Archivee */
+            archivee?: boolean | null;
+            /** Nom */
+            nom?: string | null;
+            teinte?: components["schemas"]["TeinteCategorie"] | null;
+        };
+        /**
          * NatureCategorie
          * @enum {string}
          */
@@ -346,6 +388,8 @@ export interface components {
              * Format: date
              */
             date_operation: string;
+            /** Est Ouverture */
+            est_ouverture: boolean;
             /** Est Paie */
             est_paie: boolean;
             etat: components["schemas"]["EtatOperation"];
@@ -642,6 +686,74 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriePublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supprimer_categorie_categories__categorie_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categorie_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    modifier_categorie_categories__categorie_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categorie_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModificationCategorie"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
