@@ -57,6 +57,8 @@ caractéristiques de direction artistique en ont été tirées.)*
 
 > Sur le design ajout un effet glow néon et un halo sur le background avec du dégradé
 
+> La couleur du background est trop prenonce je pense
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -76,6 +78,7 @@ caractéristiques de direction artistique en ont été tirées.)*
 | « catégories par défaut + ajouter / modifier / supprimer » | **Annule et remplace la réponse au QCM D1.** La liste par défaut est rétablie, et l'API gagne modification et suppression. Une catégorie déjà utilisée ne peut pas être supprimée (contrainte `RESTRICT`) : elle s'archive, sinon les totaux d'un mois clos changeraient rétroactivement. |
 | « au premier lancement, demander son solde actuel » | Modélisé en **opération d'ouverture**, pas en colonne `solde_initial`. Un solde reste une somme d'opérations — le stocker créerait la seconde source de vérité que tout le projet évite. L'opération porte `est_ouverture` pour être exclue des dépenses : un découvert de départ n'est pas une dépense du mois. |
 | « effet glow néon et halo sur le background avec dégradé » | Deux halos radiaux fixes sur le fond (violet en haut, cyan en bas), plus une lueur néon sur les surfaces en verre et les éléments actifs. **Les halos passent DERRIÈRE le contenu et ne portent jamais de texte** : le contrôle de contraste AA reste la limite, et il a déjà refusé deux versions de la pastille de catégorie. |
+| « le background est trop prononcé » | Dégradé et halos **désaturés d'un cran** : le violet passe de `#5B21B6` à `#3B1D73` en haut, et les halos perdent environ la moitié de leur opacité. Le glow reste sur les surfaces et les éléments actifs, où il est voulu ; c'est le fond qui redevient un fond. |
 | « surtout prévu pour mobile & tablette » | Mobile-first strict : `min-width` uniquement, tab bar basse, safe areas, cibles ≥ 44 px. |
 
 ## État du chantier

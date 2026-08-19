@@ -18,9 +18,12 @@
 export const couleursSombres = {
   /** Le fond n'est plus un aplat : deux arrêts de dégradé, du violet profond au presque
    *  noir violacé. Le premier sert aussi de couleur de repli. */
-  fond: '#2A1360',
-  fondHaut: '#5B21B6',
-  fondBas: '#120A28',
+  // Un fond doit rester un fond : assez présent pour porter la DA, assez discret pour
+  // que l'œil aille aux montants. Une première version montait à #5B21B6 en haut — trop
+  // saturée, elle tirait le regard vers le décor.
+  fond: '#1E1046',
+  fondHaut: '#3B1D73',
+  fondBas: '#0F0920',
 
   /** Surfaces en verre : très peu opaques, c'est le flou qui fait le matériau. */
   surface: 'rgba(255, 255, 255, 0.07)',
@@ -59,17 +62,17 @@ export const couleursSombres = {
 
   /** Halos de fond. Ils passent DERRIÈRE le contenu et ne portent jamais de texte :
    *  c'est ce qui permet de les rendre francs sans dégrader la lisibilité. */
-  haloHaut: 'rgba(139, 92, 246, 0.55)',
-  haloBas: 'rgba(34, 211, 238, 0.22)',
+  haloHaut: 'rgba(139, 92, 246, 0.28)',
+  haloBas: 'rgba(34, 211, 238, 0.12)',
   /** Liseré lumineux sur les surfaces en verre. */
   lueurBordure: 'rgba(196, 181, 253, 0.35)',
 } as const
 
 /** Palette claire. Mêmes rôles, mêmes noms : un composant ne connaît que les rôles. */
 export const couleursClaires = {
-  fond: '#F2EEFF',
-  fondHaut: '#E4DBFF',
-  fondBas: '#FAF8FF',
+  fond: '#F6F3FF',
+  fondHaut: '#EDE7FF',
+  fondBas: '#FBFAFF',
 
   surface: 'rgba(255, 255, 255, 0.72)',
   surfaceHaute: 'rgba(255, 255, 255, 0.88)',
@@ -97,8 +100,8 @@ export const couleursClaires = {
   lueurAccent: 'rgba(109, 40, 217, 0.22)',
   lueurNeon: 'rgba(8, 145, 178, 0.20)',
 
-  haloHaut: 'rgba(139, 92, 246, 0.30)',
-  haloBas: 'rgba(8, 145, 178, 0.14)',
+  haloHaut: 'rgba(139, 92, 246, 0.16)',
+  haloBas: 'rgba(8, 145, 178, 0.08)',
   lueurBordure: 'rgba(109, 40, 217, 0.18)',
 } as const
 
