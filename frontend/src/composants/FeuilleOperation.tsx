@@ -224,9 +224,7 @@ export function FeuilleOperation({
                   </option>
                 ))}
               </select>
-              <p className={styles.note}>
-                Le compte ne se change pas ici : ce serait modifier deux soldes.
-              </p>
+              <p className={styles.note}>Le compte n’est pas modifiable ici.</p>
             </div>
           </>
         )}
