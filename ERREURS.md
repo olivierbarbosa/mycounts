@@ -317,3 +317,39 @@ car un validateur qui refuse tout passerait le premier volet.
 **Généralisation.** Quand deux chemins écrivent dans la même table, ils doivent partager
 le **même** validateur, pas deux validateurs « équivalents ». « Équivalent » n'est
 vérifiable que sur les cas qu'on a pensé à comparer.
+
+---
+
+## 010 — Une borne qui faisait disparaître de l'argent de tous les écrans
+
+**Zone** : `backend/mycounts/domain/agregats.py`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que borner les opérations *confirmées* à aujourd'hui était la règle
+générale : le solde réel doit correspondre à ce que la banque affiche, donc il s'arrête
+au jour courant. J'ai appliqué cette borne aux quatre agrégats.
+
+**Ce que j'ai mesuré.** Un test écrit dans la foulée : une dépense confirmée et datée de
+demain donne 0 dans le solde réel — attendu — mais aussi **0 dans le solde projeté**.
+Elle n'apparaissait donc dans aucun total : ni dans ce que j'ai, ni dans ce qu'il me
+restera. De l'argent invisible sur tous les écrans jusqu'à sa date, puis qui réapparaît
+d'un coup.
+
+**Pourquoi ça ne prouvait rien.** Chaque agrégat pris isolément semblait correct. La
+faute n'était visible qu'en regardant les quatre **ensemble** : aucun test ne posait la
+question « cette opération apparaît-elle quelque part ? ». Un total juste et un total
+absent se ressemblent — les deux affichent un nombre plausible.
+
+**Le contrôle qui a tranché — et qui est maintenant en place.** Un témoin structurel qui,
+pour chaque état et chaque date de la fenêtre, vérifie que l'opération contribue à **au
+moins un** agrégat. Il ne teste aucune valeur particulière : il interdit la disparition.
+
+**Correction.** Seul le solde réel garde la borne « aujourd'hui », parce que c'est la
+grandeur du rapprochement bancaire. Les autres regardent jusqu'à la fin de la fenêtre.
+Une échéance seulement *prévue* reste hors des plafonds : un plafond qui compterait ce
+qui n'a pas encore eu lieu serait dépassé dès le premier jour de la période.
+
+**Généralisation.** Quand plusieurs totaux partagent les mêmes données, tester chacun
+séparément ne dit rien de leur **couverture commune**. Il faut un contrôle qui vérifie
+qu'aucune donnée ne tombe entre eux — la même forme d'erreur que #005, où une collection
+vide faisait passer une boucle de vérification.

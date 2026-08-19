@@ -44,6 +44,12 @@ contient souvent l'information qu'une reformulation perd.
 
 > Attention il faut une version pc aussi
 
+> Pour l'UI je veux ce design d'UI néon et Liquid Glass
+
+*(accompagné de deux captures de l'application Revolut. Elles ne sont PAS versionnées :
+l'une contenait un IBAN réel, un solde et des libellés d'opérations. Seules les
+caractéristiques de direction artistique en ont été tirées.)*
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -59,12 +65,28 @@ contient souvent l'information qu'une reformulation perd.
 | « la date de la paie fait foi » | La période s'ouvre à la `date_operation` de la paie, jamais au jour de saisie. Le résultat ne dépend pas de la ponctualité de l'utilisateur. |
 | « on peut set le nombre de fois où on est payé dans 1 mois » | Réglage `paies_par_cycle` (1, 2, 4…). La période s'ouvre à la **première** paie du cycle ; les suivantes sont des revenus à l'intérieur et ne rouvrent pas de période. Les plafonds restent donc par cycle. Interprétation à confirmer : l'autre lecture (chaque paie ouvre une période) donnerait 2 périodes par mois. |
 | « il faut une version pc aussi » | Mobile-first **reste la base**, mais le bureau doit avoir sa propre mise en page, pas un mobile étiré. À partir de 1024 px : navigation en **rail latéral** (plus de tab bar basse), contenu élargi. Le garde-fou n°10 vérifie qu'à 1280 px la navigation n'est plus en bas de l'écran. |
+| « design d'UI néon et Liquid Glass » | **Révise la DA du lot 1.** Fond en dégradé violet profond au lieu d'un aplat quasi noir, accents néon (cyan/magenta), verre laiteux étendu aux cartes de contenu, montants en display XL avec centimes réduits, boutons d'action circulaires, tab bar très translucide. Contrepartie non négociable : tout texte posé sur verre ou dégradé passe un contrôle de contraste AA automatique — voir la décision D3. |
 | « surtout prévu pour mobile & tablette » | Mobile-first strict : `min-width` uniquement, tab bar basse, safe areas, cibles ≥ 44 px. |
 
 ## État du chantier
 
 - **Lot 0 — socle** : en cours.
 - Lots 1 à 5 : voir le plan.
+
+## Décisions prises par défaut, à confirmer
+
+Travail en boucle autonome : quand une décision produit se présente, je prends l'option la
+plus conservatrice et la plus réversible, je l'applique, et je l'inscris ici. Rien n'est
+définitif — chaque ligne dit ce que coûte l'autre choix et quel fichier changer.
+
+**Relire cette section quand elle dépasse cinq entrées** : au-delà, des choix par omission
+s'installent, ce qui est exactement l'inverse de l'intention.
+
+| # | Question | Option retenue | Coût si tu choisis l'autre | Fichier à changer |
+|---|---|---|---|---|
+| D1 | Liste de catégories : fournie par défaut ou entièrement libre ? | **Fournie par défaut** à la création du foyer, entièrement modifiable et supprimable. | Passer à « libre » = supprimer la liste initiale ; les opérations déjà catégorisées gardent leur catégorie. Réversible en un commit. | `backend/mycounts/domain/categories.py` |
+| D2 | Quelle paie ouvre le **tout premier** cycle quand `paies_par_cycle` > 1 ? | **La première paie saisie**, quelle qu'elle soit. Les cycles suivants se déduisent. | Passer à « l'utilisateur désigne la paie d'ancrage » = un écran de réglage en plus ; les périodes déjà calculées se recalculent. | `backend/mycounts/domain/periode.py` |
+| D3 | Les montants peuvent-ils être posés sur du verre, maintenant que la DA néon l'étend aux cartes ? | **Oui, mais sous condition mesurée** : tout texte sur verre ou dégradé doit passer un contraste AA (4,5:1), vérifié automatiquement dans les trois positions du réglage de transparence. La règle « jamais de montant sur du verre » du lot 1 est donc remplacée, pas abandonnée. | Revenir à des cartes opaques = plus sûr en lisibilité, mais on perd l'essentiel de l'effet demandé. | `frontend/src/design/tokens.ts`, `frontend/e2e/contraste.spec.ts` |
 
 ## Points ouverts
 
