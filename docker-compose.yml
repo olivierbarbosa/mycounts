@@ -1,0 +1,22 @@
+# PostgreSQL de développement. Les tests d'intégration tournent contre CE moteur —
+# jamais contre SQLite : un test qui passe sur un autre moteur que la production ne
+# prouve que sa cohérence avec lui-même.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mycounts
+      POSTGRES_PASSWORD: mycounts
+      POSTGRES_DB: mycounts
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mycounts"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:

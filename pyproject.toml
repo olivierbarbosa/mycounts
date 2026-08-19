@@ -1,0 +1,43 @@
+[project]
+name = "mycounts"
+version = "0.0.0"
+description = "Gestion de budget de foyer"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "mypy>=1.13",
+    "ruff>=0.8",
+]
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["backend", "scripts", "tests"]
+# Un `# type: ignore` nu est refusé : le garde-fou n°5 exige une justification écrite.
+enable_error_code = ["ignore-without-code", "redundant-expr"]
+warn_unused_ignores = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["backend", "."]

@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mycounts
+          POSTGRES_PASSWORD: mycounts
+          POSTGRES_DB: mycounts
+        ports: ["5434:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mycounts"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+
+    env:
+      MYCOUNTS_DATABASE_URL: postgresql+psycopg://mycounts:mycounts@localhost:5434/mycounts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # La liste des contrôles vit dans le Makefile et NULLE PART ailleurs. Recopier ici
+      # « ruff puis mypy puis les garde-fous » ferait diverger CI et poste local, et l'un
+      # des deux finirait par mentir.
+      - name: Installer
+        run: make installer
+
+      - name: Vérifier (lint, types, garde-fous, tests)
+        run: make verifier
+
+      - name: Tests d'intégration (PostgreSQL réel)
+        run: make tests-integration
