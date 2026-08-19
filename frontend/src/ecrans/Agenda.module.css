@@ -137,11 +137,13 @@
   height: 56px;
   border-radius: var(--rayon-pilule);
   border: none;
-  background: var(--couleur-accent);
+  background: var(--couleur-degrade-accent);
   color: var(--couleur-accent-contraste);
   font-size: 26px;
   line-height: 1;
-  box-shadow: 0 10px 28px var(--couleur-verre-bord-sombre);
+  box-shadow:
+    inset 0 0 0 1px var(--couleur-contour-clair),
+    0 10px 28px var(--couleur-verre-bord-sombre);
   z-index: 11;
 }
 

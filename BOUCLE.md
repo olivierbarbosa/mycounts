@@ -73,6 +73,11 @@ caractéristiques de direction artistique en ont été tirées.)*
 > enfaite l'idée de la navbar était bien l'effet qui était mal fait dessus et la couleur je
 > pense ça faisait pas assez prenium
 
+> Pars sur quelque chose de moins bleu pour la navbar qui ce fond mieux avec le background
+> de la page et pour les boutons il faudrait ajouter un contour + dégradé
+
+> essaye cette palette de couleur : #FFF4BF #FFBEFB #DC95FF #8C56D4
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -96,6 +101,9 @@ caractéristiques de direction artistique en ont été tirées.)*
 | « utilise la palette Stripe » | Palette reprise telle quelle : `#635bff` primaire, `#0a2540` fond sombre, `#f6f9fc` surface claire, `#00d4ff` accent. Le fond passe du violet au **bleu nuit**. Contrainte inchangée : le contraste AA arbitre — `#635bff` sur blanc donne 4,68:1, il passe de justesse et devient donc la limite basse ; `#00d4ff` ne portera jamais de texte, il reste aux lueurs et aux liserés. |
 | « c'est bug les catégories » | Deux causes distinctes : (1) le `<select>` natif ouvre sa liste avec le thème CLAIR du système sur un fond sombre — illisible ; (2) les catégories affichées étaient des restes de mes tests, antérieurs à l'isolation de la base de démonstration. Les deux sont corrigées. |
 | « la navbar : l'idée était bonne, l'effet et la couleur pas assez premium » | Le rail plein hauteur est **conservé**. Ce qui change : verre nettement plus discret (le bloc était un aplat bleu sans profondeur), liseré fin et lumineux plutôt qu'une bordure épaisse, espacement plus généreux, item actif marqué par un fond translucide et un indicateur latéral au lieu d'un aplat plein. Le premium vient de la retenue, pas de l'intensité. |
+| « navbar moins bleue, qui se fond avec le fond » | Le bleu ne venait pas de la teinte du verre (elle est blanche) mais de la **saturation** du `backdrop-filter` : à 190 %, il ravivait le bleu du fond au lieu de le laisser passer. Le rail descend à 105 % et sa teinte à un tiers — il se fond au lieu de se détacher. |
+| « boutons : contour + dégradé » | Deux tokens ajoutés, auteurs uniques : `--degrade-accent` (dégradé vertical subtil) et `--contour-clair` (liseré interne d'un pixel). Le contour est **interne** (`inset`) : un contour externe agrandirait la cible et casserait l'alignement des rangées de boutons. |
+| « essaye cette palette : #FFF4BF #FFBEFB #DC95FF #8C56D4 » | Palette lavande appliquée. Mesure faite avant de coder : `#8C56D4` donne **4,53:1** avec du blanc — il passe le seuil AA de justesse et devient donc le seul des quatre à pouvoir porter du texte clair. Les trois autres (crème, rose, mauve clair) sont trop lumineux : ils vont aux lueurs, aux liserés et aux pastilles de catégorie, jamais à un libellé sur fond coloré. |
 | « un vrai calendrier avec les logos des abonnements et la fréquence » | L'agenda passe d'une liste à une **grille mensuelle**. Chaque échéance porte une pastille de marque et sa fréquence en toutes lettres (« tous les mois », « tous les ans »). Les logos viennent d'une bibliothèque locale, sans appel réseau : récupérer un favicon en ligne enverrait à un tiers la liste de tes abonnements. |
 | « surtout prévu pour mobile & tablette » | Mobile-first strict : `min-width` uniquement, tab bar basse, safe areas, cibles ≥ 44 px. |
 

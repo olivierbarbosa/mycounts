@@ -63,7 +63,8 @@
 
 .onglet[aria-current='page'] {
   color: var(--couleur-accent-contraste);
-  background: var(--couleur-accent);
+  background: var(--couleur-degrade-accent);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
 }
 
 .icone {
@@ -104,15 +105,16 @@
     padding: var(--espace-xxl) var(--espace-l);
     border-radius: 0;
 
-    /* Verre discret : la teinte descend, le flou monte. Un panneau latéral qui se
-       remarque plus que le contenu a raté son travail. */
+    /* Verre discret. Le rail paraissait plus bleu que la page : la cause n'était pas la
+       teinte du verre — elle est blanche — mais la SATURATION du filtre. À 190 %, il
+       ravivait le bleu du fond au lieu de le laisser passer. À 105 %, le rail se fond. */
     background: color-mix(
       in srgb,
-      var(--couleur-verre-teinte) calc(var(--verre-opacite) * 55%),
+      var(--couleur-verre-teinte) calc(var(--verre-opacite) * 32%),
       transparent
     );
-    backdrop-filter: blur(40px) saturate(var(--verre-saturation));
-    -webkit-backdrop-filter: blur(40px) saturate(var(--verre-saturation));
+    backdrop-filter: blur(44px) saturate(105%);
+    -webkit-backdrop-filter: blur(44px) saturate(105%);
 
     /* Un seul liseré, à droite, d'un pixel : il sépare sans encadrer. L'ombre portée
        reste large et très douce — elle donne la profondeur sans dessiner de contour. */

@@ -696,3 +696,36 @@ consommateur n'a jamais besoin de contredire ce qu'elle déclare. Quand ce besoi
 la solution n'est pas d'augmenter la spécificité : c'est de déplacer la déclaration chez
 celui qui décide. Deuxième occurrence — la première correction avait traité le cas, pas
 la cause.
+
+---
+
+## 021 — Ma sonde de contraste, trompée une troisième fois
+
+**Zone** : `frontend/e2e/contraste.spec.ts`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Qu'après avoir corrigé la lecture de `color(srgb …)` (#011), la sonde
+lisait correctement le fond de n'importe quel élément.
+
+**Ce que j'ai mesuré.** En passant les boutons à un dégradé, elle a annoncé **1,02:1** sur
+« Saisir une dépense » — un bouton violet à texte blanc, parfaitement lisible.
+`getComputedStyle().backgroundColor` vaut `rgba(0,0,0,0)` quand le fond est un
+`linear-gradient` : la sonde remontait alors au parent et concluait « blanc sur blanc ».
+
+**La deuxième erreur, dans ma correction.** J'ai d'abord extrait les arrêts du dégradé et
+retenu le **pire rapport parmi tous les candidats**, fond composé inclus. Résultat
+inchangé : 1,02. Le fond composé étant faux quand un dégradé le recouvre, et la règle du
+pire cas retenant systématiquement le plus mauvais, mon candidat erroné gagnait toujours.
+*Un candidat faux n'est pas un pire cas, c'est du bruit.* Quand un dégradé est présent, ce
+sont ses arrêts, et eux seuls, qui font foi.
+
+**Ce que la sonde corrigée a alors trouvé.** Un vrai défaut : mon dégradé partait de
+`#7A73FF` en haut, plus clair que le primaire, ce qui donnait **3,67:1** — sous le seuil.
+L'arrêt le plus clair a été ramené au primaire lui-même, dont les 4,68:1 constituent déjà
+la limite basse.
+
+**Généralisation.** Une sonde qui mesure le monde à travers une API a un domaine de
+validité, et il faut le connaître : `backgroundColor` ne décrit qu'une couleur unie. Trois
+fois de suite, ce sont ses angles morts qui m'ont trompé — jamais le code mesuré. Et une
+règle d'agrégation comme « prendre le pire » n'est saine que si tous les candidats sont
+valides.

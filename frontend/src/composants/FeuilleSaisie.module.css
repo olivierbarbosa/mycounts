@@ -85,8 +85,13 @@
 }
 
 .sens[aria-pressed='true'] {
-  background: var(--couleur-accent);
+  background: var(--couleur-degrade-accent);
   color: var(--couleur-accent-contraste);
+  /* Contour interne d'un pixel : il détache le bouton du fond sans agrandir la cible.
+     Le dégradé donne le volume, le liseré donne l'arête. */
+  box-shadow:
+    inset 0 0 0 1px var(--couleur-contour-clair),
+    0 1px 2px var(--couleur-contour-sombre);
   border-color: transparent;
 }
 
@@ -108,8 +113,7 @@
 }
 
 .valider:hover:not(:disabled) {
-  background: var(--couleur-accent-clair);
-  color: var(--couleur-fond);
+  background: var(--couleur-degrade-accent-survol);
 }
 
 .valider:disabled {

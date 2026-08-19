@@ -62,6 +62,22 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
   const luminance = ([r, v, b]: number[]) =>
     0.2126 * canal(r / 255) + 0.7152 * canal(v / 255) + 0.0722 * canal(b / 255);
 
+  /** Couleurs d'arrêt d'un dégradé, s'il y en a un.
+   *
+   *  `getComputedStyle().backgroundColor` vaut `rgba(0,0,0,0)` quand le fond est un
+   *  `linear-gradient` : la sonde composait alors sur le parent et annonçait 1,02:1 sur
+   *  des boutons parfaitement lisibles. On extrait donc les arrêts pour tester le PIRE
+   *  d'entre eux. Voir ERREURS.md #021. */
+  const arretsDeDegrade = (element: Element): [number, number, number][] => {
+    const image = getComputedStyle(element).backgroundImage;
+    if (!image || image === "none") return [];
+    const trouves = image.match(/(?:rgba?|color)\([^)]+\)/g) ?? [];
+    return trouves
+      .map(lire)
+      .filter(([, , , a]) => a > 0)
+      .map(([r, v, b]) => [r, v, b] as [number, number, number]);
+  };
+
   /** Compose les calques translucides jusqu'à trouver un fond opaque. */
   const fondEffectif = (element: Element): [number, number, number] => {
     const calques: [number, number, number, number][] = [];
@@ -96,17 +112,30 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
     if (style.visibility === "hidden" || style.opacity === "0") continue;
 
     const [tr, tv, tb, ta] = lire(style.color);
-    const [fr, fv, fb] = fondEffectif(element);
-    // Un texte lui-même translucide se compose sur son fond avant comparaison.
-    const avant = [
-      tr * ta + fr * (1 - ta),
-      tv * ta + fv * (1 - ta),
-      tb * ta + fb * (1 - ta),
-    ];
 
-    const l1 = luminance(avant);
-    const l2 = luminance([fr, fv, fb]);
-    const rapport = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    // Fonds candidats. Quand un dégradé recouvre l'élément, ce sont SES arrêts qui font
+    // foi : y ajouter le fond composé introduirait un candidat faux, et comme on retient
+    // le pire rapport, ce faux candidat gagnerait toujours. Un candidat erroné n'est pas
+    // un pire cas, c'est du bruit.
+    const arrets = arretsDeDegrade(element);
+    const candidats: [number, number, number][] =
+      arrets.length > 0 ? arrets : [fondEffectif(element)];
+
+    let rapport = Number.POSITIVE_INFINITY;
+    for (const [fr, fv, fb] of candidats) {
+      // Un texte lui-même translucide se compose sur son fond avant comparaison.
+      const avant = [
+        tr * ta + fr * (1 - ta),
+        tv * ta + fv * (1 - ta),
+        tb * ta + fb * (1 - ta),
+      ];
+      const l1 = luminance(avant);
+      const l2 = luminance([fr, fv, fb]);
+      rapport = Math.min(
+        rapport,
+        (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05),
+      );
+    }
 
     const taille = Number.parseFloat(style.fontSize);
     const gras = Number.parseInt(style.fontWeight, 10) >= 700;
