@@ -8,6 +8,7 @@ reste du projet — une date civile ne bouge pas, un montant en centimes revient
 from __future__ import annotations
 
 import datetime as dt
+import os
 
 import pytest
 from mycounts.config import charger_configuration
@@ -22,7 +23,13 @@ def moteur() -> Engine:
         with moteur.connect() as connexion:
             connexion.execute(text("select 1"))
     except Exception as erreur:  # noqa: BLE001 — on veut un message actionnable
-        pytest.skip(f"PostgreSQL indisponible ({erreur.__class__.__name__}) — « make db-haut »")
+        message = f"PostgreSQL indisponible ({erreur.__class__.__name__})"
+        if os.environ.get("CI"):
+            # En intégration continue, un skip serait un mensonge : le job resterait
+            # VERT sans qu'aucun de ces tests n'ait tourné. Le seul moment où « tout va
+            # bien » doit s'afficher est celui où les tests ont réellement été exécutés.
+            pytest.fail(f"{message} — la CI doit fournir une base, pas ignorer les tests")
+        pytest.skip(f"{message} — lancer « make db-haut »")
     return moteur
 
 

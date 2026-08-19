@@ -115,3 +115,34 @@ concernées — un témoin qui casse si le contrôle cesse de distinguer quoi qu
 affirmation testable. Tant qu'elle n'a pas été exécutée, c'est une croyance — et elle sera
 lue comme une preuve par le prochain qui passe. Même forme que #001 et #002 : *une
 vérification qui ne consulte que sa propre source*.
+
+---
+
+## 004 — Un fixture qui aurait rendu la CI verte sans exécuter un seul test
+
+**Zone** : `tests/integration/test_socle_base.py`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que le premier passage de la CI, affiché « success » en 57 s,
+prouvait que les 7 tests d'intégration avaient tourné contre PostgreSQL.
+
+**Ce que j'ai mesuré.** J'ai lu les logs au lieu du statut. Ce coup-ci les tests avaient
+bien tourné (`7 passed`, pas `7 skipped`). Mais en les lisant j'ai vu le défaut : mon
+fixture appelait `pytest.skip()` quand la base est injoignable. Le jour où le service
+PostgreSQL tombe en CI, les 7 tests seraient **skippés** et le job resterait **vert** —
+sur les seuls tests qui touchent le chemin de production.
+
+**Pourquoi ça ne prouvait rien.** Un `skip` est indiscernable d'un `pass` dans le statut
+d'un job. La mesure « la CI est verte » ne pouvait pas rendre la réponse inverse : elle
+serait verte avec les tests exécutés comme avec les tests ignorés. C'est un cas
+particulièrement traître parce que le signal se dégrade **en silence et plus tard**, pas
+au moment où on l'écrit.
+
+**Le contrôle qui aurait tranché — et qui est maintenant en place.** Hors CI, la base
+absente reste un `skip` (le poste local n'a pas toujours Docker démarré). Sous `CI=1`,
+c'est un `fail`. Les deux branches ont été exécutées : 7 skipped en local, 7 errors sous
+`CI=true`.
+
+**Généralisation.** Un statut agrégé n'est pas une mesure. Il faut toujours vérifier
+qu'un nombre a bougé — ici « combien de tests ont réellement tourné » — et non qu'un
+voyant est vert. Même forme que #001 à #003, appliquée à l'outillage plutôt qu'au code.
