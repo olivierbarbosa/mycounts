@@ -1,13 +1,13 @@
-"""Application FastAPI.
-
-Au lot 0 elle n'expose qu'un contrôle de vie : il n'existe encore aucune donnée métier.
-"""
+"""Application FastAPI."""
 
 from __future__ import annotations
 
 from fastapi import FastAPI
 
+from mycounts.api.auth import routeur as routeur_auth
+
 app = FastAPI(title="mycounts", version="0.0.0")
+app.include_router(routeur_auth)
 
 
 @app.get("/health")

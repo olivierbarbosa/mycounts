@@ -146,3 +146,39 @@ c'est un `fail`. Les deux branches ont été exécutées : 7 skipped en local, 7
 **Généralisation.** Un statut agrégé n'est pas une mesure. Il faut toujours vérifier
 qu'un nombre a bougé — ici « combien de tests ont réellement tourné » — et non qu'un
 voyant est vert. Même forme que #001 à #003, appliquée à l'outillage plutôt qu'au code.
+
+---
+
+## 005 — Un test d'isolation qui itérait sur une liste vide
+
+**Zone** : `tests/integration/test_isolation.py`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Qu'itérer sur `app.routes` énumérait toutes les routes de
+l'application, et donc que « chaque route privée exige une session » était vérifié pour
+l'ensemble de l'API.
+
+**Ce que j'ai mesuré.** `app.routes` ne contient que `/health`, `/docs`, `/redoc` et
+`/openapi.json`. Les six routes de `/auth` vivent dans un objet intermédiaire
+(`_IncludedRouter`) que FastAPI n'aplatit pas. Mon énumération renvoyait donc **une liste
+vide** de routes privées : la boucle de vérification ne s'exécutait pas une seule fois,
+et le test passait au vert sur les routes qui portent toute l'authentification.
+
+**Pourquoi ça ne prouvait rien.** Une boucle `for … assert` sur une collection vide
+réussit toujours. C'est le mode d'échec propre aux tests qui itèrent : ils ne mesurent
+rien quand la collection est mal construite, et ils affichent la même chose que quand
+tout va bien.
+
+**Le contrôle qui a tranché — et il était déjà en place.** Le test-témoin
+`test_il_existe_bien_des_routes_privees` a échoué immédiatement. Il a été écrit *pour*
+ça, et c'est la première fois du projet qu'un témoin attrape une erreur avant moi. Il a
+été renforcé depuis : il exige maintenant la présence nommée de trois routes connues, pas
+seulement une liste non vide.
+
+**Correction.** L'énumération part désormais du schéma OpenAPI (`app.openapi()["paths"]`)
+plutôt que des attributs internes de FastAPI : c'est le contrat public, il liste
+exactement ce qui est joignable, et il ne cassera pas à la prochaine montée de version.
+
+**Généralisation.** Tout test qui boucle sur une collection doit d'abord prouver que la
+collection n'est pas vide — et, mieux, qu'elle contient des éléments attendus nommément.
+Sinon la mesure ne peut pas rendre la réponse inverse. Même forme que #001 à #004.

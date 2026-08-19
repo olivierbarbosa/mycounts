@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from alembic import context
 from mycounts.config import charger_configuration
+from mycounts.models.auth import Foyer, Invitation, SessionWeb, Utilisateur  # noqa: F401
 from mycounts.models.base import Base
 from sqlalchemy import engine_from_config, pool
 

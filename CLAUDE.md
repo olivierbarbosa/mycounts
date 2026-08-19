@@ -8,10 +8,11 @@ fichier se corrige dans le même commit. Toute ligne ici doit pointer vers un fi
 existant : une ligne sans fichier est une intention, sa place est dans le plan ou dans
 `BOUCLE.md`.
 
-## État : lot 0 (socle) terminé
+## État : lot 1 en cours — backend d'authentification terminé, aucun écran
 
-Il n'existe **aucune table métier, aucune migration, aucune authentification, aucun
-écran**. Ce qui existe : les primitives de domaine, les garde-fous et l'outillage.
+Existe : primitives de domaine, garde-fous, outillage, et l'authentification complète
+(foyer, utilisateur, invitation, session). **Aucun frontend, aucune table métier**
+(compte bancaire, opération, catégorie, plafond) : ils arrivent au lot 2.
 
 ## Stack
 
@@ -22,6 +23,7 @@ Python 3.12 · FastAPI · PostgreSQL 16 · SQLAlchemy 2 · Alembic. Frontend Rea
 
 ```bash
 make installer          # venv + dépendances
+.venv/bin/alembic upgrade head   # applique les migrations
 make db-haut            # PostgreSQL sur le port 5434 (5433 est pris par un autre projet)
 make verifier           # lint + types + garde-fous + tests unitaires
 make tests-integration  # tests contre le vrai PostgreSQL
@@ -38,8 +40,14 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   du fuseau de session du serveur (mesuré, voir `tests/integration/test_socle_base.py`).
 - **`bornes_du_mois()` est le mois CIVIL**, pas la période budgétaire. La période du foyer
   ira de paie à paie (lot 2). Ne pas confondre les deux.
-- **Toute requête passera par `backend/mycounts/repository/`** — `scripts/verifier_scope_repository.py`
-  refuse déjà tout `select`/`execute` écrit ailleurs dans `backend/mycounts/`.
+- **Toute requête passe par `backend/mycounts/repository/`** — `scripts/verifier_scope_repository.py`
+  refuse tout `select`/`execute` écrit ailleurs dans `backend/mycounts/`. Chaque lecture
+  de données de foyer prend un `Principal` : le périmètre n'est jamais implicite.
+- **Aucune inscription publique.** Premier compte par `scripts/creer_premier_compte.py`,
+  les autres par code d'invitation (haché, usage unique, 7 jours).
+- **Session en cookie `httponly` + `samesite=lax`**, jamais en `localStorage`. Une adresse
+  inconnue et un mot de passe faux produisent la même réponse ET le même temps de réponse
+  (empreinte-leurre Argon2 — sans elle, l'écart mesuré est de 12,5×).
 
 ## Garde-fous actifs
 
