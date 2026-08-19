@@ -21,8 +21,16 @@ body {
   /* Deux halos radiaux par-dessus le dégradé de base. Fixes : sans cela, le verre
      laisserait voir une bande de couleur glisser derrière lui à chaque défilement. */
   background-image:
-    radial-gradient(120% 70% at 15% -10%, var(--couleur-halo-haut) 0%, transparent 60%),
-    radial-gradient(100% 60% at 90% 110%, var(--couleur-halo-bas) 0%, transparent 65%),
+    radial-gradient(
+      120% 70% at 15% -10%,
+      var(--couleur-halo-haut) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      100% 60% at 90% 110%,
+      var(--couleur-halo-bas) 0%,
+      transparent 65%
+    ),
     linear-gradient(
       175deg,
       var(--couleur-fond-haut) 0%,
@@ -36,6 +44,42 @@ body {
   -webkit-font-smoothing: antialiased;
   /* Le corps ne défile jamais horizontalement — vérifié par le garde-fou n°10. */
   overflow-x: hidden;
+}
+
+/* Grain du fond.
+   Bruit achromatique généré par le filtre SVG ci-dessous : aucune couleur n'y figure,
+   donc le garde-fou nº 9 tient toujours. tokens.ts reste seul auteur de la palette et ne
+   règle ici que l'intensité, qui diffère par thème.
+
+   Posé en pseudo-élément fixe plutôt qu'en quatrième couche de `background-image` : la
+   force du grain est un token, et une couche de `background-image` ne peut pas porter sa
+   propre opacité. `position: fixed` le sort du flux et `pointer-events: none` le rend
+   traversable, il ne touche donc à la disposition d'aucun élément, contrairement à ce que
+   la classe Verre a fait deux fois (ERREURS #008 et #020).
+
+   `mix-blend-mode: overlay` est ce qui rend le grain gratuit pour le contraste : le gris
+   moyen du bruit y est neutre, donc la luminance moyenne du fond ne bouge pas. Sans lui,
+   une nappe de gris à 5 % éclaircirait le fond sombre et abaisserait tous les rapports de
+   contraste mesurés. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--texture-grain-opacite);
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='grain'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='200' height='200' filter='url%28%23grain%29'/></svg>");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+/* Le grain est une texture, pas une information : il disparait quand le systeme demande
+   moins d'effets, ou il ne serait qu'un bruit visuel de plus. */
+@media (prefers-reduced-transparency: reduce) {
+  body::after {
+    display: none;
+  }
 }
 
 button,
@@ -64,8 +108,8 @@ select option {
 /* Toute cible tactile atteint la taille minimale des Human Interface Guidelines.
    Sur mobile, un bouton plus petit se rate une fois sur trois. */
 button,
-a[role='button'],
-input[type='submit'] {
+a[role="button"],
+input[type="submit"] {
   min-height: var(--cible-tactile);
   min-width: var(--cible-tactile);
   cursor: pointer;
@@ -75,8 +119,8 @@ input[type='submit'] {
 /* Retour visuel à l'appui. Sur mobile, sans lui, on ne sait pas si le geste a été pris
    avant que le réseau réponde — et on appuie deux fois. */
 button:active,
-a[role='button']:active,
-input[type='submit']:active {
+a[role="button"]:active,
+input[type="submit"]:active {
   /* 0.96 exactement : en dessous de 0.95 le geste paraît exagéré, au-dessus il ne se
      perçoit plus. Valeur reprise de la skill « better-ui ». */
   transform: scale(0.96);
