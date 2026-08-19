@@ -78,15 +78,44 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
       .map(([r, v, b]) => [r, v, b] as [number, number, number]);
   };
 
-  /** Compose les calques translucides jusqu'à trouver un fond opaque. */
-  const fondEffectif = (element: Element): [number, number, number] => {
+  /** Arrêts translucides du halo dérivant, lus sur le pseudo-élément qui le porte.
+   *
+   *  Sans cette lecture, le halo échappe entièrement a la sonde : il vit dans un
+   *  `background-image`, or la remontée des ancêtres ci-dessous ne lit que des
+   *  `backgroundColor`. La sonde mesurait donc le fond nu et se déclarait verte pendant
+   *  que le halo éclaircissait réellement le fond sous les textes. */
+  const calquesDuHalo = (): [number, number, number, number][] => {
+    const image = getComputedStyle(document.body, "::before").backgroundImage;
+    if (!image || image === "none") return [];
+    return (image.match(/(?:rgba?|color)\([^)]+\)/g) ?? [])
+      .map(lire)
+      .filter(([, , , a]) => a > 0);
+  };
+
+  /** Compose les calques translucides jusqu'à trouver un fond opaque.
+   *
+   *  `halo` s'intercale juste au-dessus du corps de page, là où il se trouve réellement :
+   *  au-dessus du fond, sous le verre. */
+  const fondEffectif = (
+    element: Element,
+    halo: [number, number, number, number] | null,
+  ): [number, number, number] => {
     const calques: [number, number, number, number][] = [];
     let courant: Element | null = element;
+    let opaque: Element | null = null;
     while (courant) {
       const [r, v, b, a] = lire(getComputedStyle(courant).backgroundColor);
-      if (a > 0) calques.push([r, v, b, a]);
+      if (a > 0) {
+        calques.push([r, v, b, a]);
+        opaque = courant;
+      }
       if (a >= 1) break;
       courant = courant.parentElement;
+    }
+    // Le halo ne compte que si l'opacité s'arrête sur le corps de page. Dès qu'une carte
+    // opaque s'interpose, il passe derriere elle et n'éclaire plus rien.
+    if (halo && opaque === document.body && calques.length > 0) {
+      calques.splice(calques.length - 1, 0, halo);
     }
     // Fond ultime du navigateur si aucun calque opaque n'est trouvé.
     let [r, v, b] = [255, 255, 255];
@@ -117,9 +146,21 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
     // foi : y ajouter le fond composé introduirait un candidat faux, et comme on retient
     // le pire rapport, ce faux candidat gagnerait toujours. Un candidat erroné n'est pas
     // un pire cas, c'est du bruit.
+    //
+    // Au fond nu s'ajoute une variante par teinte du halo. Ce n'est pas le faux candidat
+    // de #021, et la différence se mesure au lieu de s'argumenter : les halos parcourent
+    // 100 % de la largeur de l'écran et 90 % de sa hauteur — trajet relevé sur 390 px.
+    // Tout texte passe donc réellement sous leur pic au cours du cycle, et ce candidat est
+    // un vrai pire cas. Mesurer le fond immobile ne prouverait plus rien : la sonde lit un
+    // instant, le fond, lui, bouge.
     const arrets = arretsDeDegrade(element);
     const candidats: [number, number, number][] =
-      arrets.length > 0 ? arrets : [fondEffectif(element)];
+      arrets.length > 0
+        ? arrets
+        : [
+            fondEffectif(element, null),
+            ...calquesDuHalo().map((halo) => fondEffectif(element, halo)),
+          ];
 
     let rapport = Number.POSITIVE_INFINITY;
     for (const [fr, fv, fb] of candidats) {

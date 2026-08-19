@@ -18,25 +18,15 @@ body {
   /* Dégradé fixe : il ne défile pas avec le contenu, sinon le verre laisserait voir une
      bande de couleur glisser derrière lui à chaque scroll. */
   background: var(--couleur-fond);
-  /* Deux halos radiaux par-dessus le dégradé de base. Fixes : sans cela, le verre
-     laisserait voir une bande de couleur glisser derrière lui à chaque défilement. */
-  background-image:
-    radial-gradient(
-      120% 70% at 15% -10%,
-      var(--couleur-halo-haut) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      100% 60% at 90% 110%,
-      var(--couleur-halo-bas) 0%,
-      transparent 65%
-    ),
-    linear-gradient(
-      175deg,
-      var(--couleur-fond-haut) 0%,
-      var(--couleur-fond) 45%,
-      var(--couleur-fond-bas) 100%
-    );
+  /* Les deux halos radiaux ont quitté cette pile pour `body::before`, où ils dérivent :
+     une couche de `background-image` ne peut pas être animée par `transform`, et animer
+     `background-position` repeindrait le fond à chaque image sous du verre flouté. */
+  background-image: linear-gradient(
+    175deg,
+    var(--couleur-fond-haut) 0%,
+    var(--couleur-fond) 45%,
+    var(--couleur-fond-bas) 100%
+  );
   background-attachment: fixed;
   color: var(--couleur-texte);
   font-family: var(--typo-famille-texte);
@@ -44,6 +34,78 @@ body {
   -webkit-font-smoothing: antialiased;
   /* Le corps ne défile jamais horizontalement — vérifié par le garde-fou n°10. */
   overflow-x: hidden;
+}
+
+/* Halos voyageurs.
+   Deux nappes radiales qui traversent lentement la page au lieu de rester campées dans
+   leurs coins. Sorties du `background-image` de `body` : seule une boîte peut porter un
+   `transform`, et c'est le `transform` qui rend le voyage gratuit — le compositeur le joue
+   sans repeindre, ce qui compte double ici, chaque repeinte du fond obligeant le verre
+   au-dessus à refaire son flou.
+
+   `transform` est aussi le SEUL canal animé, et pour une raison qui n'est pas esthétique :
+   translater, tourner et agrandir déplacent le halo sans créer une seule couleur nouvelle.
+   L'ensemble des teintes qu'il peut poser sous un texte reste exactement ses arrêts de
+   dégradé — ceux que `e2e/contraste.spec.ts` mesure. Animer son opacité au-delà de 1 les
+   dépasserait, et la mesure ne vaudrait plus rien.
+
+   La boîte déborde de 75 % de chaque côté pour que les halos aient où voyager. Les
+   dégradés sont donc exprimés dans SES proportions, pas dans celles de l'écran : la
+   fenêtre n'occupe que les 40 % centraux de la boîte, d'où le facteur 0,4 sur chaque
+   dimension et chaque position. Au repos, les deux halos retombent exactement là où ils
+   étaient quand ils vivaient dans le fond de `body`. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -75%;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      48% 28% at 36% 26%,
+      var(--couleur-halo-haut) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      40% 24% at 66% 74%,
+      var(--couleur-halo-bas) 0%,
+      transparent 65%
+    );
+  animation: voyage-des-halos 78s ease-in-out infinite;
+}
+
+/* Un circuit fermé — la dernière image est la première — plutôt qu'un aller-retour : un
+   `alternate` rejoue le trajet à l'envers, et l'œil finit par reconnaître le va-et-vient.
+   Chaque étape déplace la boîte de plus ou moins 22 % de sa propre taille, soit plus d'une
+   demi-largeur d'écran : c'est la page entière que les halos balaient.
+
+   La rotation ajoute ce qu'une simple translation ne peut pas donner : les deux halos
+   occupant des coins opposés, elle les envoie dans des directions contraires, et le fond
+   cesse de coulisser en bloc. */
+@keyframes voyage-des-halos {
+  0% {
+    transform: translate3d(-18%, -12%, 0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate3d(20%, -16%, 0) rotate(5deg) scale(1.1);
+  }
+  50% {
+    transform: translate3d(22%, 18%, 0) rotate(10deg) scale(1.04);
+  }
+  75% {
+    transform: translate3d(-16%, 20%, 0) rotate(4deg) scale(1.12);
+  }
+  100% {
+    transform: translate3d(-18%, -12%, 0) rotate(0deg) scale(1);
+  }
+}
+
+/* Un fond qui voyage est de l'ambiance, jamais de l'information : il s'arrête net quand le
+   système demande moins de mouvement, et les halos gardent leur position de départ. */
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
 }
 
 /* Grain du fond.
