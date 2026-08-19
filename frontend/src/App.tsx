@@ -76,6 +76,7 @@ export function App() {
         <Reglages
           utilisateur={utilisateur}
           categories={categories}
+          surChangement={apresEcriture}
           surDeconnexion={() => {
             setUtilisateur(null)
             setComptes([])

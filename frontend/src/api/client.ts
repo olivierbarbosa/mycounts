@@ -97,6 +97,18 @@ export const api = {
       body: JSON.stringify({ nom, nature, teinte }),
     }),
 
+  modifierCategorie: (
+    id: string,
+    modifications: { nom?: string; teinte?: TeinteCategorie; archivee?: boolean },
+  ) =>
+    appeler<CategoriePublique>(`/categories/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(modifications),
+    }),
+
+  supprimerCategorie: (id: string) =>
+    appeler<void>(`/categories/${id}`, { method: 'DELETE' }),
+
   operations: () => appeler<OperationPublique[]>('/operations'),
 
   creerOperation: (saisie: SaisieOperation) =>

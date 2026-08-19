@@ -3,15 +3,17 @@ import { useState } from 'react'
 import type { CategoriePublique, UtilisateurPublic } from '../api/client'
 import { api } from '../api/client'
 import { ReglageTransparence } from '../composants/ReglageTransparence'
+import { Categories } from './Categories'
 import styles from './Reglages.module.css'
 
 type Props = {
   readonly utilisateur: UtilisateurPublic
   readonly categories: readonly CategoriePublique[]
+  readonly surChangement: () => void
   readonly surDeconnexion: () => void
 }
 
-export function Reglages({ utilisateur, categories, surDeconnexion }: Props) {
+export function Reglages({ utilisateur, categories, surChangement, surDeconnexion }: Props) {
   const [code, setCode] = useState<string | null>(null)
 
   async function inviter() {
@@ -34,16 +36,8 @@ export function Reglages({ utilisateur, categories, surDeconnexion }: Props) {
       </section>
 
       <section className={styles.carte}>
-        <span className={styles.libelleCarte}>
-          Catégories ({categories.length})
-        </span>
-        <ul className={styles.listeCategories}>
-          {categories.map((categorie) => (
-            <li key={categorie.id} className={styles.categorie}>
-              {categorie.nom}
-            </li>
-          ))}
-        </ul>
+        <span className={styles.libelleCarte}>Catégories ({categories.length})</span>
+        <Categories categories={categories} surChangement={surChangement} />
       </section>
 
       <section className={styles.carte}>

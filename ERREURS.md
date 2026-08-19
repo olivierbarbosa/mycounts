@@ -558,3 +558,40 @@ navigation.
 entre le rendu et la mesure ne teste pas ce qu'il annonce. La seconde, plus utile : tout
 contrôle qui parcourt une collection doit vérifier qu'elle n'est pas vide — c'est la
 troisième fois que ce garde-fou paie, après #005 et #013.
+
+---
+
+## 017 — Un témoin qui testait le code d'avant
+
+**Zone** : méthode de vérification des témoins backend via Playwright.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Qu'en retirant la protection « refuser la suppression d'une catégorie
+utilisée » puis en relançant le test de bout en bout, je vérifiais que ce test la détecte.
+Il est passé au vert. J'ai failli en conclure que le témoin ne prouvait rien et récrire
+un test qui n'avait aucun problème.
+
+**Ce que j'ai mesuré.** Playwright est configuré avec `reuseExistingServer: true`, et
+uvicorn tourne **sans rechargement automatique**. Le serveur en mémoire exécutait donc
+toujours l'ancien code, protection incluse. Ma modification du fichier n'avait aucun effet
+sur ce qui répondait aux requêtes. Après redémarrage d'uvicorn, le test échoue comme
+attendu, et repasse au vert une fois la protection remise.
+
+**Pourquoi c'est la même erreur qu'avant.** Troisième variante de « la mesure porte sur le
+mauvais sujet », après #007 (le mauvais port, donc la mauvaise application) et #012 (le
+mauvais commit). Ici, c'est le mauvais **état du serveur** : le fichier sur le disque et le
+processus qui répond avaient divergé.
+
+**Ce que ça aurait coûté.** Le pire scénario n'était pas de perdre du temps : c'était de
+conclure qu'un bon test est inutile et de l'affaiblir. Un témoin déclaré inefficace à tort
+est supprimé, et la protection qu'il gardait s'en va au commit suivant.
+
+**Méthode corrigée.** Tout témoin qui modifie du code **serveur** exige un redémarrage
+d'uvicorn avant le test, et une vérification que le fichier est bien restauré après
+(`grep` sur la ligne retirée). Les témoins frontend, eux, profitent du rechargement à
+chaud de Vite et n'ont pas ce problème.
+
+**Incident annexe, du même tour.** Un `cd frontend` en milieu de commande a fait échouer
+la restauration du fichier : le `cp` de retour s'est exécuté depuis le mauvais répertoire
+et a silencieusement échoué. Le code est resté amputé de sa protection le temps de le
+remarquer. Vérifier la restauration, toujours — ne pas la supposer.
