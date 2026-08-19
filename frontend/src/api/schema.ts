@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/auth/connexion": {
+    "/api/auth/connexion": {
         parameters: {
             query?: never;
             header?: never;
@@ -20,14 +20,14 @@ export interface paths {
          *     La réponse est identique que l'adresse soit inconnue ou le mot de passe faux :
          *     distinguer les deux permettrait d'énumérer les comptes existants.
          */
-        post: operations["connexion_auth_connexion_post"];
+        post: operations["connexion_api_auth_connexion_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/auth/deconnexion": {
+    "/api/auth/deconnexion": {
         parameters: {
             query?: never;
             header?: never;
@@ -43,14 +43,14 @@ export interface paths {
          *     Effacer le seul cookie ne suffirait pas : le jeton resterait valable pour quiconque
          *     l'aurait intercepté.
          */
-        post: operations["deconnexion_auth_deconnexion_post"];
+        post: operations["deconnexion_api_auth_deconnexion_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/auth/invitations": {
+    "/api/auth/invitations": {
         parameters: {
             query?: never;
             header?: never;
@@ -65,14 +65,14 @@ export interface paths {
          *
          *     Le code en clair n'est renvoyé qu'ici. Seule son empreinte est stockée.
          */
-        post: operations["creer_invitation_auth_invitations_post"];
+        post: operations["creer_invitation_api_auth_invitations_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/auth/moi": {
+    "/api/auth/moi": {
         parameters: {
             query?: never;
             header?: never;
@@ -80,7 +80,7 @@ export interface paths {
             cookie?: never;
         };
         /** Moi */
-        get: operations["moi_auth_moi_get"];
+        get: operations["moi_api_auth_moi_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -89,7 +89,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/rejoindre": {
+    "/api/auth/rejoindre": {
         parameters: {
             query?: never;
             header?: never;
@@ -102,14 +102,14 @@ export interface paths {
          * Rejoindre
          * @description Crée un compte dans le foyer désigné par un code d'invitation valide.
          */
-        post: operations["rejoindre_auth_rejoindre_post"];
+        post: operations["rejoindre_api_auth_rejoindre_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/categories": {
+    "/api/categories": {
         parameters: {
             query?: never;
             header?: never;
@@ -117,17 +117,17 @@ export interface paths {
             cookie?: never;
         };
         /** Lister Categories */
-        get: operations["lister_categories_categories_get"];
+        get: operations["lister_categories_api_categories_get"];
         put?: never;
         /** Creer Categorie */
-        post: operations["creer_categorie_categories_post"];
+        post: operations["creer_categorie_api_categories_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/categories/{categorie_id}": {
+    "/api/categories/{categorie_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -144,14 +144,14 @@ export interface paths {
          *     Le message propose l'archivage : supprimer une catégorie utilisée changerait
          *     rétroactivement les totaux d'un mois déjà clos.
          */
-        delete: operations["supprimer_categorie_categories__categorie_id__delete"];
+        delete: operations["supprimer_categorie_api_categories__categorie_id__delete"];
         options?: never;
         head?: never;
         /** Modifier Categorie */
-        patch: operations["modifier_categorie_categories__categorie_id__patch"];
+        patch: operations["modifier_categorie_api_categories__categorie_id__patch"];
         trace?: never;
     };
-    "/comptes": {
+    "/api/comptes": {
         parameters: {
             query?: never;
             header?: never;
@@ -159,10 +159,52 @@ export interface paths {
             cookie?: never;
         };
         /** Lister Comptes */
-        get: operations["lister_comptes_comptes_get"];
+        get: operations["lister_comptes_api_comptes_get"];
         put?: never;
         /** Creer Compte */
-        post: operations["creer_compte_comptes_post"];
+        post: operations["creer_compte_api_comptes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Operations */
+        get: operations["lister_operations_api_operations_get"];
+        put?: never;
+        /**
+         * Creer Operation
+         * @description Saisit une opération.
+         *
+         *     Le compte et la catégorie sont revérifiés à travers le périmètre de l'appelant :
+         *     un identifiant valide chez quelqu'un d'autre doit être refusé exactement comme un
+         *     identifiant inexistant, sans distinction observable.
+         */
+        post: operations["creer_operation_api_operations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resume */
+        get: operations["resume_api_resume_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -178,48 +220,6 @@ export interface paths {
         };
         /** Health */
         get: operations["health_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/operations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lister Operations */
-        get: operations["lister_operations_operations_get"];
-        put?: never;
-        /**
-         * Creer Operation
-         * @description Saisit une opération.
-         *
-         *     Le compte et la catégorie sont revérifiés à travers le périmètre de l'appelant :
-         *     un identifiant valide chez quelqu'un d'autre doit être refusé exactement comme un
-         *     identifiant inexistant, sans distinction observable.
-         */
-        post: operations["creer_operation_operations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Resume */
-        get: operations["resume_resume_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -481,7 +481,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    connexion_auth_connexion_post: {
+    connexion_api_auth_connexion_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -514,7 +514,7 @@ export interface operations {
             };
         };
     };
-    deconnexion_auth_deconnexion_post: {
+    deconnexion_api_auth_deconnexion_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -543,7 +543,7 @@ export interface operations {
             };
         };
     };
-    creer_invitation_auth_invitations_post: {
+    creer_invitation_api_auth_invitations_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -574,7 +574,7 @@ export interface operations {
             };
         };
     };
-    moi_auth_moi_get: {
+    moi_api_auth_moi_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -605,7 +605,7 @@ export interface operations {
             };
         };
     };
-    rejoindre_auth_rejoindre_post: {
+    rejoindre_api_auth_rejoindre_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -638,7 +638,7 @@ export interface operations {
             };
         };
     };
-    lister_categories_categories_get: {
+    lister_categories_api_categories_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -669,7 +669,7 @@ export interface operations {
             };
         };
     };
-    creer_categorie_categories_post: {
+    creer_categorie_api_categories_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -704,7 +704,7 @@ export interface operations {
             };
         };
     };
-    supprimer_categorie_categories__categorie_id__delete: {
+    supprimer_categorie_api_categories__categorie_id__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -735,7 +735,7 @@ export interface operations {
             };
         };
     };
-    modifier_categorie_categories__categorie_id__patch: {
+    modifier_categorie_api_categories__categorie_id__patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -772,7 +772,7 @@ export interface operations {
             };
         };
     };
-    lister_comptes_comptes_get: {
+    lister_comptes_api_comptes_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -803,7 +803,7 @@ export interface operations {
             };
         };
     };
-    creer_compte_comptes_post: {
+    creer_compte_api_comptes_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -838,29 +838,7 @@ export interface operations {
             };
         };
     };
-    health_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-        };
-    };
-    lister_operations_operations_get: {
+    lister_operations_api_operations_get: {
         parameters: {
             query?: {
                 /** @description Restreindre à la période budgétaire en cours. */
@@ -894,7 +872,7 @@ export interface operations {
             };
         };
     };
-    creer_operation_operations_post: {
+    creer_operation_api_operations_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -929,7 +907,7 @@ export interface operations {
             };
         };
     };
-    resume_resume_get: {
+    resume_api_resume_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -956,6 +934,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    health_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
         };

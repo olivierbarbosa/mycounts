@@ -491,3 +491,37 @@ l'exactitude jusqu'à la limite des entiers sûrs, et l'existence de cette limit
 **Généralisation.** La leçon d'une erreur ne se transporte pas d'un langage à l'autre par
 la forme du test. Ce qui se transporte, c'est la question : *quelle implémentation fautive
 ce test rejette-t-il ?* — et il faut la reposer à chaque fois, en l'exécutant.
+
+---
+
+## 015 — La liste des chemins d'API, écrite deux fois
+
+**Zone** : `frontend/vite.config.ts`, `backend/mycounts/api/app.py`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que le proxy de développement était configuré une fois pour toutes.
+Je l'avais écrit en énumérant les préfixes servis par l'API : `['/auth', '/health']`.
+
+**Ce que j'ai mesuré.** Après avoir ajouté les routes du budget, l'écran restait bloqué
+sur la page de connexion malgré une authentification à 200. La cause : `/comptes` renvoyait
+le HTML de l'application au lieu du JSON. Le proxy ne connaissait pas ce chemin, et Vite,
+faute de règle, servait l'`index.html` — donc une réponse **200 valide**, simplement pas
+celle attendue.
+
+**Pourquoi la faute était inévitable.** Cette liste était une seconde source de vérité en
+face du routeur FastAPI. Rien ne les reliait : ajouter une route côté serveur ne pouvait
+pas mettre à jour le proxy, et aucun test ne comparait les deux. C'est l'anti-pattern
+n°3 — une donnée à deux auteurs — appliqué à de la configuration.
+
+**Le contrôle qui a tranché.** Le corps de la réponse, pas son code. Un 200 qui renvoie du
+HTML là où on attend du JSON est indiscernable d'un succès tant qu'on ne regarde que le
+statut. Même famille que #004 (un skip ressemble à un pass) et #012 (un vert pour le
+mauvais commit).
+
+**Correction.** Un préfixe `/api` unique côté serveur, une seule entrée dans le proxy. La
+liste disparaît, donc elle ne peut plus diverger. Corriger la liste aurait marché jusqu'à
+la prochaine route.
+
+**Généralisation.** Quand deux endroits doivent rester d'accord et que rien ne les y
+oblige, ils finiront par ne plus l'être. La bonne réponse est rarement de les
+resynchroniser : c'est de supprimer l'un des deux.

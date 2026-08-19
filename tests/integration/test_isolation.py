@@ -25,8 +25,8 @@ from tests.integration.test_api_auth import creer_compte
 # défaut : l'ajouter ici est un geste explicite, qui se voit en revue.
 ROUTES_PUBLIQUES = {
     ("/health", "GET"),
-    ("/auth/connexion", "POST"),
-    ("/auth/rejoindre", "POST"),
+    ("/api/auth/connexion", "POST"),
+    ("/api/auth/rejoindre", "POST"),
 }
 
 
@@ -58,8 +58,8 @@ def test_il_existe_bien_des_routes_privees() -> None:
     assert trouvees, "aucune route privée trouvée : l'énumération est cassée"
     # Les routes d'authentification connues doivent y figurer : une énumération qui ne
     # descendrait plus dans les routeurs inclus redeviendrait silencieusement vide.
-    for attendue in [("/auth/moi", "GET"), ("/auth/invitations", "POST"),
-                     ("/auth/deconnexion", "POST")]:
+    for attendue in [("/api/auth/moi", "GET"), ("/api/auth/invitations", "POST"),
+                     ("/api/auth/deconnexion", "POST")]:
         assert attendue in trouvees, f"{attendue} absente de l'énumération"
 
 

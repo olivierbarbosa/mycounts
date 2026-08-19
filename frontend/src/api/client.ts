@@ -9,6 +9,21 @@ import type { components } from './schema'
 
 export type UtilisateurPublic = components['schemas']['UtilisateurPublic']
 export type InvitationCreee = components['schemas']['InvitationCreee']
+export type ComptePublic = components['schemas']['ComptePublic']
+export type CategoriePublique = components['schemas']['CategoriePublique']
+export type OperationPublique = components['schemas']['OperationPublique']
+export type ResumePublic = components['schemas']['ResumePublic']
+export type NatureCategorie = components['schemas']['NatureCategorie']
+export type TeinteCategorie = components['schemas']['TeinteCategorie']
+
+export type SaisieOperation = {
+  compte_id: string
+  libelle: string
+  montant_centimes: number
+  date_operation: string
+  categorie_id?: string | null
+  est_paie?: boolean
+}
 
 /** Erreur portant le statut HTTP, pour distinguer « mauvais identifiants » du reste. */
 export class ErreurApi extends Error {
@@ -24,10 +39,13 @@ export class ErreurApi extends Error {
   }
 }
 
-/** L'API vit à la racine de la même origine que le front — pas de préfixe /api, donc
- *  pas de réécriture de chemin à maintenir des deux côtés. */
+/** Toute l'API vit sous /api, sur la même origine que le front. Un seul préfixe : le
+ *  proxy de développement n'a qu'une entrée à connaître, et aucune liste de chemins ne
+ *  peut diverger (ERREURS.md #015). */
+const BASE = '/api'
+
 async function appeler<T>(chemin: string, options: RequestInit = {}): Promise<T> {
-  const reponse = await fetch(chemin, {
+  const reponse = await fetch(`${BASE}${chemin}`, {
     ...options,
     // Indispensable : la session vit dans un cookie httpOnly, jamais en localStorage.
     credentials: 'include',
@@ -58,4 +76,34 @@ export const api = {
   moi: () => appeler<UtilisateurPublic>('/auth/moi'),
 
   creerInvitation: () => appeler<InvitationCreee>('/auth/invitations', { method: 'POST' }),
+
+  comptes: () => appeler<ComptePublic[]>('/comptes'),
+
+  creerCompte: (nom: string, soldeOuvertureCentimes: number) =>
+    appeler<ComptePublic>('/comptes', {
+      method: 'POST',
+      body: JSON.stringify({
+        nom,
+        prive: true,
+        solde_ouverture_centimes: soldeOuvertureCentimes,
+      }),
+    }),
+
+  categories: () => appeler<CategoriePublique[]>('/categories'),
+
+  creerCategorie: (nom: string, nature: NatureCategorie, teinte: TeinteCategorie) =>
+    appeler<CategoriePublique>('/categories', {
+      method: 'POST',
+      body: JSON.stringify({ nom, nature, teinte }),
+    }),
+
+  operations: () => appeler<OperationPublique[]>('/operations'),
+
+  creerOperation: (saisie: SaisieOperation) =>
+    appeler<OperationPublique>('/operations', {
+      method: 'POST',
+      body: JSON.stringify(saisie),
+    }),
+
+  resume: () => appeler<ResumePublic>('/resume'),
 }

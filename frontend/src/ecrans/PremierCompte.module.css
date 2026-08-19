@@ -1,0 +1,102 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--espace-xl);
+  padding: var(--espace-xl);
+  padding-top: calc(var(--espace-xl) + env(safe-area-inset-top, 0px));
+}
+
+.titre {
+  margin: 0;
+  font-family: var(--typo-famille-chiffres);
+  font-size: 30px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: -0.02em;
+}
+
+.explication {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-l);
+  padding: var(--espace-xl);
+  border-radius: var(--rayon-grand);
+  background: var(--couleur-surface);
+  backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  border: 1px solid var(--couleur-bordure);
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+.etiquette {
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+  color: var(--couleur-texte-attenue);
+}
+
+.saisie {
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: var(--espace-m) var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  font-size: 16px;
+}
+
+.saisie:focus {
+  border-color: var(--couleur-accent-clair);
+  box-shadow: 0 0 0 3px var(--couleur-lueur-accent);
+  outline: none;
+}
+
+.bouton {
+  min-height: var(--cible-tactile);
+  padding: var(--espace-m) var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-contraste);
+  font-size: 16px;
+  font-weight: var(--typo-gras-fort);
+  box-shadow: 0 8px 28px var(--couleur-lueur-accent);
+}
+
+.bouton:disabled {
+  opacity: 0.55;
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 14px;
+}
+
+.note {
+  margin: 0;
+  color: var(--couleur-texte-faible);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (min-width: 600px) {
+  .page {
+    max-width: 520px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}

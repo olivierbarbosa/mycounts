@@ -8,8 +8,14 @@ from mycounts.api.auth import routeur as routeur_auth
 from mycounts.api.budget import routeur as routeur_budget
 
 app = FastAPI(title="mycounts", version="0.0.0")
-app.include_router(routeur_auth)
-app.include_router(routeur_budget)
+
+# UN seul point de montage pour l'API. La liste des chemins à relayer vivait auparavant
+# dans vite.config.ts : c'était une seconde source de vérité, et elle a divergé dès la
+# première route ajoutée — /comptes renvoyait la page HTML au lieu du JSON.
+# Voir ERREURS.md #015.
+PREFIXE_API = "/api"
+app.include_router(routeur_auth, prefix=PREFIXE_API)
+app.include_router(routeur_budget, prefix=PREFIXE_API)
 
 
 @app.get("/health")

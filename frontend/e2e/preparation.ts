@@ -19,13 +19,20 @@ export default function preparation() {
     )
   }
 
+  const python = resolve(racine, '.venv/bin/python')
+  const environnement = { ...process.env, MYCOUNTS_MOT_DE_PASSE_INITIAL: motDePasse }
+
   execFileSync(
-    resolve(racine, '.venv/bin/python'),
+    python,
     ['-m', 'scripts.creer_premier_compte', "Foyer d'essai", courriel, 'Essai', '--ignorer-si-existe'],
-    {
-      cwd: racine,
-      env: { ...process.env, MYCOUNTS_MOT_DE_PASSE_INITIAL: motDePasse },
-      stdio: 'inherit',
-    },
+    { cwd: racine, env: environnement, stdio: 'inherit' },
   )
+
+  // Les comptes et opérations du foyer de démonstration sont effacés : sans cela, chaque
+  // exécution mesure un état cumulé et un locator qui attend une ligne en trouve trois.
+  execFileSync(python, ['-m', 'scripts.reinitialiser_foyer_essai'], {
+    cwd: racine,
+    env: environnement,
+    stdio: 'inherit',
+  })
 }

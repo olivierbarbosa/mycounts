@@ -62,8 +62,11 @@ export function Montant({
   signeExplicitePositif = true,
 }: Props) {
   const { signe, euros, centimes: decimales } = decouper(centimes)
-  const couleur = neutre ? styles.neutre : centimes < 0 ? styles.debit : styles.credit
-  const signeAffiche = centimes < 0 || signeExplicitePositif ? signe : ''
+  // Zéro n'est ni un crédit ni un débit : le colorer en vert avec un « + » laisse croire
+  // à une entrée d'argent qui n'existe pas.
+  const couleur =
+    neutre || centimes === 0 ? styles.neutre : centimes < 0 ? styles.debit : styles.credit
+  const signeAffiche = centimes < 0 ? signe : centimes > 0 && signeExplicitePositif ? signe : ''
 
   return (
     <span

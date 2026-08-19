@@ -22,19 +22,19 @@ def session_ouverte(client: TestClient, session_bd: Session) -> Principal:
 
 
 def creer_compte_api(client: TestClient, nom: str = "Courant") -> str:
-    reponse = client.post("/comptes", json={"nom": nom, "prive": True})
+    reponse = client.post("/api/comptes", json={"nom": nom, "prive": True})
     assert reponse.status_code == 201
     return str(reponse.json()["id"])
 
 
 def test_les_routes_budget_exigent_une_session(client: TestClient) -> None:
     for methode, chemin in [
-        ("GET", "/comptes"),
-        ("POST", "/comptes"),
-        ("GET", "/categories"),
-        ("GET", "/operations"),
-        ("POST", "/operations"),
-        ("GET", "/resume"),
+        ("GET", "/api/comptes"),
+        ("POST", "/api/comptes"),
+        ("GET", "/api/categories"),
+        ("GET", "/api/operations"),
+        ("POST", "/api/operations"),
+        ("GET", "/api/resume"),
     ]:
         assert client.request(methode, chemin).status_code == 401, f"{methode} {chemin}"
 
@@ -42,16 +42,16 @@ def test_les_routes_budget_exigent_une_session(client: TestClient) -> None:
 def test_un_foyer_neuf_na_aucune_categorie(client: TestClient, session_bd: Session) -> None:
     """Aucune catégorie n'est imposée : l'utilisateur crée les siennes."""
     session_ouverte(client, session_bd)
-    assert client.get("/categories").json() == []
+    assert client.get("/api/categories").json() == []
 
 
 def test_creer_une_categorie_puis_la_relire(client: TestClient, session_bd: Session) -> None:
     session_ouverte(client, session_bd)
     reponse = client.post(
-        "/categories", json={"nom": "Courses", "nature": "depense", "teinte": "vert"}
+        "/api/categories", json={"nom": "Courses", "nature": "depense", "teinte": "vert"}
     )
     assert reponse.status_code == 201
-    assert [c["nom"] for c in client.get("/categories").json()] == ["Courses"]
+    assert [c["nom"] for c in client.get("/api/categories").json()] == ["Courses"]
 
 
 def test_une_categorie_dun_autre_foyer_est_refusee(
@@ -71,7 +71,7 @@ def test_une_categorie_dun_autre_foyer_est_refusee(
     session_ouverte(client, session_bd)
     compte_id = creer_compte_api(client)
     reponse = client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Intrusion",
@@ -88,7 +88,7 @@ def test_saisir_une_depense_puis_la_relire(client: TestClient, session_bd: Sessi
     compte_id = creer_compte_api(client)
 
     reponse = client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Courses",
@@ -99,7 +99,7 @@ def test_saisir_une_depense_puis_la_relire(client: TestClient, session_bd: Sessi
     assert reponse.status_code == 201
     assert reponse.json()["montant_centimes"] == -4590
 
-    listees = client.get("/operations").json()
+    listees = client.get("/api/operations").json()
     assert [o["libelle"] for o in listees] == ["Courses"]
 
 
@@ -107,7 +107,7 @@ def test_un_montant_nul_est_refuse(client: TestClient, session_bd: Session) -> N
     session_ouverte(client, session_bd)
     compte_id = creer_compte_api(client)
     reponse = client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Rien",
@@ -122,7 +122,7 @@ def test_une_paie_negative_est_refusee(client: TestClient, session_bd: Session) 
     session_ouverte(client, session_bd)
     compte_id = creer_compte_api(client)
     reponse = client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Salaire",
@@ -146,7 +146,7 @@ def test_un_compte_dun_autre_foyer_est_introuvable(
 
     session_ouverte(client, session_bd)
     reponse = client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": str(compte_etranger.id),
             "libelle": "Intrusion",
@@ -157,7 +157,7 @@ def test_un_compte_dun_autre_foyer_est_introuvable(
     assert reponse.status_code == 404
 
     inexistant = client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": "00000000-0000-0000-0000-000000000000",
             "libelle": "Intrusion",
@@ -175,7 +175,7 @@ def test_le_resume_expose_les_quatre_grandeurs(client: TestClient, session_bd: S
     paie = AUJOURD_HUI - dt.timedelta(days=5)
 
     client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Salaire",
@@ -185,7 +185,7 @@ def test_le_resume_expose_les_quatre_grandeurs(client: TestClient, session_bd: S
         },
     )
     client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Courses",
@@ -194,7 +194,7 @@ def test_le_resume_expose_les_quatre_grandeurs(client: TestClient, session_bd: S
         },
     )
 
-    resume = client.get("/resume").json()
+    resume = client.get("/api/resume").json()
     assert resume["periode"]["debut"] == paie.isoformat(), "la période s'ouvre à la paie"
     assert resume["periode"]["fin_estimee"] is True
     assert resume["solde_reel"] == 250000 - 4590
@@ -213,7 +213,7 @@ def test_la_liste_est_bornee_a_la_periode_courante(
     paie = AUJOURD_HUI - dt.timedelta(days=5)
 
     client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Salaire",
@@ -223,7 +223,7 @@ def test_la_liste_est_bornee_a_la_periode_courante(
         },
     )
     client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Cycle précédent",
@@ -232,11 +232,11 @@ def test_la_liste_est_bornee_a_la_periode_courante(
         },
     )
 
-    libelles_periode = [o["libelle"] for o in client.get("/operations").json()]
+    libelles_periode = [o["libelle"] for o in client.get("/api/operations").json()]
     assert "Cycle précédent" not in libelles_periode
     assert "Salaire" in libelles_periode
 
-    toutes = [o["libelle"] for o in client.get("/operations?periode_courante=false").json()]
+    toutes = [o["libelle"] for o in client.get("/api/operations?periode_courante=false").json()]
     assert "Cycle précédent" in toutes, "l'opération existe, elle est seulement hors période"
 
 
@@ -248,7 +248,7 @@ def test_les_montants_circulent_en_centimes_entiers(
     session_ouverte(client, session_bd)
     compte_id = creer_compte_api(client)
     client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Courses",
@@ -256,7 +256,7 @@ def test_les_montants_circulent_en_centimes_entiers(
             "date_operation": AUJOURD_HUI.isoformat(),
         },
     )
-    valeur = client.get("/operations").json()[0]["montant_centimes"]
+    valeur = client.get("/api/operations").json()[0]["montant_centimes"]
     assert isinstance(valeur, int)
     assert not isinstance(valeur, float)
 
@@ -273,7 +273,7 @@ def test_le_foyer_nait_avec_ses_categories(client: TestClient, session_bd: Sessi
     session_bd.commit()
     connecter(client, "c@essai.fr")
 
-    noms = [c["nom"] for c in client.get("/categories").json()]
+    noms = [c["nom"] for c in client.get("/api/categories").json()]
     assert "Courses" in noms
     assert "Salaire" in noms
     del utilisateur_id
@@ -282,11 +282,11 @@ def test_le_foyer_nait_avec_ses_categories(client: TestClient, session_bd: Sessi
 def test_renommer_et_retinter_une_categorie(client: TestClient, session_bd: Session) -> None:
     session_ouverte(client, session_bd)
     creee = client.post(
-        "/categories", json={"nom": "Courses", "nature": "depense", "teinte": "vert"}
+        "/api/categories", json={"nom": "Courses", "nature": "depense", "teinte": "vert"}
     ).json()
 
     modifiee = client.patch(
-        f"/categories/{creee['id']}", json={"nom": "Alimentation", "teinte": "ambre"}
+        f"/api/categories/{creee['id']}", json={"nom": "Alimentation", "teinte": "ambre"}
     )
     assert modifiee.status_code == 200
     assert modifiee.json()["nom"] == "Alimentation"
@@ -299,19 +299,19 @@ def test_archiver_une_categorie_la_retire_des_listes(
 ) -> None:
     session_ouverte(client, session_bd)
     creee = client.post(
-        "/categories", json={"nom": "Courses", "nature": "depense", "teinte": "vert"}
+        "/api/categories", json={"nom": "Courses", "nature": "depense", "teinte": "vert"}
     ).json()
-    client.patch(f"/categories/{creee['id']}", json={"archivee": True})
-    assert client.get("/categories").json() == []
+    client.patch(f"/api/categories/{creee['id']}", json={"archivee": True})
+    assert client.get("/api/categories").json() == []
 
 
 def test_supprimer_une_categorie_inutilisee(client: TestClient, session_bd: Session) -> None:
     session_ouverte(client, session_bd)
     creee = client.post(
-        "/categories", json={"nom": "Éphémère", "nature": "depense", "teinte": "rose"}
+        "/api/categories", json={"nom": "Éphémère", "nature": "depense", "teinte": "rose"}
     ).json()
-    assert client.delete(f"/categories/{creee['id']}").status_code == 204
-    assert client.get("/categories").json() == []
+    assert client.delete(f"/api/categories/{creee['id']}").status_code == 204
+    assert client.get("/api/categories").json() == []
 
 
 def test_supprimer_une_categorie_utilisee_est_refuse(
@@ -322,10 +322,10 @@ def test_supprimer_une_categorie_utilisee_est_refuse(
     session_ouverte(client, session_bd)
     compte_id = creer_compte_api(client)
     creee = client.post(
-        "/categories", json={"nom": "Courses", "nature": "depense", "teinte": "vert"}
+        "/api/categories", json={"nom": "Courses", "nature": "depense", "teinte": "vert"}
     ).json()
     client.post(
-        "/operations",
+        "/api/operations",
         json={
             "compte_id": compte_id,
             "libelle": "Courses",
@@ -335,10 +335,10 @@ def test_supprimer_une_categorie_utilisee_est_refuse(
         },
     )
 
-    refus = client.delete(f"/categories/{creee['id']}")
+    refus = client.delete(f"/api/categories/{creee['id']}")
     assert refus.status_code == 409
     assert "archiver" in refus.json()["detail"].lower()
-    assert len(client.get("/categories").json()) == 1, "la catégorie doit rester en place"
+    assert len(client.get("/api/categories").json()) == 1, "la catégorie doit rester en place"
 
 
 # --- Solde d'ouverture -----------------------------------------------------------
@@ -350,9 +350,9 @@ def test_le_solde_douverture_alimente_le_solde_sans_etre_une_depense(
     """Un découvert de départ n'est pas une dépense du mois : l'y compter ferait sauter
     tous les plafonds dès la création du compte."""
     session_ouverte(client, session_bd)
-    client.post("/comptes", json={"nom": "Courant", "solde_ouverture_centimes": -15000})
+    client.post("/api/comptes", json={"nom": "Courant", "solde_ouverture_centimes": -15000})
 
-    resume = client.get("/resume").json()
+    resume = client.get("/api/resume").json()
     assert resume["solde_reel"] == -15000
     assert resume["depenses_de_periode"] == 0
 
@@ -361,16 +361,16 @@ def test_un_solde_douverture_nul_ne_cree_aucune_operation(
     client: TestClient, session_bd: Session
 ) -> None:
     session_ouverte(client, session_bd)
-    client.post("/comptes", json={"nom": "Vide", "solde_ouverture_centimes": 0})
-    assert client.get("/operations?periode_courante=false").json() == []
+    client.post("/api/comptes", json={"nom": "Vide", "solde_ouverture_centimes": 0})
+    assert client.get("/api/operations?periode_courante=false").json() == []
 
 
 def test_le_solde_douverture_est_identifiable(client: TestClient, session_bd: Session) -> None:
     """Témoin : sans le marqueur, l'ouverture serait indiscernable d'un vrai revenu et
     fausserait toute analyse des rentrées d'argent."""
     session_ouverte(client, session_bd)
-    client.post("/comptes", json={"nom": "Courant", "solde_ouverture_centimes": 120000})
-    operations = client.get("/operations?periode_courante=false").json()
+    client.post("/api/comptes", json={"nom": "Courant", "solde_ouverture_centimes": 120000})
+    operations = client.get("/api/operations?periode_courante=false").json()
     assert len(operations) == 1
     assert operations[0]["est_ouverture"] is True
     assert operations[0]["est_paie"] is False, "une ouverture n'ouvre pas de période"

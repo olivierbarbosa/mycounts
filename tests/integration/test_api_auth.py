@@ -38,7 +38,7 @@ def connecter(
     # TestClient est typé de façon lâche par Starlette ; le cast rend explicite le type
     # réellement renvoyé plutôt que de le taire.
     reponse: httpx.Response = client.post(
-        "/auth/connexion", json={"courriel": courriel, "mot_de_passe": mot_de_passe}
+        "/api/auth/connexion", json={"courriel": courriel, "mot_de_passe": mot_de_passe}
     )
     return reponse
 
@@ -128,13 +128,13 @@ def test_le_temps_de_reponse_ne_trahit_pas_l_existence_du_compte(
 
 
 def test_moi_exige_une_session(client: TestClient) -> None:
-    assert client.get("/auth/moi").status_code == 401
+    assert client.get("/api/auth/moi").status_code == 401
 
 
 def test_moi_renvoie_l_utilisateur_connecte(client: TestClient, session_bd: Session) -> None:
     creer_compte(session_bd, "a@essai.fr", nom="Olivier")
     connecter(client, "a@essai.fr")
-    reponse = client.get("/auth/moi")
+    reponse = client.get("/api/auth/moi")
     assert reponse.status_code == 200
     assert reponse.json()["nom_affichage"] == "Olivier"
 
@@ -142,13 +142,13 @@ def test_moi_renvoie_l_utilisateur_connecte(client: TestClient, session_bd: Sess
 def test_deconnexion_efface_le_cookie(client: TestClient, session_bd: Session) -> None:
     creer_compte(session_bd, "a@essai.fr")
     connecter(client, "a@essai.fr")
-    assert client.post("/auth/deconnexion").status_code == 204
-    assert client.get("/auth/moi").status_code == 401
+    assert client.post("/api/auth/deconnexion").status_code == 204
+    assert client.get("/api/auth/moi").status_code == 401
 
 
 def test_un_jeton_inconnu_est_refuse(client: TestClient) -> None:
     client.cookies.set(NOM_COOKIE, "jeton-inexistant-mais-bien-forme")
-    assert client.get("/auth/moi").status_code == 401
+    assert client.get("/api/auth/moi").status_code == 401
 
 
 def test_une_session_expiree_est_refusee(client: TestClient, session_bd: Session) -> None:
@@ -166,4 +166,4 @@ def test_une_session_expiree_est_refusee(client: TestClient, session_bd: Session
     session_bd.commit()
 
     client.cookies.set(NOM_COOKIE, jeton)
-    assert client.get("/auth/moi").status_code == 401
+    assert client.get("/api/auth/moi").status_code == 401

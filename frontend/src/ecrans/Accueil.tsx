@@ -1,75 +1,157 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-import { api, type UtilisateurPublic } from '../api/client'
-import { ReglageTransparence } from '../composants/ReglageTransparence'
+import type {
+  CategoriePublique,
+  ComptePublic,
+  OperationPublique,
+  ResumePublic,
+} from '../api/client'
+import { api } from '../api/client'
+import { Montant } from '../composants/Montant'
 import styles from './Accueil.module.css'
 
 type Props = {
-  readonly utilisateur: UtilisateurPublic
-  readonly surDeconnexion: () => void
+  readonly surSaisie: () => void
+  readonly comptes: readonly ComptePublic[]
+  readonly categories: readonly CategoriePublique[]
+  readonly rafraichissement: number
 }
 
-/**
- * Écran d'accueil du lot 1. Il ne montre AUCUN montant : les comptes et les opérations
- * n'existent pas encore. Afficher un solde fictif ici serait le plus court chemin vers
- * une capture d'écran qu'on prendrait plus tard pour une fonctionnalité livrée.
- */
-export function Accueil({ utilisateur, surDeconnexion }: Props) {
-  const [code, setCode] = useState<string | null>(null)
-  const [erreur, setErreur] = useState<string | null>(null)
+const TEINTES: Record<string, string> = {
+  violet: styles.teinteViolet,
+  cyan: styles.teinteCyan,
+  vert: styles.teinteVert,
+  ambre: styles.teinteAmbre,
+  rose: styles.teinteRose,
+  ardoise: styles.teinteArdoise,
+}
 
-  async function inviter() {
-    setErreur(null)
-    try {
-      setCode((await api.creerInvitation()).code)
-    } catch {
-      setErreur("L'invitation n'a pas pu être créée.")
-    }
-  }
+const moisCourt = new Intl.DateTimeFormat('fr-FR', { month: 'short' })
+const moisLong = new Intl.DateTimeFormat('fr-FR', { month: 'long' })
 
-  async function seDeconnecter() {
-    await api.deconnexion()
-    surDeconnexion()
-  }
+/** « 1er août » et non « 1 août » : Intl ne gère pas l'ordinal français du premier jour. */
+function jourEtMois(date: Date, format: Intl.DateTimeFormat): string {
+  const jour = date.getDate()
+  return `${jour === 1 ? '1er' : jour} ${format.format(date)}`
+}
+
+/** Parse une date ISO en date LOCALE, sans passer par UTC.
+ *
+ *  `new Date('2026-08-19')` est interprété en UTC et peut afficher le 18 selon le fuseau
+ *  du navigateur. Le serveur envoie une date civile : elle doit rester telle quelle. */
+function dateCivile(iso: string): Date {
+  const [annee, mois, jour] = iso.split('-').map(Number)
+  return new Date(annee, mois - 1, jour)
+}
+
+export function Accueil({ surSaisie, comptes, categories, rafraichissement }: Props) {
+  const [resume, setResume] = useState<ResumePublic | null>(null)
+  const [operations, setOperations] = useState<readonly OperationPublique[]>([])
+
+  const charger = useCallback(async () => {
+    const [r, o] = await Promise.all([api.resume(), api.operations()])
+    setResume(r)
+    setOperations(o)
+  }, [])
+
+  useEffect(() => {
+    void charger()
+  }, [charger, rafraichissement])
+
+  if (resume === null) return null
+
+  const parCategorie = new Map(categories.map((c) => [c.id, c]))
+  const parCompte = new Map(comptes.map((c) => [c.id, c]))
 
   return (
     <main className={styles.page}>
       <header className={styles.entete}>
-        <p className={styles.salutation}>Bonjour</p>
-        <h1 className={styles.nom}>{utilisateur.nom_affichage}</h1>
+        <p className={styles.libellePeriode}>Solde projeté</p>
+        <Montant
+          centimes={resume.solde_projete}
+          taille="display"
+          neutre
+          signeExplicitePositif={false}
+        />
+        <p className={styles.borne}>
+          jusqu’au {jourEtMois(dateCivile(resume.periode.fin), moisLong)}
+          {resume.periode.fin_estimee ? ' (estimé)' : ''}
+        </p>
+
+        <div className={styles.detailSoldes}>
+          <div className={styles.detail}>
+            <span className={styles.detailLibelle}>Réel aujourd’hui</span>
+            <Montant
+              centimes={resume.solde_reel}
+              taille="ligne"
+              neutre
+              signeExplicitePositif={false}
+            />
+          </div>
+          {resume.solde_a_confirmer !== 0 && (
+            <div className={styles.detail}>
+              <span className={styles.detailLibelle}>À confirmer</span>
+              <Montant centimes={resume.solde_a_confirmer} taille="ligne" />
+            </div>
+          )}
+          <div className={styles.detail}>
+            <span className={styles.detailLibelle}>Dépensé sur la période</span>
+            <Montant centimes={resume.depenses_de_periode} taille="ligne" />
+          </div>
+        </div>
       </header>
 
-      <section className={styles.carte}>
-        <span className={styles.libelleCarte}>Prochaine étape</span>
-        <p className={styles.aVenir}>
-          Les comptes, les opérations et les plafonds arrivent au lot 2. Cet écran ne
-          montre volontairement aucun montant tant qu'il n'y a rien de réel à afficher.
+      <section>
+        <h2 className={styles.titreListe}>
+          Depuis le {jourEtMois(dateCivile(resume.periode.debut), moisCourt)}
+        </h2>
+      </section>
+
+      {operations.length === 0 ? (
+        <p className={styles.vide}>
+          Aucune opération sur cette période. Le bouton « + » en bas à droite en ajoute une.
         </p>
-      </section>
+      ) : (
+        <ul className={styles.liste}>
+          {operations.map((operation) => {
+            const categorie = operation.categorie_id
+              ? parCategorie.get(operation.categorie_id)
+              : undefined
+            const compte = parCompte.get(operation.compte_id)
+            return (
+              <li key={operation.id} className={styles.operation}>
+                <span
+                  className={`${styles.pastille} ${
+                    TEINTES[categorie?.teinte ?? 'ardoise'] ?? styles.teinteArdoise
+                  }`}
+                  aria-hidden="true"
+                >
+                  {(categorie?.nom ?? operation.libelle).slice(0, 1).toUpperCase()}
+                </span>
+                <span className={styles.corps}>
+                  <span className={styles.libelle}>{operation.libelle}</span>
+                  <span className={styles.meta}>
+                    {jourEtMois(dateCivile(operation.date_operation), moisCourt)}
+                    {categorie ? ` · ${categorie.nom}` : ''}
+                    {compte ? ` · ${compte.nom}` : ''}
+                    {operation.est_ouverture ? ' · ouverture' : ''}
+                  </span>
+                </span>
+                <Montant centimes={operation.montant_centimes} taille="ligne" />
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
-      <section className={styles.carte}>
-        <span className={styles.libelleCarte}>Transparence de l'interface</span>
-        <ReglageTransparence />
-      </section>
-
-      <div className={styles.actions}>
-        <button type="button" className={styles.boutonSecondaire} onClick={inviter}>
-          Inviter un membre du foyer
-        </button>
-        {code !== null && (
-          <p className={styles.code} data-test="code-invitation">
-            {code}
-          </p>
-        )}
-        {erreur !== null && (
-          <p className={styles.aVenir} role="alert">
-            {erreur}
-          </p>
-        )}
-        <button type="button" className={styles.boutonSecondaire} onClick={seDeconnecter}>
-          Se déconnecter
-        </button>
-      </div>
+      <button
+        type="button"
+        className={styles.ajouter}
+        onClick={surSaisie}
+        aria-label="Saisir une opération"
+      >
+        +
+      </button>
     </main>
   )
 }

@@ -1,11 +1,12 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-/** Chemins servis par l'API. En développement ils sont relayés vers uvicorn ; en
- *  production le reverse proxy du VPS les sert depuis la MÊME origine que le front.
+/** UN seul préfixe relayé vers uvicorn. Une liste de chemins ici serait une seconde
+ *  source de vérité en face du routeur FastAPI — elle a divergé dès la première route
+ *  ajoutée, et /comptes renvoyait la page HTML au lieu du JSON (ERREURS.md #015).
  *  Même origine des deux côtés : le cookie de session part sans configuration CORS et
  *  « samesite=lax » reste pleinement efficace. */
-const CHEMINS_API = ['/auth', '/health']
+const CHEMINS_API = ['/api', '/health']
 
 export default defineConfig({
   plugins: [react()],

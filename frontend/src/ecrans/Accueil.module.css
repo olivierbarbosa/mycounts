@@ -2,9 +2,9 @@
   min-height: 100dvh;
   padding: var(--espace-xl);
   padding-top: calc(var(--espace-xl) + env(safe-area-inset-top, 0px));
-  /* Réserve la hauteur de la tab bar flottante : sans elle, le dernier élément de la
-     liste passe définitivement sous le verre et devient inatteignable. */
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  /* Réserve la hauteur de la tab bar ET du bouton flottant : sans elle, la dernière
+     opération de la liste passe définitivement sous le verre. */
+  padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--espace-xl);
@@ -14,88 +14,150 @@
   display: flex;
   flex-direction: column;
   gap: var(--espace-xs);
+  align-items: center;
+  text-align: center;
+  padding-top: var(--espace-xl);
 }
 
-.salutation {
+.libellePeriode {
   margin: 0;
   color: var(--couleur-texte-attenue);
   font-size: 14px;
 }
 
-.nom {
+/* Le solde projeté n'a de sens qu'accompagné de sa borne. L'afficher seul serait
+   ininterprétable : « il me reste 320 € » — jusqu'à quand ? */
+.borne {
   margin: 0;
-  font-family: var(--typo-famille-chiffres);
-  font-size: 30px;
-  font-weight: var(--typo-gras-display);
-  letter-spacing: -0.02em;
+  color: var(--couleur-texte-faible);
+  font-size: 13px;
 }
 
-/* Carte de contenu en verre. La règle du lot 1 (« jamais de montant sur du verre ») est
-   remplacée par une contrainte mesurée : le contraste de tout texte posé ici est vérifié
-   automatiquement dans les trois positions du réglage de transparence. Voir BOUCLE.md,
-   décision D3. Le dégradé de fond étant fixe et sombre, la variation reste faible. */
-.carte {
-  background: var(--couleur-surface);
-  backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
-  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
-  border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-grand);
-  padding: var(--espace-xl);
+.detailSoldes {
+  display: flex;
+  gap: var(--espace-xl);
+  justify-content: center;
+  flex-wrap: wrap;
+  padding-top: var(--espace-m);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.detailLibelle {
+  color: var(--couleur-texte-attenue);
+  font-size: 12px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.liste {
   display: flex;
   flex-direction: column;
   gap: var(--espace-s);
-}
-
-@supports not (backdrop-filter: blur(1px)) {
-  .carte {
-    background: var(--couleur-surface-opaque);
-  }
-}
-
-.libelleCarte {
-  color: var(--couleur-texte-attenue);
-  font-size: 13px;
-  font-weight: var(--typo-gras-moyen);
-}
-
-.aVenir {
-  color: var(--couleur-texte-faible);
-  font-size: 14px;
+  list-style: none;
   margin: 0;
-  line-height: 1.5;
+  padding: 0;
 }
 
-.actions {
+.titreListe {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+  color: var(--couleur-texte-attenue);
+}
+
+.operation {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--espace-m);
-}
-
-.boutonSecondaire {
-  min-height: var(--cible-tactile);
-  padding: var(--espace-m) var(--espace-xl);
-  border-radius: var(--rayon-pilule);
-  border: 1px solid var(--couleur-bordure);
-  background: var(--couleur-surface-haute);
+  padding: var(--espace-m) var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
   backdrop-filter: blur(var(--verre-flou));
   -webkit-backdrop-filter: blur(var(--verre-flou));
+  border: 1px solid var(--couleur-bordure);
+}
+
+/* La pastille porte sa teinte en TEXTE, sur un halo de la même teinte — et non du blanc
+   sur un aplat coloré. Mesuré : l'initiale blanche sur la pastille verte donnait 1,92:1,
+   très en dessous du seuil AA. Le halo garde la couleur reconnaissable tout en laissant
+   le texte se détacher du fond sombre. */
+.pastille {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: var(--rayon-pilule);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+  background: color-mix(in srgb, var(--teinte) 26%, transparent);
+  /* La couleur est portée par le HALO, pas par le texte. Deux essais mesurés ont échoué
+     avant celui-ci : blanc sur aplat coloré donnait 1,92:1, et la teinte sur son propre
+     halo 3,98:1 en thème clair. La couleur de texte standard, elle, a son contraste
+     déjà vérifié sur toutes les surfaces. */
   color: var(--couleur-texte);
+}
+
+.teinteViolet { --teinte: var(--couleur-accent-clair); }
+.teinteCyan { --teinte: var(--couleur-neon); }
+.teinteVert { --teinte: var(--couleur-credit); }
+.teinteAmbre { --teinte: var(--couleur-alerte); }
+.teinteRose { --teinte: var(--couleur-debit); }
+.teinteArdoise { --teinte: var(--couleur-texte-attenue); }
+
+.corps {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.libelle {
   font-size: 15px;
   font-weight: var(--typo-gras-moyen);
-  transition: background-color 160ms ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.boutonSecondaire:hover {
-  background: var(--couleur-surface-haute);
-  box-shadow: 0 0 0 1px var(--couleur-accent-clair);
+.meta {
+  color: var(--couleur-texte-attenue);
+  font-size: 12px;
 }
 
-.code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
-  word-break: break-all;
-  color: var(--couleur-accent-clair);
+.vide {
   margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: var(--espace-xl);
+  border-radius: var(--rayon-grand);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  text-align: center;
+}
+
+/* Bouton d'action flottant, au-dessus de la tab bar. */
+.ajouter {
+  position: fixed;
+  right: var(--espace-xl);
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  border-radius: var(--rayon-pilule);
+  border: none;
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-contraste);
+  font-size: 26px;
+  line-height: 1;
+  box-shadow: 0 10px 32px var(--couleur-lueur-accent);
+  z-index: 11;
 }
 
 @media (min-width: 600px) {
@@ -106,9 +168,6 @@
   }
 }
 
-/* Bureau : le rail de navigation occupe la gauche, le contenu se décale et s'organise
-   en deux colonnes. Sans cette règle, la page resterait une colonne étroite au milieu
-   d'un écran vide — un mobile étiré, pas une version bureau. */
 @media (min-width: 1024px) {
   .page {
     max-width: none;
@@ -116,40 +175,23 @@
     padding-left: calc(216px + var(--espace-l) * 3);
     padding-right: var(--espace-xxl);
     padding-bottom: var(--espace-xxl);
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas:
-      'entete entete'
-      'carte1 carte2'
-      'actions actions';
-    align-content: start;
-    gap: var(--espace-xl);
   }
 
   .entete {
-    grid-area: entete;
+    align-items: flex-start;
+    text-align: left;
   }
 
-  .carte:nth-of-type(1) {
-    grid-area: carte1;
+  .detailSoldes {
+    justify-content: flex-start;
   }
 
-  .carte:nth-of-type(2) {
-    grid-area: carte2;
+  .detail {
+    align-items: flex-start;
   }
 
-  .actions {
-    grid-area: actions;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .boutonSecondaire {
-    flex: 0 0 auto;
-  }
-
-  .nom {
-    font-size: 34px;
+  .ajouter {
+    bottom: var(--espace-xxl);
+    right: var(--espace-xxl);
   }
 }

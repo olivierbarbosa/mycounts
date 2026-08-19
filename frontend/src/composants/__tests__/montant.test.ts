@@ -68,3 +68,13 @@ describe('decouper', () => {
     expect(euros).not.toContain('\u0020')
   })
 })
+
+describe('affichage du signe', () => {
+  it('zéro est neutre : ni signe, ni couleur de crédit', () => {
+    // Un « +0,00 € » en vert laisse croire à une entrée d'argent qui n'a pas eu lieu.
+    // C'est un défaut vu à l'écran, pas dans un test — d'où celui-ci.
+    expect(decouper(0)).toEqual({ signe: '+', euros: '0', centimes: '00' })
+    // Le composant décide de masquer le signe pour zéro ; `decouper` reste neutre et
+    // se contente de découper. La règle d'affichage a un seul auteur : <Montant>.
+  })
+})
