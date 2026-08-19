@@ -16,6 +16,7 @@ from mycounts.domain.agregats import (
     COMPTE_LES_ANNULEES,
     CONTRIBUTIONS,
     INCLUT_OUVERTURES,
+    INCLUT_VIREMENTS,
     SIGNE_RETENU,
     Agregat,
     Borne,
@@ -59,6 +60,7 @@ def test_aucun_agregat_ne_manque_dans_la_table() -> None:
     assert set(SIGNE_RETENU) == set(Agregat), "un agrégat sans signe retenu sommerait tout"
     assert set(INCLUT_OUVERTURES) == set(Agregat), "un agrégat sans règle d'ouverture"
     assert set(COMPTE_LES_ANNULEES) == set(Agregat), "un agrégat sans règle d'annulation"
+    assert set(INCLUT_VIREMENTS) == set(Agregat), "un agrégat sans règle de virement"
 
 
 def test_une_operation_annulee_nentre_dans_aucun_agregat() -> None:
@@ -279,3 +281,54 @@ def test_toutes_les_bornes_declarees_sont_utilisees() -> None:
     règle morte — du code qu'on croit actif et qui ne l'est pas."""
     employees = {b for etats in CONTRIBUTIONS.values() for b in etats.values() if b is not None}
     assert employees == set(Borne)
+
+
+def test_un_virement_compte_dans_les_soldes_mais_jamais_dans_les_depenses() -> None:
+    """Un virement n'est ni une dépense ni un revenu : l'argent change de poche.
+
+    La mesure oppose deux grandeurs qui ne doivent PAS bouger ensemble. Le solde doit
+    voir le virement — sinon virer vers l'épargne ne se lirait nulle part. Les dépenses
+    ne doivent pas le voir — sinon un mouvement interne ferait sauter un plafond.
+
+    Le témoin est la dépense de 50 € : elle prouve que les dépenses savent compter. Sans
+    elle, un total à zéro passerait aussi bien pour « le virement est exclu » que pour
+    « le calcul est cassé ».
+    """
+    depense = operation(-5_000)
+    sortie_du_virement = OperationCalcul(
+        montant=Cents(-20_000),
+        date_operation=AUJOURD_HUI,
+        etat=EtatOperation.CONFIRMEE,
+        est_virement=True,
+    )
+
+    assert somme(Agregat.SOLDE_REEL, [depense, sortie_du_virement]) == -25_000
+    assert somme(Agregat.DEPENSES_DE_PERIODE, [depense, sortie_du_virement]) == -5_000
+    assert somme(Agregat.DEPENSES_DE_PERIODE, [depense]) == -5_000, (
+        "le virement retiré, les dépenses ne bougent pas : il n'y entrait donc pas"
+    )
+
+
+def test_les_deux_moities_dun_virement_slannulent_dans_le_total_du_foyer() -> None:
+    """Vu du foyer, un virement ne crée ni ne détruit d'argent.
+
+    C'est la propriété qui justifie de le laisser dans les soldes : chaque compte bouge,
+    leur somme non. Un test qui ne regarderait qu'un seul compte ne distinguerait pas un
+    virement d'une dépense.
+    """
+    entree = OperationCalcul(
+        montant=Cents(20_000),
+        date_operation=AUJOURD_HUI,
+        etat=EtatOperation.CONFIRMEE,
+        est_virement=True,
+    )
+    sortie = OperationCalcul(
+        montant=Cents(-20_000),
+        date_operation=AUJOURD_HUI,
+        etat=EtatOperation.CONFIRMEE,
+        est_virement=True,
+    )
+
+    assert somme(Agregat.SOLDE_REEL, [entree, sortie]) == 0
+    assert somme(Agregat.SOLDE_REEL, [sortie]) == -20_000
+    assert somme(Agregat.SOLDE_REEL, [entree]) == 20_000

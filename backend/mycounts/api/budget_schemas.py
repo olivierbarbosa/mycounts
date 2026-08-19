@@ -10,9 +10,10 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from mycounts.domain.agregats import EtatOperation
+from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.recurrence import UniteRecurrence
 from mycounts.models.budget import NatureCategorie, TeinteCategorie
 
@@ -21,11 +22,13 @@ class ComptePublic(BaseModel):
     id: uuid.UUID
     nom: str
     prive: bool
+    type_compte: TypeCompte
 
 
 class DemandeCompte(BaseModel):
     nom: str = Field(min_length=1, max_length=80)
     prive: bool = True
+    type_compte: TypeCompte = TypeCompte.COURANT
     solde_ouverture_centimes: int = Field(
         default=0,
         description=(
@@ -95,6 +98,10 @@ class OperationPublique(BaseModel):
     est_paie: bool
     est_ouverture: bool
     recurrence_id: uuid.UUID | None = None
+    # Présent : l'opération est une moitié de virement. L'écran s'en sert pour la montrer
+    # comme telle plutôt que comme une dépense, et pour proposer de retirer les deux
+    # moitiés ensemble.
+    virement_id: uuid.UUID | None = None
 
 
 class PeriodePublique(BaseModel):
@@ -217,3 +224,35 @@ class PlafondPublic(BaseModel):
     part_consommee: int
     depasse: bool
     depasse_avec_les_echeances: bool
+
+
+class DemandeVirement(BaseModel):
+    """Déplacement d'argent entre deux comptes du foyer.
+
+    Le montant est POSITIF et unique : c'est la somme déplacée. Demander deux montants
+    signés permettrait d'en saisir deux différents, donc de créer ou de détruire de
+    l'argent d'une faute de frappe.
+    """
+
+    compte_source_id: uuid.UUID
+    compte_destination_id: uuid.UUID
+    montant_centimes: int = Field(gt=0, description="Somme déplacée, en centimes, positive.")
+    date_operation: dt.date
+    libelle: str = Field(default="Virement", min_length=1, max_length=140)
+
+    @model_validator(mode="after")
+    def _comptes_distincts(self) -> DemandeVirement:
+        # Un virement vers soi-même n'est pas une erreur bénigne : il créerait deux lignes
+        # qui s'annulent sur le même compte, visibles dans l'historique et impossibles à
+        # interpréter plus tard.
+        if self.compte_source_id == self.compte_destination_id:
+            raise ValueError("Un virement va d'un compte vers un AUTRE compte.")
+        return self
+
+
+class VirementCree(BaseModel):
+    """Les deux moitiés créées, pour que le client sache quoi rafraîchir."""
+
+    virement_id: uuid.UUID
+    sortie: OperationPublique
+    entree: OperationPublique

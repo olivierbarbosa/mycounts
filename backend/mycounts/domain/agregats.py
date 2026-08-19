@@ -142,6 +142,25 @@ INCLUT_OUVERTURES: Final[dict[Agregat, bool]] = {
 }
 
 
+# Cinquième dimension : les virements entre comptes du foyer.
+#
+# Un virement n'est ni une dépense ni un revenu — l'argent ne quitte pas le foyer, il
+# change de poche. Il reste donc dans les soldes de chaque compte, c'est même tout son
+# intérêt : virer 200 € vers l'épargne doit se voir sur les deux comptes. Mais l'inclure
+# dans les dépenses de période gonflerait celles-ci de 200 €, alors qu'il n'a rien été
+# dépensé — et le plafond de la catégorie sauterait pour un mouvement interne.
+#
+# La même somme compterait deux fois si les deux moitiés du virement entraient dans un
+# total qui les additionne : c'est exactement le cas des dépenses, qui ne retiennent que
+# les sorties. Elles ne verraient que la moitié négative, donc une dépense inventée.
+INCLUT_VIREMENTS: Final[dict[Agregat, bool]] = {
+    Agregat.SOLDE_REEL: True,
+    Agregat.SOLDE_A_CONFIRMER: True,
+    Agregat.SOLDE_PROJETE: True,
+    Agregat.DEPENSES_DE_PERIODE: False,
+}
+
+
 # Quatrième dimension. Contrairement aux trois autres, elle ne varie PAS selon l'agrégat :
 # une opération annulée n'entre nulle part. Elle est écrite comme une table quand même,
 # pour la même raison que les précédentes — le jour où un agrégat voudrait les compter
@@ -167,6 +186,7 @@ class OperationCalcul:
     etat: EtatOperation
     est_ouverture: bool = False
     annulee: bool = False
+    est_virement: bool = False
 
 
 def contribue(agregat: Agregat, etat: EtatOperation) -> Borne | None:
@@ -196,6 +216,7 @@ def calculer(
     signe = SIGNE_RETENU[agregat]
     inclut_ouvertures = INCLUT_OUVERTURES[agregat]
     compte_les_annulees = COMPTE_LES_ANNULEES[agregat]
+    inclut_virements = INCLUT_VIREMENTS[agregat]
     total = 0
     for operation in operations:
         borne = contribue(agregat, operation.etat)
@@ -204,6 +225,8 @@ def calculer(
         if operation.annulee and not compte_les_annulees:
             continue
         if operation.est_ouverture and not inclut_ouvertures:
+            continue
+        if operation.est_virement and not inclut_virements:
             continue
         if signe is Signe.SORTIES and operation.montant >= 0:
             continue

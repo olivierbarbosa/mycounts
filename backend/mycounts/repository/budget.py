@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from mycounts.domain.agregats import EtatOperation, OperationCalcul
 from mycounts.domain.categories import CATEGORIES_INITIALES
+from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.montants import Cents
 from mycounts.models.budget import Categorie, Compte, NatureCategorie, Operation, TeinteCategorie
 from mycounts.repository.base import Principal
@@ -40,13 +41,19 @@ def _comptes_autorises(principal: Principal) -> ColumnElement[bool]:
 
 
 def creer_compte(
-    session: Session, principal: Principal, *, nom: str, prive: bool = True
+    session: Session,
+    principal: Principal,
+    *,
+    nom: str,
+    prive: bool = True,
+    type_compte: TypeCompte = TypeCompte.COURANT,
 ) -> Compte:
     compte = Compte(
         foyer_id=principal.foyer_id,
         proprietaire_id=principal.utilisateur_id,
         nom=nom,
         prive=prive,
+        type_compte=type_compte,
     )
     session.add(compte)
     session.flush()
@@ -191,6 +198,65 @@ def creer_operation(
     return operation
 
 
+def creer_virement(
+    session: Session,
+    principal: Principal,
+    *,
+    compte_source_id: uuid.UUID,
+    compte_destination_id: uuid.UUID,
+    montant_centimes: Cents,
+    date_operation: dt.date,
+    libelle: str,
+) -> tuple[Operation, Operation]:
+    """Crée les deux moitiés d'un virement, liées par un même identifiant.
+
+    `montant_centimes` est POSITIF : c'est la somme déplacée. Le signe est décidé ici et
+    nulle part ailleurs — laisser l'appelant fournir −200 d'un côté et +200 de l'autre
+    ouvrirait la porte à deux moitiés de montants différents, c'est-à-dire à de l'argent
+    créé ou détruit par une faute de saisie.
+
+    Aucune catégorie : un virement n'est ni une dépense ni un revenu, il n'a donc rien à
+    classer. Lui en donner une le ferait apparaître dans un plafond.
+
+    Les deux lignes sont ajoutées dans la même transaction. Une moitié sans l'autre serait
+    pire que pas de virement du tout : de l'argent disparu d'un compte sans être arrivé
+    nulle part.
+    """
+    virement_id = uuid.uuid4()
+    moities = [
+        Operation(
+            compte_id=compte,
+            cree_par_id=principal.utilisateur_id,
+            libelle=libelle,
+            montant_centimes=Cents(signe * int(montant_centimes)),
+            date_operation=date_operation,
+            etat=EtatOperation.CONFIRMEE,
+            virement_id=virement_id,
+        )
+        for compte, signe in ((compte_source_id, -1), (compte_destination_id, 1))
+    ]
+    session.add_all(moities)
+    session.flush()
+    return moities[0], moities[1]
+
+
+def operations_du_virement(
+    session: Session, principal: Principal, virement_id: uuid.UUID
+) -> list[Operation]:
+    """Les deux moitiés d'un virement, sous réserve que le foyer y ait accès.
+
+    Sert à supprimer un virement d'un bloc : retirer une seule moitié laisserait de
+    l'argent créé ou détruit.
+    """
+    return list(
+        session.execute(
+            select(Operation)
+            .join(Compte, Compte.id == Operation.compte_id)
+            .where(Operation.virement_id == virement_id, _comptes_autorises(principal))
+        ).scalars()
+    )
+
+
 def operation_visible(
     session: Session, principal: Principal, operation_id: uuid.UUID
 ) -> Operation | None:
@@ -299,6 +365,10 @@ def operations_pour_calcul(
             etat=operation.etat,
             est_ouverture=operation.est_ouverture,
             annulee=operation.annulee,
+            # Sans cette ligne, la règle écrite dans le domaine ne s'appliquerait jamais :
+            # toute opération arriverait avec `est_virement=False`, et les virements
+            # entreraient dans les dépenses malgré la table qui dit le contraire.
+            est_virement=operation.virement_id is not None,
         )
         for operation in operations_visibles(session, principal, comptes=comptes)
     ]

@@ -12,11 +12,13 @@ from mycounts.api.budget_schemas import (
     DemandeCategorie,
     DemandeCompte,
     DemandeOperation,
+    DemandeVirement,
     ModificationCategorie,
     ModificationOperation,
     OperationPublique,
     PeriodePublique,
     ResumePublic,
+    VirementCree,
 )
 from mycounts.api.dependances import PrincipalCourant, SessionBase
 from mycounts.domain.calendrier import aujourd_hui
@@ -42,7 +44,13 @@ def lister_comptes(session: SessionBase, principal: PrincipalCourant) -> list[Co
 def creer_compte(
     demande: DemandeCompte, session: SessionBase, principal: PrincipalCourant
 ) -> ComptePublic:
-    compte = depot.creer_compte(session, principal, nom=demande.nom, prive=demande.prive)
+    compte = depot.creer_compte(
+        session,
+        principal,
+        nom=demande.nom,
+        prive=demande.prive,
+        type_compte=demande.type_compte,
+    )
     if demande.solde_ouverture_centimes != 0:
         # Le solde de départ est une opération, jamais une colonne : sinon le solde
         # cesserait d'être une somme et deviendrait une valeur à réconcilier.
@@ -121,6 +129,46 @@ def supprimer_categorie(
         )
     depot.supprimer_categorie(session, categorie)
     session.commit()
+
+
+@routeur.post(
+    "/virements", response_model=VirementCree, status_code=status.HTTP_201_CREATED
+)
+def creer_virement(
+    demande: DemandeVirement, session: SessionBase, principal: PrincipalCourant
+) -> VirementCree:
+    """Déplace de l'argent d'un compte du foyer vers un autre.
+
+    Ce n'est ni une dépense ni un revenu : l'argent ne quitte pas le foyer. Les deux
+    lignes créées restent dans les soldes de leurs comptes et sortent des dépenses de
+    période — voir `INCLUT_VIREMENTS` dans `domain/agregats.py`.
+
+    Les deux comptes sont vérifiés séparément : sans quoi un identifiant appartenant à un
+    autre foyer permettrait d'y déposer de l'argent, ou d'en constater le solde par
+    l'échec ou le succès de l'appel.
+    """
+    connus = {compte.id for compte in depot.comptes_visibles(session, principal)}
+    for compte_id in (demande.compte_source_id, demande.compte_destination_id):
+        if compte_id not in connus:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable."
+            )
+
+    sortie, entree = depot.creer_virement(
+        session,
+        principal,
+        compte_source_id=demande.compte_source_id,
+        compte_destination_id=demande.compte_destination_id,
+        montant_centimes=Cents(demande.montant_centimes),
+        date_operation=demande.date_operation,
+        libelle=demande.libelle,
+    )
+    session.commit()
+    return VirementCree(
+        virement_id=sortie.virement_id,  # type: ignore[arg-type]
+        sortie=OperationPublique.model_validate(sortie, from_attributes=True),
+        entree=OperationPublique.model_validate(entree, from_attributes=True),
+    )
 
 
 @routeur.get("/operations", response_model=list[OperationPublique])

@@ -35,6 +35,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from mycounts.domain.agregats import EtatOperation
+from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.recurrence import UniteRecurrence
 from mycounts.models.auth import Foyer, Utilisateur
 from mycounts.models.base import Base
@@ -85,6 +86,12 @@ class Compte(Base):
     # opération, sans quoi recalculer un historique réécrirait le passé.
     devise: Mapped[str] = mapped_column(String(3), default="EUR", server_default="EUR")
     archive: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Courant ou épargne. Le défaut est `courant` : un compte créé sans qu'on se pose la
+    # question est un compte du quotidien, et se tromper dans ce sens ne cache rien à
+    # personne — l'inverse retirerait de l'argent du solde affiché sans le dire.
+    type_compte: Mapped[TypeCompte] = mapped_column(
+        String(16), default=TypeCompte.COURANT, server_default=TypeCompte.COURANT.value
+    )
     cree_le: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -208,6 +215,14 @@ class Operation(Base):
         CheckConstraint(
             "not (est_paie and est_ouverture)", name="ck_operation_paie_ou_ouverture"
         ),
+        CheckConstraint(
+            # Un virement n'est ni une paie ni une ouverture de période : les trois
+            # marqueurs répondent à des questions différentes, mais une saisie fautive
+            # les combinerait sans que rien ne proteste — et le virement ouvrirait alors
+            # une période budgétaire, ou compterait comme un revenu.
+            "not (virement_id is not null and (est_paie or est_ouverture))",
+            name="ck_operation_virement_ni_paie_ni_ouverture"
+        ),
         Index("ix_operation_compte_date", "compte_id", "date_operation"),
         Index("ix_operation_paie", "compte_id", "date_operation", postgresql_where="est_paie"),
         # Clé d'idempotence de la matérialisation, explicite et documentée : le job peut
@@ -262,6 +277,14 @@ class Operation(Base):
     # matérialisation de la recréer au passage suivant, la clé d'idempotence
     # `uq_operation_par_echeance` la voyant toujours.
     annulee: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+    # Les deux moitiés d'un virement portent le MÊME identifiant. Ce n'est pas une clé
+    # étrangère : il n'existe pas de table « virement », parce qu'un virement n'a aucune
+    # donnée propre au-delà de ses deux opérations. Lui donner une table créerait une
+    # seconde source pour le montant et la date, qui pourrait diverger des lignes.
+    virement_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), default=None, index=True
+    )
 
     compte: Mapped[Compte] = relationship()
     categorie: Mapped[Categorie | None] = relationship()
