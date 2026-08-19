@@ -56,6 +56,13 @@ export const couleursSombres = {
   /** Lueurs néon. Décoratives : jamais le seul porteur d'une information. */
   lueurAccent: 'rgba(139, 92, 246, 0.45)',
   lueurNeon: 'rgba(34, 211, 238, 0.35)',
+
+  /** Halos de fond. Ils passent DERRIÈRE le contenu et ne portent jamais de texte :
+   *  c'est ce qui permet de les rendre francs sans dégrader la lisibilité. */
+  haloHaut: 'rgba(139, 92, 246, 0.55)',
+  haloBas: 'rgba(34, 211, 238, 0.22)',
+  /** Liseré lumineux sur les surfaces en verre. */
+  lueurBordure: 'rgba(196, 181, 253, 0.35)',
 } as const
 
 /** Palette claire. Mêmes rôles, mêmes noms : un composant ne connaît que les rôles. */
@@ -89,6 +96,10 @@ export const couleursClaires = {
 
   lueurAccent: 'rgba(109, 40, 217, 0.22)',
   lueurNeon: 'rgba(8, 145, 178, 0.20)',
+
+  haloHaut: 'rgba(139, 92, 246, 0.30)',
+  haloBas: 'rgba(8, 145, 178, 0.14)',
+  lueurBordure: 'rgba(109, 40, 217, 0.18)',
 } as const
 
 /**

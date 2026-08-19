@@ -11,12 +11,29 @@
 }
 
 .entete {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--espace-xs);
   align-items: center;
   text-align: center;
   padding-top: var(--espace-xl);
+}
+
+/* Halo derrière le solde principal. Il passe SOUS le texte (z-index négatif) et ne
+   participe donc pas à son contraste — le contrôle AA reste la limite. */
+.entete::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: min(420px, 90%);
+  height: 200px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--couleur-lueur-accent), transparent);
+  filter: blur(20px);
+  z-index: -1;
+  pointer-events: none;
 }
 
 .libellePeriode {
@@ -80,6 +97,17 @@
   backdrop-filter: blur(var(--verre-flou));
   -webkit-backdrop-filter: blur(var(--verre-flou));
   border: 1px solid var(--couleur-bordure);
+  /* Liseré lumineux sur l'arête supérieure : c'est lui qui donne l'impression de verre
+     éclairé par le dessus. Purement décoratif — aucune information ne repose dessus. */
+  box-shadow: inset 0 1px 0 var(--couleur-lueur-bordure);
+  transition: box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.operation:hover {
+  border-color: var(--couleur-accent-clair);
+  box-shadow:
+    inset 0 1px 0 var(--couleur-lueur-bordure),
+    0 0 24px var(--couleur-lueur-accent);
 }
 
 /* La pastille porte sa teinte en TEXTE, sur un halo de la même teinte — et non du blanc

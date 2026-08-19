@@ -525,3 +525,36 @@ la prochaine route.
 **Généralisation.** Quand deux endroits doivent rester d'accord et que rien ne les y
 oblige, ils finiront par ne plus l'être. La bonne réponse est rarement de les
 resynchroniser : c'est de supprimer l'un des deux.
+
+---
+
+## 016 — Une sonde qui mesurait une page encore vide, seulement en CI
+
+**Zone** : `frontend/e2e/contraste.spec.ts`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que `await expect(page.locator('nav')).toBeVisible()` garantissait que
+l'écran était rendu avant de mesurer les contrastes. Les six tests passaient en local.
+
+**Ce que j'ai mesuré.** La CI a fait échouer cinq d'entre eux sur le message
+« aucun texte mesuré : la sonde est cassée ». La barre de navigation est rendue **à côté**
+de l'écran, pas dedans : elle apparaît pendant que le contenu charge encore ses données.
+En local, la base répond assez vite pour que la fenêtre soit invisible ; en CI, non.
+
+**Pourquoi le test local ne pouvait pas le voir.** Il ne mesurait pas une propriété du
+code mais une propriété de la latence de ma machine. Une même exécution, sur un poste plus
+lent, aurait donné un autre résultat — c'est-à-dire que la mesure n'était pas
+reproductible, donc pas une mesure.
+
+**Ce qui a sauvé la situation.** L'assertion `expect(mesures.length).toBeGreaterThan(5)`,
+écrite au moment de la sonde comme garde-fou contre elle-même. Sans elle, les six tests
+auraient été **verts sur une page vide** : aucun texte à mesurer, donc aucun texte sous le
+seuil. Un contrôle de contraste qui ne mesure rien passe toujours.
+
+**Correction.** Attendre le contenu (`main` et au moins un élément dedans), pas la
+navigation.
+
+**Généralisation.** Deux leçons distinctes. La première : un test qui dépend d'une course
+entre le rendu et la mesure ne teste pas ce qu'il annonce. La seconde, plus utile : tout
+contrôle qui parcourt une collection doit vérifier qu'elle n'est pas vide — c'est la
+troisième fois que ce garde-fou paie, après #005 et #013.

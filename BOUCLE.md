@@ -55,6 +55,8 @@ caractéristiques de direction artistique en ont été tirées.)*
 
 > Pour le premier lancement on peut demander à l'utilisateur de taper son solde actuel
 
+> Sur le design ajout un effet glow néon et un halo sur le background avec du dégradé
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -73,6 +75,7 @@ caractéristiques de direction artistique en ont été tirées.)*
 | « design d'UI néon et Liquid Glass » | **Révise la DA du lot 1.** Fond en dégradé violet profond au lieu d'un aplat quasi noir, accents néon (cyan/magenta), verre laiteux étendu aux cartes de contenu, montants en display XL avec centimes réduits, boutons d'action circulaires, tab bar très translucide. Contrepartie non négociable : tout texte posé sur verre ou dégradé passe un contrôle de contraste AA automatique — voir la décision D3. |
 | « catégories par défaut + ajouter / modifier / supprimer » | **Annule et remplace la réponse au QCM D1.** La liste par défaut est rétablie, et l'API gagne modification et suppression. Une catégorie déjà utilisée ne peut pas être supprimée (contrainte `RESTRICT`) : elle s'archive, sinon les totaux d'un mois clos changeraient rétroactivement. |
 | « au premier lancement, demander son solde actuel » | Modélisé en **opération d'ouverture**, pas en colonne `solde_initial`. Un solde reste une somme d'opérations — le stocker créerait la seconde source de vérité que tout le projet évite. L'opération porte `est_ouverture` pour être exclue des dépenses : un découvert de départ n'est pas une dépense du mois. |
+| « effet glow néon et halo sur le background avec dégradé » | Deux halos radiaux fixes sur le fond (violet en haut, cyan en bas), plus une lueur néon sur les surfaces en verre et les éléments actifs. **Les halos passent DERRIÈRE le contenu et ne portent jamais de texte** : le contrôle de contraste AA reste la limite, et il a déjà refusé deux versions de la pastille de catégorie. |
 | « surtout prévu pour mobile & tablette » | Mobile-first strict : `min-width` uniquement, tab bar basse, safe areas, cibles ≥ 44 px. |
 
 ## État du chantier

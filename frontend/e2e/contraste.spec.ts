@@ -132,7 +132,11 @@ for (const theme of THEMES) {
         position,
       );
       await page.reload();
-      await expect(page.locator("nav")).toBeVisible();
+      // Attendre le CONTENU, pas seulement la navigation : celle-ci s'affiche pendant
+      // que l'écran charge encore ses données, et la sonde mesurait alors une page vide.
+      // En local le chargement était trop rapide pour que ça se voie ; la CI l'a révélé.
+      await expect(page.locator("main")).toBeVisible();
+      await expect(page.locator("main li, main header")).not.toHaveCount(0);
 
       const mesures = await page.evaluate(MESURE, [SEUIL_AA, SEUIL_AA_GRAND]);
       expect(
