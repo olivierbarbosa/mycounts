@@ -1,0 +1,171 @@
+"""Routes des récurrences, de l'agenda et de la confirmation."""
+
+from __future__ import annotations
+
+import datetime as dt
+import uuid
+
+from fastapi import APIRouter, HTTPException, Query, status
+
+from mycounts.api.budget_schemas import (
+    DemandeRecurrence,
+    EcheanceAgenda,
+    OperationPublique,
+    RecurrencePublique,
+)
+from mycounts.api.dependances import PrincipalCourant, SessionBase
+from mycounts.domain.calendrier import aujourd_hui
+from mycounts.domain.montants import Cents
+from mycounts.domain.recurrence import Cadence, echeances
+from mycounts.jobs.materialisation import materialiser
+from mycounts.repository import budget as depot_budget
+from mycounts.repository import recurrences as depot
+
+routeur = APIRouter(tags=["agenda"])
+
+HORIZON_MAXIMAL = 365
+"""Un agenda plus lointain qu'un an n'apprend rien : les montants et les abonnements
+auront changé. La borne évite aussi qu'une cadence quotidienne produise 10 000 lignes."""
+
+
+@routeur.get("/recurrences", response_model=list[RecurrencePublique])
+def lister_recurrences(
+    session: SessionBase, principal: PrincipalCourant
+) -> list[RecurrencePublique]:
+    return [
+        RecurrencePublique.model_validate(r, from_attributes=True)
+        for r in depot.recurrences_visibles(session, principal)
+    ]
+
+
+@routeur.post(
+    "/recurrences", response_model=RecurrencePublique, status_code=status.HTTP_201_CREATED
+)
+def creer_recurrence(
+    demande: DemandeRecurrence, session: SessionBase, principal: PrincipalCourant
+) -> RecurrencePublique:
+    if demande.montant_centimes == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Un montant nul ne décrit aucune échéance.",
+        )
+    if demande.fin is not None and demande.fin < demande.ancre:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La fin d'une récurrence ne peut pas précéder sa première échéance.",
+        )
+    if depot_budget.compte_visible(session, principal, demande.compte_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
+    if demande.categorie_id is not None and (
+        depot_budget.categorie_visible(session, principal, demande.categorie_id) is None
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+
+    recurrence = depot.creer_recurrence(
+        session,
+        principal,
+        compte_id=demande.compte_id,
+        libelle=demande.libelle,
+        montant_centimes=Cents(demande.montant_centimes),
+        ancre=demande.ancre,
+        unite=demande.unite,
+        intervalle=demande.intervalle,
+        categorie_id=demande.categorie_id,
+        fin=demande.fin,
+    )
+    session.commit()
+    return RecurrencePublique.model_validate(recurrence, from_attributes=True)
+
+
+@routeur.delete("/recurrences/{recurrence_id}", status_code=status.HTTP_204_NO_CONTENT)
+def arreter_recurrence(
+    recurrence_id: uuid.UUID, session: SessionBase, principal: PrincipalCourant
+) -> None:
+    """Désactive la récurrence. Les opérations déjà matérialisées restent en place :
+    supprimer l'historique parce qu'un abonnement s'arrête réécrirait le passé."""
+    recurrence = depot.recurrence_visible(session, principal, recurrence_id)
+    if recurrence is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Récurrence introuvable."
+        )
+    depot.desactiver_recurrence(session, recurrence)
+    session.commit()
+
+
+@routeur.get("/agenda", response_model=list[EcheanceAgenda])
+def agenda(
+    session: SessionBase,
+    principal: PrincipalCourant,
+    jours: int = Query(default=60, ge=1, le=HORIZON_MAXIMAL),
+) -> list[EcheanceAgenda]:
+    """Échéances à venir, calculées à la volée.
+
+    Rien n'est stocké : l'agenda est une **projection**, et le recalculer à chaque appel
+    garantit qu'il suit toute modification d'une récurrence sans travail de mise à jour.
+    """
+    # Rattrapage avant lecture : entre le jour d'une échéance et le passage du job,
+    # elle n'apparaîtrait ni dans l'agenda (qui commence aujourd'hui) ni dans les
+    # opérations (pas encore créée). Un trou où de l'argent disparaît des écrans.
+    # L'opération est idempotente, donc sans risque sur une lecture répétée.
+    materialiser(session, foyer_id=principal.foyer_id)
+
+    debut = aujourd_hui()
+    fin = debut + dt.timedelta(days=jours)
+
+    resultat: list[EcheanceAgenda] = []
+    for recurrence in depot.recurrences_visibles(session, principal):
+        cadence = Cadence(unite=recurrence.unite, intervalle=recurrence.intervalle)
+        deja = depot.dates_deja_materialisees(session, recurrence_id=recurrence.id)
+        for jour in echeances(
+            recurrence.ancre, cadence, depuis=debut, jusqu_a=fin, fin=recurrence.fin
+        ):
+            # Une échéance déjà matérialisée est devenue une opération : l'afficher aussi
+            # dans l'agenda la ferait compter deux fois à l'œil du lecteur.
+            if jour in deja:
+                continue
+            resultat.append(
+                EcheanceAgenda(
+                    recurrence_id=recurrence.id,
+                    libelle=recurrence.libelle,
+                    montant_centimes=recurrence.montant_centimes,
+                    date_echeance=jour,
+                    categorie_id=recurrence.categorie_id,
+                )
+            )
+
+    resultat.sort(key=lambda e: (e.date_echeance, e.libelle))
+    return resultat
+
+
+@routeur.get("/operations/a-confirmer", response_model=list[OperationPublique])
+def lister_a_confirmer(
+    session: SessionBase, principal: PrincipalCourant
+) -> list[OperationPublique]:
+    return [
+        OperationPublique.model_validate(o, from_attributes=True)
+        for o in depot.operations_a_confirmer(session, principal)
+    ]
+
+
+@routeur.post("/operations/{operation_id}/confirmer", response_model=OperationPublique)
+def confirmer(
+    operation_id: uuid.UUID, session: SessionBase, principal: PrincipalCourant
+) -> OperationPublique:
+    """Confirme qu'une échéance matérialisée est bien passée.
+
+    Le montant n'est pas modifiable ici : confirmer, c'est dire « c'est passé ainsi ».
+    Le solde projeté ne doit pas bouger — seule la répartition entre réel et à-confirmer
+    change.
+    """
+    operation = next(
+        (o for o in depot.operations_a_confirmer(session, principal) if o.id == operation_id),
+        None,
+    )
+    if operation is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Opération introuvable ou déjà confirmée.",
+        )
+    depot.confirmer_operation(session, operation)
+    session.commit()
+    return OperationPublique.model_validate(operation, from_attributes=True)

@@ -21,6 +21,7 @@ from mycounts.api.dependances import PrincipalCourant, SessionBase
 from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.montants import Cents
 from mycounts.domain.resume import ResumePeriode, resumer
+from mycounts.jobs.materialisation import materialiser
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot
 
@@ -185,6 +186,9 @@ def creer_operation(
 
 
 def _resumer(session: SessionBase, principal: PrincipalCourant) -> ResumePeriode:
+    # Même rattrapage que pour l'agenda : une échéance échue non matérialisée serait
+    # absente du solde réel comme de la part à confirmer. Idempotent.
+    materialiser(session, foyer_id=principal.foyer_id)
     utilisateur = depot_auth.utilisateur_par_id(session, principal.utilisateur_id)
     paies_par_cycle = utilisateur.paies_par_cycle if utilisateur else 1
     return resumer(

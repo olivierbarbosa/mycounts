@@ -13,6 +13,7 @@ import uuid
 from pydantic import BaseModel, Field
 
 from mycounts.domain.agregats import EtatOperation
+from mycounts.domain.recurrence import UniteRecurrence
 from mycounts.models.budget import NatureCategorie, TeinteCategorie
 
 
@@ -98,3 +99,50 @@ class ResumePublic(BaseModel):
     solde_reel: int
     solde_a_confirmer: int
     depenses_de_periode: int
+
+
+class DemandeRecurrence(BaseModel):
+    compte_id: uuid.UUID
+    libelle: str = Field(min_length=1, max_length=140)
+    montant_centimes: int = Field(
+        description="Entier signé. Négatif = prélèvement, positif = revenu régulier."
+    )
+    ancre: dt.date = Field(
+        description=(
+            "Date de la PREMIÈRE échéance. Toutes les suivantes s'en déduisent — jamais "
+            "de l'échéance précédente, sinon une récurrence au 31 resterait bloquée au 28 "
+            "après son premier février."
+        )
+    )
+    unite: UniteRecurrence
+    intervalle: int = Field(default=1, ge=1, le=60)
+    categorie_id: uuid.UUID | None = None
+    fin: dt.date | None = None
+
+
+class RecurrencePublique(BaseModel):
+    id: uuid.UUID
+    compte_id: uuid.UUID
+    categorie_id: uuid.UUID | None
+    libelle: str
+    montant_centimes: int
+    ancre: dt.date
+    unite: UniteRecurrence
+    intervalle: int
+    fin: dt.date | None
+    active: bool
+
+
+class EcheanceAgenda(BaseModel):
+    """Une échéance à venir, telle qu'affichée dans l'agenda.
+
+    Une échéance n'est PAS une opération : elle n'a pas d'identifiant propre tant qu'elle
+    n'a pas été matérialisée. Les confondre ferait croire qu'on peut la modifier
+    individuellement, alors qu'elle est recalculée à chaque affichage.
+    """
+
+    recurrence_id: uuid.UUID
+    libelle: str
+    montant_centimes: int
+    date_echeance: dt.date
+    categorie_id: uuid.UUID | None

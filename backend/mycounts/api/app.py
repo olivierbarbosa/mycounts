@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from mycounts.api.agenda import routeur as routeur_agenda
 from mycounts.api.auth import routeur as routeur_auth
 from mycounts.api.budget import routeur as routeur_budget
 
@@ -16,6 +17,7 @@ app = FastAPI(title="mycounts", version="0.0.0")
 PREFIXE_API = "/api"
 app.include_router(routeur_auth, prefix=PREFIXE_API)
 app.include_router(routeur_budget, prefix=PREFIXE_API)
+app.include_router(routeur_agenda, prefix=PREFIXE_API)
 
 
 @app.get("/health")

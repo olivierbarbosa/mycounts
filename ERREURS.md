@@ -595,3 +595,40 @@ chaud de Vite et n'ont pas ce problème.
 la restauration du fichier : le `cp` de retour s'est exécuté depuis le mauvais répertoire
 et a silencieusement échoué. Le code est resté amputé de sa protection le temps de le
 remarquer. Vérifier la restauration, toujours — ne pas la supposer.
+
+---
+
+## 018 — Un trou entre l'agenda et les opérations
+
+**Zone** : `backend/mycounts/api/agenda.py`, `backend/mycounts/api/budget.py`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que l'agenda (échéances à venir) et la liste des opérations
+(échéances passées, matérialisées) couvraient ensemble toute la ligne du temps. L'agenda
+commence à aujourd'hui, les opérations s'arrêtent à ce qui existe : les deux se touchent,
+donc rien ne manque.
+
+**Ce que j'ai mesuré.** Un test attendait qu'une échéance datée d'hier disparaisse de
+l'agenda après matérialisation. Il a échoué avec `2 == 1` : elle n'y avait **jamais**
+figuré. L'agenda démarrant à aujourd'hui, une échéance d'hier n'y est pas — et tant que le
+job n'a pas tourné, elle n'est pas non plus une opération. Elle n'apparaît nulle part.
+
+**Pourquoi le raisonnement était faux.** Les deux vues ne se touchent pas : elles se
+recouvrent sur ce qui est *déjà matérialisé*, et laissent un trou sur ce qui est *échu mais
+pas encore traité*. La taille du trou dépend du délai entre l'échéance et le passage du
+job — c'est-à-dire d'un ordonnanceur qui n'existe pas encore. Sur une application d'argent,
+c'est la pire forme de défaut : de l'argent absent de tous les écrans, puis qui réapparaît.
+
+**Le contrôle qui a tranché — et qui est maintenant en place.** Un test qui ne lance
+**aucun** job et vérifie que la seule lecture de l'agenda fait remonter l'échéance d'hier.
+Il échouerait si le rattrapage disparaissait.
+
+**Correction.** La lecture de l'agenda et du résumé matérialise au passage. Un effet de
+bord sur un GET se discute — ici il est **idempotent** (clé d'unicité en base) et il ferme
+un trou réel. L'alternative propre, un ordonnanceur, viendra au lot de déploiement ; d'ici
+là, mieux vaut un GET qui rattrape qu'un écran qui ment.
+
+**Généralisation.** Deux vues « complémentaires » ne couvrent pas forcément tout : la
+question n'est pas « chacune est-elle juste ? » mais « **existe-t-il un état que ni l'une
+ni l'autre ne montre ?** ». Même forme que #010, où une opération tombait entre quatre
+agrégats tous corrects isolément.
