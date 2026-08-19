@@ -144,6 +144,36 @@ body::after {
   }
 }
 
+/* iOS ignore `box-sizing: border-box` sur `input[type="date"]`.
+   Constaté par le calcul, à partir d'une capture d'un vrai iPhone de 430 px : la feuille
+   laisse 398 px utiles, le champ Libellé en occupe bien 398, et le champ de date 432 —
+   soit exactement 398 + 2 × 16 px de padding + 2 × 1 px de bordure. Il traite donc sa
+   largeur comme du contenu et ajoute le reste par-dessus, d'où 18 px hors de l'écran.
+
+   `appearance: none` sort le champ du rendu natif et lui rend le comportement d'une boîte
+   ordinaire, qui honore `box-sizing`. Le sélecteur de date au toucher, lui, reste.
+
+   La règle est enfermée dans `@supports (-webkit-touch-callout: none)`, vraie sur iOS
+   seulement : ailleurs le rendu natif est correct, et le neutraliser ferait disparaître
+   l'indicateur de calendrier de Chromium sans rien corriger.
+
+   Ni Chromium, ni WebKit de bureau, ni l'émulation iPhone de Playwright ne reproduisent
+   ceci — les trois honorent `box-sizing`. Cette règle est donc posée sur un raisonnement
+   chiffré, pas sur une observation locale : elle se vérifie sur l'appareil. */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"] {
+    appearance: none;
+    -webkit-appearance: none;
+    /* Le padding horizontal retiré, la largeur totale vaut 398 px que `box-sizing` soit
+       honoré ou non — 398 + 0 + 2 px de bordure. La correction tient donc dans les deux
+       cas, au lieu de parier sur celui que je ne peux pas observer. Le texte reste centré,
+       comme le rendu natif d'iOS le faisait déjà. */
+    padding-left: 0;
+    padding-right: 0;
+    text-align: center;
+  }
+}
+
 button,
 input,
 select,
