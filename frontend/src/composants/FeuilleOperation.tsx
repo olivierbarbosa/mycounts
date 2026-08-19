@@ -1,29 +1,25 @@
-import { Trash2, X } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { Trash2, X } from 'lucide-react'
+import { type FormEvent, useState } from 'react'
 
-import type {
-  CategoriePublique,
-  ComptePublic,
-  OperationPublique,
-} from "../api/client";
-import { ErreurApi, api } from "../api/client";
-import { SaisieInvalide, enCentimes } from "../design/saisie";
-import { Montant } from "./Montant";
-import styles from "./FeuilleOperation.module.css";
+import type { CategoriePublique, ComptePublic, OperationPublique } from '../api/client'
+import { ErreurApi, api } from '../api/client'
+import { SaisieInvalide, enCentimes } from '../design/saisie'
+import { Montant } from './Montant'
+import styles from './FeuilleOperation.module.css'
 
 type Props = {
-  readonly operation: OperationPublique;
-  readonly comptes: readonly ComptePublic[];
-  readonly categories: readonly CategoriePublique[];
-  readonly surFermeture: () => void;
-  readonly surChangement: () => void;
-};
+  readonly operation: OperationPublique
+  readonly comptes: readonly ComptePublic[]
+  readonly categories: readonly CategoriePublique[]
+  readonly surFermeture: () => void
+  readonly surChangement: () => void
+}
 
 const ETATS: Record<string, string> = {
-  confirmee: "Confirmée",
-  a_confirmer: "À confirmer",
-  prevue: "Prévue",
-};
+  confirmee: 'Confirmée',
+  a_confirmer: 'À confirmer',
+  prevue: 'Prévue',
+}
 
 /**
  * Détail d'une opération, sa correction et son retrait.
@@ -41,76 +37,66 @@ export function FeuilleOperation({
   surChangement,
 }: Props) {
   const [montant, setMontant] = useState(() =>
-    (Math.abs(operation.montant_centimes) / 100).toFixed(2).replace(".", ","),
-  );
-  const [libelle, setLibelle] = useState(operation.libelle);
-  const [date, setDate] = useState(operation.date_operation);
-  const [categorieId, setCategorieId] = useState(operation.categorie_id ?? "");
-  const [confirmeSuppression, setConfirmeSuppression] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState(false);
+    (Math.abs(operation.montant_centimes) / 100).toFixed(2).replace('.', ','),
+  )
+  const [libelle, setLibelle] = useState(operation.libelle)
+  const [date, setDate] = useState(operation.date_operation)
+  const [categorieId, setCategorieId] = useState(operation.categorie_id ?? '')
+  const [confirmeSuppression, setConfirmeSuppression] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [enCours, setEnCours] = useState(false)
 
-  const compte = comptes.find((c) => c.id === operation.compte_id);
-  const negatif = operation.montant_centimes < 0;
-  const issueDunPrelevement = operation.recurrence_id !== null;
+  const compte = comptes.find((c) => c.id === operation.compte_id)
+  const negatif = operation.montant_centimes < 0
+  const issueDunPrelevement = operation.recurrence_id !== null
   // Le sens ne change pas à la correction : une dépense reste une dépense. Le faire
   // basculer par un signe tapé serait une inversion silencieuse.
   const categoriesDuSens = categories.filter((c) =>
-    negatif ? c.nature === "depense" : c.nature === "revenu",
-  );
+    negatif ? c.nature === 'depense' : c.nature === 'revenu',
+  )
 
   async function enregistrer(evenement: FormEvent) {
-    evenement.preventDefault();
-    setErreur(null);
+    evenement.preventDefault()
+    setErreur(null)
 
-    let centimes: number;
+    let centimes: number
     try {
-      centimes = enCentimes(montant);
+      centimes = enCentimes(montant)
     } catch (cause) {
-      setErreur(
-        cause instanceof SaisieInvalide ? cause.message : "Montant illisible.",
-      );
-      return;
+      setErreur(cause instanceof SaisieInvalide ? cause.message : 'Montant illisible.')
+      return
     }
     if (centimes === 0) {
-      setErreur("Un montant nul ne décrit aucune opération.");
-      return;
+      setErreur('Un montant nul ne décrit aucune opération.')
+      return
     }
 
-    setEnCours(true);
+    setEnCours(true)
     try {
       await api.modifierOperation(operation.id, {
         libelle: libelle.trim(),
         montant_centimes: negatif ? -Math.abs(centimes) : Math.abs(centimes),
         date_operation: date,
         categorie_id: categorieId || null,
-      });
-      surChangement();
+      })
+      surChangement()
     } catch (cause) {
-      setErreur(
-        cause instanceof ErreurApi
-          ? cause.message
-          : "Le serveur est injoignable.",
-      );
+      setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
     } finally {
-      setEnCours(false);
+      setEnCours(false)
     }
   }
 
   async function retirer() {
-    setErreur(null);
-    setEnCours(true);
+    setErreur(null)
+    setEnCours(true)
     try {
-      await api.supprimerOperation(operation.id);
-      surChangement();
+      await api.supprimerOperation(operation.id)
+      surChangement()
     } catch (cause) {
-      setErreur(
-        cause instanceof ErreurApi
-          ? cause.message
-          : "Le serveur est injoignable.",
-      );
+      setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
     } finally {
-      setEnCours(false);
+      setEnCours(false)
     }
   }
 
@@ -143,22 +129,20 @@ export function FeuilleOperation({
             <div className={styles.faits}>
               <span className={styles.fait}>
                 <span className={styles.cle}>Compte</span>
-                <span className={styles.valeur}>{compte?.nom ?? "—"}</span>
+                <span className={styles.valeur}>{compte?.nom ?? '—'}</span>
               </span>
               <span className={styles.fait}>
                 <span className={styles.cle}>État</span>
-                <span className={styles.valeur}>
-                  {ETATS[operation.etat] ?? operation.etat}
-                </span>
+                <span className={styles.valeur}>{ETATS[operation.etat] ?? operation.etat}</span>
               </span>
               <span className={styles.fait}>
                 <span className={styles.cle}>Origine</span>
                 <span className={styles.valeur}>
                   {operation.est_ouverture
-                    ? "Solde d’ouverture"
+                    ? 'Solde d’ouverture'
                     : issueDunPrelevement
-                      ? "Prélèvement automatique"
-                      : "Saisie manuelle"}
+                      ? 'Prélèvement automatique'
+                      : 'Saisie manuelle'}
                 </span>
               </span>
             </div>
@@ -240,8 +224,8 @@ export function FeuilleOperation({
             <p className={styles.question}>Supprimer cette opération ?</p>
             <p className={styles.note}>
               {issueDunPrelevement
-                ? "Cette échéance vient d’un prélèvement automatique : elle sera écartée définitivement, sans réapparaître au prochain calcul. Le prélèvement lui-même continue."
-                : "Cette action est définitive."}
+                ? 'Cette échéance vient d’un prélèvement automatique : elle sera écartée définitivement, sans réapparaître au prochain calcul. Le prélèvement lui-même continue.'
+                : 'Cette action est définitive.'}
             </p>
             <div className={styles.actions}>
               <button
@@ -272,16 +256,12 @@ export function FeuilleOperation({
               <Trash2 size={16} strokeWidth={2} aria-hidden />
               Supprimer
             </button>
-            <button
-              className={styles.principal}
-              type="submit"
-              disabled={enCours}
-            >
-              {enCours ? "Enregistrement…" : "Enregistrer"}
+            <button className={styles.principal} type="submit" disabled={enCours}>
+              {enCours ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </div>
         )}
       </form>
     </div>
-  );
+  )
 }

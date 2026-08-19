@@ -61,13 +61,20 @@ def materialiser(
             if echue in existantes:
                 deja += 1
                 continue
-            depot.materialiser_echeance(
+            creee = depot.materialiser_echeance(
                 session,
                 recurrence=recurrence,
                 date_echeance=echue,
                 etat=EtatOperation.A_CONFIRMER,
             )
-            creees += 1
+            # `None` : une requête concurrente a inséré la même échéance entre notre
+            # lecture des dates déjà traitées et notre insertion. Elle est présente, ce
+            # qui est le résultat attendu — elle compte donc comme déjà là, pas comme
+            # créée par nous, sinon le bilan annoncerait deux créations pour une ligne.
+            if creee is None:
+                deja += 1
+            else:
+                creees += 1
 
     session.commit()
     return Bilan(creees=creees, deja_presentes=deja)

@@ -55,22 +55,14 @@ body {
    dimension et chaque position. Au repos, les deux halos retombent exactement là où ils
    étaient quand ils vivaient dans le fond de `body`. */
 body::before {
-  content: "";
+  content: '';
   position: fixed;
   inset: -75%;
   z-index: -1;
   pointer-events: none;
   background-image:
-    radial-gradient(
-      48% 28% at 36% 26%,
-      var(--couleur-halo-haut) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      40% 24% at 66% 74%,
-      var(--couleur-halo-bas) 0%,
-      transparent 65%
-    );
+    radial-gradient(48% 28% at 36% 26%, var(--couleur-halo-haut) 0%, transparent 60%),
+    radial-gradient(40% 24% at 66% 74%, var(--couleur-halo-bas) 0%, transparent 65%);
   animation: voyage-des-halos 78s ease-in-out infinite;
 }
 
@@ -124,7 +116,7 @@ body::before {
    une nappe de gris à 5 % éclaircirait le fond sombre et abaisserait tous les rapports de
    contraste mesurés. */
 body::after {
-  content: "";
+  content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -161,7 +153,7 @@ body::after {
    ceci — les trois honorent `box-sizing`. Cette règle est donc posée sur un raisonnement
    chiffré, pas sur une observation locale : elle se vérifie sur l'appareil. */
 @supports (-webkit-touch-callout: none) {
-  input[type="date"] {
+  input[type='date'] {
     appearance: none;
     -webkit-appearance: none;
     /* Le padding horizontal retiré, la largeur totale vaut 398 px que `box-sizing` soit
@@ -200,8 +192,8 @@ select option {
 /* Toute cible tactile atteint la taille minimale des Human Interface Guidelines.
    Sur mobile, un bouton plus petit se rate une fois sur trois. */
 button,
-a[role="button"],
-input[type="submit"] {
+a[role='button'],
+input[type='submit'] {
   min-height: var(--cible-tactile);
   min-width: var(--cible-tactile);
   cursor: pointer;
@@ -211,8 +203,8 @@ input[type="submit"] {
 /* Retour visuel à l'appui. Sur mobile, sans lui, on ne sait pas si le geste a été pris
    avant que le réseau réponde — et on appuie deux fois. */
 button:active,
-a[role="button"]:active,
-input[type="submit"]:active {
+a[role='button']:active,
+input[type='submit']:active {
   /* 0.96 exactement : en dessous de 0.95 le geste paraît exagéré, au-dessus il ne se
      perçoit plus. Valeur reprise de la skill « better-ui ». */
   transform: scale(0.96);

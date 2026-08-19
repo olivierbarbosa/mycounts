@@ -165,6 +165,17 @@ class RecurrencePublique(BaseModel):
     active: bool
 
 
+class BornesDuMois(BaseModel):
+    """Premier et dernier jour du mois **civil** courant, bornes incluses.
+
+    Distinct de la période budgétaire, qui va de paie à paie : confondre les deux fait
+    afficher un mois à un écran pendant qu'un autre en calcule un différent.
+    """
+
+    debut: dt.date
+    fin: dt.date
+
+
 class EcheanceAgenda(BaseModel):
     """Une échéance à venir, telle qu'affichée dans l'agenda.
 

@@ -14,6 +14,7 @@ from mycounts.domain.agregats import Agregat, EtatOperation, calculer
 from mycounts.domain.montants import Cents
 from mycounts.domain.recurrence import UniteRecurrence
 from mycounts.jobs.materialisation import materialiser
+from mycounts.models.budget import Operation
 from mycounts.repository import budget as depot
 from mycounts.repository import recurrences as depot_rec
 from mycounts.repository.base import Principal
@@ -81,19 +82,63 @@ def test_le_job_est_idempotent(session_bd: Session) -> None:
 def test_la_base_refuse_un_doublon_meme_en_forcant(session_bd: Session) -> None:
     """La clé d'idempotence est portée par la BASE, pas par le test « existe déjà ».
 
-    Sans cette contrainte, deux exécutions simultanées pourraient toutes deux constater
-    l'absence puis toutes deux insérer.
+    L'insertion est écrite ici à la main, sans passer par le dépôt : celui-ci absorbe
+    désormais le conflit, et l'appeler ne dirait plus rien de l'index. Ce qu'on veut
+    savoir, c'est que la contrainte existe encore — la supprimer doit faire rougir un
+    test, pas passer inaperçu.
     """
     principal, recurrence = foyer_avec_recurrence(session_bd, ancre=J(2026, 6, 5))
     materialiser(session_bd, a_la_date=J(2026, 6, 30), foyer_id=principal.foyer_id)
 
     with pytest.raises(IntegrityError, match="uq_operation_par_echeance"):
-        depot_rec.materialiser_echeance(
-            session_bd,
-            recurrence=recurrence,  # type: ignore[arg-type]
-            date_echeance=J(2026, 6, 5),
-            etat=EtatOperation.A_CONFIRMER,
+        session_bd.add(
+            Operation(
+                compte_id=recurrence.compte_id,  # type: ignore[attr-defined]
+                cree_par_id=principal.utilisateur_id,
+                recurrence_id=recurrence.id,  # type: ignore[attr-defined]
+                libelle="Doublon forcé",
+                montant_centimes=-1099,
+                date_operation=J(2026, 6, 5),
+                etat=EtatOperation.A_CONFIRMER,
+            )
         )
+        session_bd.flush()
+
+
+def test_une_echeance_deja_creee_ailleurs_ne_casse_pas_la_transaction(
+    session_bd: Session,
+) -> None:
+    """Deux requêtes peuvent toutes deux croire l'échéance absente, puis l'insérer.
+
+    Ce n'est pas un cas d'école : l'accueil et le calendrier matérialisent tous les deux,
+    et le navigateur les appelle en parallèle au chargement. L'index tenait bon, mais la
+    seconde requête rendait une erreur 500.
+
+    Deux assertions, et la seconde est celle qui compte. Qu'un doublon soit refusé, on le
+    savait. Ce qu'il fallait obtenir, c'est que le refus n'emporte pas la transaction
+    englobante : sans point de reprise, la session est empoisonnée et TOUTES les échéances
+    suivantes sont perdues, pas seulement celle en conflit.
+    """
+    principal, recurrence = foyer_avec_recurrence(session_bd, ancre=J(2026, 6, 5))
+    materialiser(session_bd, a_la_date=J(2026, 6, 30), foyer_id=principal.foyer_id)
+
+    deja_la = depot_rec.materialiser_echeance(
+        session_bd,
+        recurrence=recurrence,  # type: ignore[arg-type]
+        date_echeance=J(2026, 6, 5),
+        etat=EtatOperation.A_CONFIRMER,
+    )
+    assert deja_la is None, "un conflit doit se dire « déjà là », pas lever"
+
+    apres_le_conflit = depot_rec.materialiser_echeance(
+        session_bd,
+        recurrence=recurrence,  # type: ignore[arg-type]
+        date_echeance=J(2026, 7, 5),
+        etat=EtatOperation.A_CONFIRMER,
+    )
+    assert apres_le_conflit is not None, "la transaction n'a pas survécu au conflit"
+    session_bd.commit()
+    assert len(depot.operations_visibles(session_bd, principal)) == 2
 
 
 def test_une_echeance_future_nest_pas_materialisee(session_bd: Session) -> None:

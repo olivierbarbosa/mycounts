@@ -8,6 +8,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, status
 
 from mycounts.api.budget_schemas import (
+    BornesDuMois,
     DemandeRecurrence,
     EcheanceAgenda,
     ModificationRecurrence,
@@ -15,7 +16,7 @@ from mycounts.api.budget_schemas import (
     RecurrencePublique,
 )
 from mycounts.api.dependances import PrincipalCourant, SessionBase
-from mycounts.domain.calendrier import aujourd_hui
+from mycounts.domain.calendrier import aujourd_hui, bornes_du_mois
 from mycounts.domain.montants import Cents
 from mycounts.domain.recurrence import Cadence, echeances
 from mycounts.jobs.materialisation import materialiser
@@ -143,6 +144,22 @@ def arreter_recurrence(
         )
     depot.desactiver_recurrence(session, recurrence)
     session.commit()
+
+
+@routeur.get("/agenda/mois-en-cours", response_model=BornesDuMois)
+def mois_en_cours(principal: PrincipalCourant) -> BornesDuMois:
+    """Premier et dernier jour du mois CIVIL courant, bornes incluses.
+
+    Le client ne recalcule pas ces bornes : « aujourd'hui » se lit dans le fuseau
+    Europe/Paris, dont le domaine est l'auteur unique. Un navigateur réglé sur un autre
+    fuseau afficherait sinon le mauvais mois le 1er et le dernier jour — et l'écran du
+    calendrier annoncerait un total que le serveur ne calculerait pas pareil.
+
+    Ce n'est PAS la période budgétaire du foyer, qui va de paie à paie.
+    """
+    del principal  # L'authentification suffit : la réponse ne dépend d'aucun foyer.
+    debut, fin = bornes_du_mois(aujourd_hui())
+    return BornesDuMois(debut=debut, fin=fin)
 
 
 @routeur.get("/agenda", response_model=list[EcheanceAgenda])

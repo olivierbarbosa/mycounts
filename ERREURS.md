@@ -828,3 +828,23 @@ donnée disponible est une image. Les bords visibles d'une capture sont des nomb
 champ Libellé s'y arrêtait net à la bonne largeur, le champ de date non — deux quantités
 qui devaient être égales et ne l'étaient pas. C'était la mesure à faire, et elle ne
 demandait aucun appareil.
+
+## #026 — J'ai reformaté des fichiers avec un outil qui n'est pas celui du projet
+
+**Ce que je croyais.** Que lancer `prettier` après une modification était neutre.
+
+**Ce que j'ai mesuré.** Le dépôt n'a **aucune configuration prettier** : son linter est
+`oxlint`, et le style maison est guillemets simples, sans point-virgule, 100 colonnes.
+Prettier sans configuration applique ses propres valeurs par défaut — guillemets doubles,
+points-virgules. J'ai donc reformaté silencieusement `FeuilleOperation.tsx`,
+`contraste.spec.ts` et `tokens.ts`, et livré ces changements dans des commits dont le
+message ne parlait que de mise en page ou de contraste.
+
+**Pourquoi ma mesure ne prouvait rien.** Je n'en avais fait aucune. J'ai supposé qu'un
+formateur répandu était le formateur DE CE dépôt. Aucun garde-fou ne pouvait me
+contredire : le style n'est pas vérifié en CI, donc tout restait vert.
+
+**Le contrôle qui aurait tranché.** Compter les points-virgules d'un fichier que je
+n'avais pas touché — trois secondes, réponse sans ambiguïté : zéro. C'est ce que j'ai fini
+par faire, après trois commits. Le style est maintenant écrit dans `frontend/.prettierrc`,
+pour que la question ne se repose plus à celui qui lancera l'outil.

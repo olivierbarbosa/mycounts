@@ -27,6 +27,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agenda/mois-en-cours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mois En Cours
+         * @description Premier et dernier jour du mois CIVIL courant, bornes incluses.
+         *
+         *     Le client ne recalcule pas ces bornes : « aujourd'hui » se lit dans le fuseau
+         *     Europe/Paris, dont le domaine est l'auteur unique. Un navigateur réglé sur un autre
+         *     fuseau afficherait sinon le mauvais mois le 1er et le dernier jour — et l'écran du
+         *     calendrier annoncerait un total que le serveur ne calculerait pas pareil.
+         *
+         *     Ce n'est PAS la période budgétaire du foyer, qui va de paie à paie.
+         */
+        get: operations["mois_en_cours_api_agenda_mois_en_cours_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/connexion": {
         parameters: {
             query?: never;
@@ -411,6 +438,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * BornesDuMois
+         * @description Premier et dernier jour du mois **civil** courant, bornes incluses.
+         *
+         *     Distinct de la période budgétaire, qui va de paie à paie : confondre les deux fait
+         *     afficher un mois à un écran pendant qu'un autre en calcule un différent.
+         */
+        BornesDuMois: {
+            /**
+             * Debut
+             * Format: date
+             */
+            debut: string;
+            /**
+             * Fin
+             * Format: date
+             */
+            fin: string;
+        };
         /** CategoriePublique */
         CategoriePublique: {
             /**
@@ -865,6 +911,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EcheanceAgenda"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mois_en_cours_api_agenda_mois_en_cours_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BornesDuMois"];
                 };
             };
             /** @description Validation Error */

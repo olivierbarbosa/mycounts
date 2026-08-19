@@ -40,6 +40,35 @@ async function creerRecurrence(
   await expect(page.getByRole('dialog')).toHaveCount(0)
 }
 
+/* Placé en tête du fichier à dessein : les tests suivants créent des prélèvements
+   du mois en cours, après quoi « À venir » n'est plus jamais vide et la branche
+   vérifiée ici ne s'exécuterait plus. Un test qui ne peut plus atteindre son sujet
+   passe sans rien prouver. */
+test('« À venir » vide ne prétend pas que rien n’est enregistré', async ({ page }) => {
+  // L'écran affiche « Mes prélèvements » juste au-dessus : annoncer « aucun prélèvement
+  // enregistré » pendant qu'un prélèvement y figure ferait mentir la page. Ce cas se
+  // produit dès que toutes les échéances du mois sont passées — de plus en plus souvent
+  // à mesure qu'on avance dans le mois.
+  await ouvrirAgenda(page)
+  const mois = (await (await page.request.get('/api/agenda/mois-en-cours')).json()) as {
+    fin: string
+  }
+  // Une échéance hors du mois en cours : elle peuple « Mes prélèvements » sans jamais
+  // entrer dans « À venir ».
+  const moisSuivant = new Date(`${mois.fin}T12:00:00`)
+  moisSuivant.setDate(moisSuivant.getDate() + 10)
+  await creerRecurrence(
+    page,
+    `Hors mois ${Date.now()}`,
+    '30,00',
+    moisSuivant.toISOString().slice(0, 10),
+  )
+
+  const aVenir = page.getByRole('heading', { name: 'À venir' }).locator('..')
+  await expect(aVenir).not.toContainText('Aucun prélèvement enregistré')
+  await expect(aVenir).toContainText('Plus rien à payer')
+})
+
 test('créer un prélèvement et le voir dans le calendrier', async ({ page }) => {
   const libelle = `Abonnement ${Date.now()}`
   await ouvrirAgenda(page)
@@ -100,22 +129,37 @@ test('le total des charges est la somme des lignes affichées', async ({ page })
   // l'œil dès qu'il y a plus de trois lignes. Le total ne porte QUE sur les charges :
   // un revenu récurrent, s'il en existait un, ne doit pas y entrer.
   await ouvrirAgenda(page)
-  const dans5 = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10)
-  await creerRecurrence(page, `Somme ${Date.now()}`, '25,00', dans5)
 
-  const echeances = await page.request.get('/api/agenda?jours=60')
-  const lignes = (await echeances.json()) as { montant_centimes: number }[]
+  // La borne vient du serveur, comme pour l'écran : la recalculer ici en ferait un second
+  // auteur, et le test finirait par valider sa propre version du mois.
+  const mois = (await (await page.request.get('/api/agenda/mois-en-cours')).json()) as {
+    debut: string
+    fin: string
+  }
+  // L'ancre est ramenée dans le mois. Sans ce plafond, le test créait une échéance à
+  // cinq jours qui, passé le 26, tombait le mois suivant : elle n'entrait alors plus dans
+  // le total, et le test échouait quelques jours par mois sans que rien n'ait changé.
+  const dans5 = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10)
+  await creerRecurrence(page, `Somme ${Date.now()}`, '25,00', dans5 <= mois.fin ? dans5 : mois.fin)
+
+  const echeances = await page.request.get('/api/agenda?jours=120')
+  const lignes = (await echeances.json()) as {
+    montant_centimes: number
+    date_echeance: string
+  }[]
   const attendu = lignes
-    .filter((e) => e.montant_centimes < 0)
+    .filter((e) => e.montant_centimes < 0 && e.date_echeance <= mois.fin)
     .reduce((s, e) => s + e.montant_centimes, 0)
 
-  const total = page.locator('main').getByText('Charges des 60 prochains jours')
+  const nomDuMois = new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(
+    new Date(`${mois.debut}T12:00:00`),
+  )
+  const total = page.locator('main').getByText(`Charges restantes en ${nomDuMois}`)
   await expect(total).toBeVisible()
 
   const euros = Math.trunc(Math.abs(attendu) / 100).toLocaleString('fr-FR')
   await expect(total.locator('..')).toContainText(euros)
 })
-
 
 test('la feuille ne propose que des prélèvements, jamais de revenu', async ({ page }) => {
   // Le calendrier est une page de charges : proposer « Revenu » ici brouillerait la
@@ -143,9 +187,12 @@ test('les rythmes sont nommés, pas exprimés en intervalle', async ({ page }) =
 test('un prélèvement saisi sans signe est enregistré en négatif', async ({ page }) => {
   const libelle = `Charge ${Date.now()}`
   await ouvrirAgenda(page)
-  await creerRecurrence(page, libelle, '24,99', new Date(Date.now() + 5 * 86_400_000)
-    .toISOString()
-    .slice(0, 10))
+  await creerRecurrence(
+    page,
+    libelle,
+    '24,99',
+    new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10),
+  )
 
   const ligne = page.locator('li', { hasText: libelle }).first()
   await expect(ligne).toContainText('−24')
@@ -205,7 +252,7 @@ test('arrêter un prélèvement demande confirmation', async ({ page }) => {
 
   await page.getByRole('alertdialog').getByRole('button', { name: 'Arrêter' }).click()
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
-  await expect(
-    page.getByRole('button', { name: `Arrêter le prélèvement ${libelle}` }),
-  ).toHaveCount(0)
+  await expect(page.getByRole('button', { name: `Arrêter le prélèvement ${libelle}` })).toHaveCount(
+    0,
+  )
 })

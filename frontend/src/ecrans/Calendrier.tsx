@@ -2,6 +2,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
+  BornesDuMois,
   CategoriePublique,
   ComptePublic,
   EcheanceAgenda,
@@ -50,6 +51,7 @@ export function Calendrier({
   const [recurrences, setRecurrences] = useState<readonly RecurrencePublique[]>([])
   const [chargement, setChargement] = useState(true)
   const [aSupprimer, setASupprimer] = useState<RecurrencePublique | null>(null)
+  const [mois, setMois] = useState<BornesDuMois | null>(null)
 
   const charger = useCallback(async () => {
     // L'agenda est demandé en premier : sa lecture matérialise les échéances échues,
@@ -58,6 +60,7 @@ export function Calendrier({
     const e = await api.agenda(120)
     const f = await api.aConfirmer()
     const r = await api.recurrences()
+    setMois(await api.moisEnCours())
     setEcheances(e)
     setAConfirmer(f)
     setRecurrences(r)
@@ -81,29 +84,43 @@ export function Calendrier({
     surChangement()
   }
 
-  if (chargement) return null
+  if (chargement || mois === null) return null
 
   const parCategorie = new Map(categories.map((c) => [c.id, c]))
   const parCompte = new Map(comptes.map((c) => [c.id, c]))
   const parRecurrence = new Map(recurrences.map((r) => [r.id, r]))
-  // Le total porte sur 60 jours, pas sur les 120 chargés pour le calendrier : c'est ce
-  // que l'intitulé annonce, et un total qui ne correspond pas à son libellé est pire
-  // qu'un total absent.
-  const limite60 = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10)
+  // « À venir » s'arrête à la fin du mois CIVIL, pas au bout d'une fenêtre glissante :
+  // ce qu'on veut savoir, c'est ce qui reste à payer ce mois-ci. Les 120 jours chargés
+  // servent au calendrier, qui peut avancer de deux mois ; le total, lui, ne porte que
+  // sur ce que son intitulé annonce — un total qui ne correspond pas à son libellé est
+  // pire qu'un total absent.
+  //
+  // La borne vient du serveur et n'est pas recalculée ici : « aujourd'hui » dépend du
+  // fuseau Europe/Paris, et un navigateur réglé ailleurs se tromperait de mois les
+  // premier et dernier jours.
+  //
+  // Le début du mois n'a pas à être filtré : l'agenda commence aujourd'hui, donc tout ce
+  // qu'il renvoie est déjà à venir.
+  //
   // Cette page ne montre que des CHARGES : un revenu récurrent resterait techniquement
   // possible côté API, mais l'afficher ici brouillerait la lecture « combien je paie ».
-  const surSoixanteJours = echeances.filter(
-    (e) => e.date_echeance <= limite60 && e.montant_centimes < 0,
+  const duMoisEnCours = echeances.filter(
+    (e) => e.date_echeance <= mois.fin && e.montant_centimes < 0,
   )
-  const totalAVenir = surSoixanteJours.reduce((somme, e) => somme + e.montant_centimes, 0)
+  const totalAVenir = duMoisEnCours.reduce((somme, e) => somme + e.montant_centimes, 0)
+  const nomDuMois = new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(
+    dateCivile(mois.debut),
+  )
+  // « d'ici la fin août », « d'ici la fin de septembre » : la préposition suit l'initiale.
+  const finDuMois = /^[aeiouâéêî]/i.test(nomDuMois) ? `d’${nomDuMois}` : `de ${nomDuMois}`
 
   return (
     <main className={styles.page}>
       <header>
         <h1 className={styles.titre}>Calendrier</h1>
         <p className={styles.sousTitre}>
-          Vos prélèvements à venir. Cette page ne sert qu’aux charges : un revenu se
-          saisit depuis l’accueil.
+          Vos prélèvements à venir. Cette page ne sert qu’aux charges : un revenu se saisit depuis
+          l’accueil.
         </p>
       </header>
 
@@ -113,9 +130,8 @@ export function Calendrier({
         <section className={styles.bloc}>
           <h2 className={styles.titreBloc}>À confirmer ({aConfirmer.length})</h2>
           <p className={styles.sousTitre}>
-            Ces échéances sont arrivées à leur date. Confirmez-les une fois vérifiées sur
-            votre relevé — votre solde projeté ne changera pas, seule la part encore
-            supposée diminuera.
+            Ces échéances sont arrivées à leur date. Confirmez-les une fois vérifiées sur votre
+            relevé — votre solde projeté ne changera pas, seule la part encore supposée diminuera.
           </p>
           <ul className={styles.liste}>
             {aConfirmer.map((operation) => (
@@ -184,19 +200,13 @@ export function Calendrier({
 
           {aSupprimer !== null && (
             <div className={styles.confirmation} role="alertdialog" aria-modal="true">
-              <p className={styles.questionConfirmation}>
-                Arrêter « {aSupprimer.libelle} » ?
-              </p>
+              <p className={styles.questionConfirmation}>Arrêter « {aSupprimer.libelle} » ?</p>
               <p className={styles.sousTitre}>
-                Les prélèvements déjà passés restent dans votre historique : seules les
-                échéances à venir disparaissent.
+                Les prélèvements déjà passés restent dans votre historique : seules les échéances à
+                venir disparaissent.
               </p>
               <div className={styles.actionsConfirmation}>
-                <button
-                  type="button"
-                  className={styles.bouton}
-                  onClick={() => setASupprimer(null)}
-                >
+                <button type="button" className={styles.bouton} onClick={() => setASupprimer(null)}>
                   Annuler
                 </button>
                 <button
@@ -215,14 +225,21 @@ export function Calendrier({
       <section className={styles.bloc}>
         <h2 className={styles.titreBloc}>À venir</h2>
 
-        {surSoixanteJours.length === 0 ? (
+        {duMoisEnCours.length === 0 ? (
           <p className={styles.vide}>
-            Aucun prélèvement enregistré. Le bouton « + » en ajoute un.
+            {/* Deux vides différents, et les confondre fait mentir l'écran : tant que
+                « À venir » couvrait 60 jours glissants, il n'était creux que faute de
+                prélèvement. Borné au mois, il l'est aussi quand tout est déjà passé — et
+                annoncer « aucun prélèvement enregistré » contredirait alors la liste
+                affichée juste au-dessus. */}
+            {recurrences.length === 0
+              ? 'Aucun prélèvement enregistré. Le bouton « + » en ajoute un.'
+              : `Plus rien à payer d’ici la fin ${finDuMois}.`}
           </p>
         ) : (
           <>
             <ul className={styles.liste}>
-              {surSoixanteJours.map((echeance) => {
+              {duMoisEnCours.map((echeance) => {
                 const categorie = echeance.categorie_id
                   ? parCategorie.get(echeance.categorie_id)
                   : undefined
@@ -253,9 +270,7 @@ export function Calendrier({
             </ul>
 
             <div className={styles.total}>
-              <span className={styles.libelleTotal}>
-                Charges des 60 prochains jours
-              </span>
+              <span className={styles.libelleTotal}>Charges restantes en {nomDuMois}</span>
               <Montant centimes={totalAVenir} taille="titre" />
             </div>
           </>

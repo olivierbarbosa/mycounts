@@ -24,8 +24,7 @@
   border-radius: var(--rayon-grand) var(--rayon-grand) 0 0;
   background: var(--couleur-surface-haute);
   backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
-  -webkit-backdrop-filter: blur(var(--verre-flou))
-    saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
   border-top: 1px solid var(--couleur-bordure);
 }
 
@@ -88,7 +87,7 @@
   font-weight: var(--typo-gras-moyen);
 }
 
-.sens[aria-pressed="true"] {
+.sens[aria-pressed='true'] {
   background: var(--couleur-degrade-accent);
   color: var(--couleur-accent-contraste);
   /* Contour interne d'un pixel : il détache le bouton du fond sans agrandir la cible.

@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Sequence
 
 from sqlalchemy import ColumnElement, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from mycounts.domain.agregats import EtatOperation
@@ -151,7 +152,19 @@ def materialiser_echeance(
     recurrence: Recurrence,
     date_echeance: dt.date,
     etat: EtatOperation,
-) -> Operation:
+) -> Operation | None:
+    """Crée l'opération d'une échéance, ou `None` si une autre l'a déjà créée.
+
+    L'appelant a beau vérifier avant d'insérer que la date n'est pas déjà matérialisée,
+    ce contrôle et cette insertion ne sont pas un seul geste : entre les deux, une autre
+    requête peut insérer la même ligne. Le cas n'est pas théorique — l'accueil et le
+    calendrier matérialisent tous les deux, et le navigateur les appelle en parallèle au
+    chargement. L'index unique partiel tenait bon, mais au prix d'une erreur 500.
+
+    Le point de reprise circonscrit l'échec à cette seule insertion : la transaction
+    englobante survit, et les échéances suivantes sont matérialisées normalement. `None`
+    dit alors « quelqu'un d'autre s'en est chargé », ce qui est le résultat voulu.
+    """
     operation = Operation(
         compte_id=recurrence.compte_id,
         categorie_id=recurrence.categorie_id,
@@ -162,8 +175,12 @@ def materialiser_echeance(
         date_operation=date_echeance,
         etat=etat,
     )
-    session.add(operation)
-    session.flush()
+    try:
+        with session.begin_nested():
+            session.add(operation)
+            session.flush()
+    except IntegrityError:
+        return None
     return operation
 
 

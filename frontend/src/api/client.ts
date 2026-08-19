@@ -15,6 +15,7 @@ export type OperationPublique = components['schemas']['OperationPublique']
 export type ResumePublic = components['schemas']['ResumePublic']
 export type RecurrencePublique = components['schemas']['RecurrencePublique']
 export type EcheanceAgenda = components['schemas']['EcheanceAgenda']
+export type BornesDuMois = components['schemas']['BornesDuMois']
 export type UniteRecurrence = components['schemas']['UniteRecurrence']
 export type PlafondPublic = components['schemas']['PlafondPublic']
 
@@ -114,15 +115,18 @@ export const api = {
 
   modifierCategorie: (
     id: string,
-    modifications: { nom?: string; teinte?: TeinteCategorie; archivee?: boolean },
+    modifications: {
+      nom?: string
+      teinte?: TeinteCategorie
+      archivee?: boolean
+    },
   ) =>
     appeler<CategoriePublique>(`/categories/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(modifications),
     }),
 
-  supprimerCategorie: (id: string) =>
-    appeler<void>(`/categories/${id}`, { method: 'DELETE' }),
+  supprimerCategorie: (id: string) => appeler<void>(`/categories/${id}`, { method: 'DELETE' }),
 
   operations: () => appeler<OperationPublique[]>('/operations'),
 
@@ -146,12 +150,15 @@ export const api = {
       body: JSON.stringify(modifications),
     }),
 
-  supprimerOperation: (id: string) =>
-    appeler<void>(`/operations/${id}`, { method: 'DELETE' }),
+  supprimerOperation: (id: string) => appeler<void>(`/operations/${id}`, { method: 'DELETE' }),
 
   resume: () => appeler<ResumePublic>('/resume'),
 
   agenda: (jours = 60) => appeler<EcheanceAgenda[]>(`/agenda?jours=${jours}`),
+
+  /** Bornes du mois CIVIL courant. Calculées par le serveur : « aujourd'hui » se lit dans
+   *  le fuseau Europe/Paris, dont le domaine est l'auteur unique. */
+  moisEnCours: () => appeler<BornesDuMois>('/agenda/mois-en-cours'),
 
   recurrences: () => appeler<RecurrencePublique[]>('/recurrences'),
 
@@ -167,13 +174,14 @@ export const api = {
       body: JSON.stringify(modifications),
     }),
 
-  arreterRecurrence: (id: string) =>
-    appeler<void>(`/recurrences/${id}`, { method: 'DELETE' }),
+  arreterRecurrence: (id: string) => appeler<void>(`/recurrences/${id}`, { method: 'DELETE' }),
 
   aConfirmer: () => appeler<OperationPublique[]>('/operations/a-confirmer'),
 
   confirmer: (id: string) =>
-    appeler<OperationPublique>(`/operations/${id}/confirmer`, { method: 'POST' }),
+    appeler<OperationPublique>(`/operations/${id}/confirmer`, {
+      method: 'POST',
+    }),
 
   plafonds: () => appeler<PlafondPublic[]>('/plafonds'),
 
@@ -186,6 +194,5 @@ export const api = {
       }),
     }),
 
-  supprimerPlafond: (id: string) =>
-    appeler<void>(`/plafonds/${id}`, { method: 'DELETE' }),
+  supprimerPlafond: (id: string) => appeler<void>(`/plafonds/${id}`, { method: 'DELETE' }),
 }

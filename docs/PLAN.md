@@ -82,16 +82,15 @@ l'argent ce mois-ci ?*
 | Rythmes nommés | |
 | File « à confirmer » | |
 | Pastilles de marque | Pas de vrais logos (voir ci-dessous) |
+| « À venir » borné au mois civil, borne donnée par le serveur | Pas une fenêtre glissante : ce qui reste à payer ce mois-ci |
 
 **Manque :**
 
-1. **« À venir » doit porter sur le mois en cours**, pas sur 60 jours glissants : montrer
-   les échéances de ce mois qui ne sont pas encore passées.
-2. **Logo récupéré en ligne**, sur le modèle de KeePassXC : déclenché par une **action
+1. **Logo récupéré en ligne**, sur le modèle de KeePassXC : déclenché par une **action
    explicite**, jamais automatiquement ; requête faite par le serveur puis mise en cache ;
    `<link rel="icon">` du site, repli sur `/favicon.ico`, puis sur le service DuckDuckGo ;
    repli final sur la pastille.
-3. Total annuel des charges — « mes abonnements me coûtent X € par an » est l'information
+2. Total annuel des charges — « mes abonnements me coûtent X € par an » est l'information
    qui fait résilier.
 
 ---

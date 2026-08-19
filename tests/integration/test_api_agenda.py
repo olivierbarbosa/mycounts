@@ -33,6 +33,7 @@ def test_les_routes_agenda_exigent_une_session(client: TestClient) -> None:
         ("GET", "/api/recurrences"),
         ("POST", "/api/recurrences"),
         ("GET", "/api/agenda"),
+        ("GET", "/api/agenda/mois-en-cours"),
         ("GET", "/api/operations/a-confirmer"),
     ]:
         assert client.request(methode, chemin).status_code == 401, f"{methode} {chemin}"
@@ -318,3 +319,27 @@ def test_un_montant_nul_en_modification_est_refuse(
         f"/api/recurrences/{recurrence['id']}", json={"montant_centimes": 0}
     )
     assert reponse.status_code == 422
+
+
+def test_les_bornes_du_mois_sont_le_mois_civil_pas_la_periode_de_paie(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le premier au dernier jour du mois, bornes incluses.
+
+    Le témoin porte sur ce qui distingue les deux notions : une période budgétaire va de
+    paie à paie, donc elle ne commence presque jamais un 1er et ne finit presque jamais un
+    dernier jour du mois. Un test qui vérifierait seulement « debut <= fin » passerait avec
+    l'une comme avec l'autre et ne prouverait rien.
+    """
+    session_ouverte(client, session_bd)
+    reponse = client.get("/api/agenda/mois-en-cours")
+    assert reponse.status_code == 200, reponse.text
+    debut = dt.date.fromisoformat(reponse.json()["debut"])
+    fin = dt.date.fromisoformat(reponse.json()["fin"])
+
+    assert debut.day == 1
+    assert (debut.year, debut.month) == (fin.year, fin.month)
+    # Dernier jour du mois : le lendemain bascule sur le mois suivant.
+    assert (fin + dt.timedelta(days=1)).month != fin.month
+    # Et le mois est bien celui d'aujourd'hui, pas un voisin.
+    assert (debut.year, debut.month) == (AUJOURD_HUI.year, AUJOURD_HUI.month)

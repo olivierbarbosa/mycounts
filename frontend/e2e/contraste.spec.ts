@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from '@playwright/test'
 
 /**
  * Contrepartie de la direction artistique néon + Liquid Glass (BOUCLE.md, décision D3).
@@ -13,33 +13,28 @@ import { expect, test } from "@playwright/test";
  * que l'œil reçoit qui compte, pas ce que la palette annonce.
  */
 
-const SEUIL_AA = 4.5;
-const SEUIL_AA_GRAND = 3; // ≥ 24 px, ou ≥ 18,66 px en gras
+const SEUIL_AA = 4.5
+const SEUIL_AA_GRAND = 3 // ≥ 24 px, ou ≥ 18,66 px en gras
 
-const POSITIONS = ["claire", "moyenne", "opaque"] as const;
+const POSITIONS = ['claire', 'moyenne', 'opaque'] as const
 
 /** Les deux thèmes sont testés explicitement. Playwright force « light » par défaut :
  *  sans cette boucle, la moitié de la palette n'aurait jamais été mesurée — et je
  *  n'aurais même pas su laquelle. */
-const THEMES = ["light", "dark"] as const;
+const THEMES = ['light', 'dark'] as const
 
-async function connecter(page: import("@playwright/test").Page) {
-  await page.goto("/");
-  await page.locator("nav, form").first().waitFor({ state: "visible" });
-  if (await page.locator("nav").isVisible()) return;
-  await page
-    .getByLabel("Adresse électronique")
-    .fill(process.env.MYCOUNTS_COURRIEL_TEST!);
-  await page
-    .getByLabel("Mot de passe")
-    .fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!);
-  await page.getByRole("button", { name: "Se connecter" }).click();
-  await expect(page.locator("nav")).toBeVisible();
+async function connecter(page: import('@playwright/test').Page) {
+  await page.goto('/')
+  await page.locator('nav, form').first().waitFor({ state: 'visible' })
+  if (await page.locator('nav').isVisible()) return
+  await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
+  await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
+  await page.getByRole('button', { name: 'Se connecter' }).click()
+  await expect(page.locator('nav')).toBeVisible()
 }
 
 const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
-  const canal = (v: number) =>
-    v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  const canal = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
 
   /** Lit rgb()/rgba() ET color(srgb …), dont les composantes vont de 0 à 1.
    *
@@ -48,19 +43,19 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
    *  de 10. Une sonde fausse est pire qu'une sonde absente — elle fait corriger ce qui
    *  n'est pas cassé. */
   const lire = (couleur: string): [number, number, number, number] => {
-    const nombres = couleur.match(/[\d.]+/g)?.map(Number) ?? [];
-    if (nombres.length < 3) return [0, 0, 0, 0];
-    const echelle = couleur.startsWith("color(") ? 255 : 1;
+    const nombres = couleur.match(/[\d.]+/g)?.map(Number) ?? []
+    if (nombres.length < 3) return [0, 0, 0, 0]
+    const echelle = couleur.startsWith('color(') ? 255 : 1
     return [
       nombres[0] * echelle,
       nombres[1] * echelle,
       nombres[2] * echelle,
       nombres.length > 3 ? nombres[3] : 1,
-    ];
-  };
+    ]
+  }
 
   const luminance = ([r, v, b]: number[]) =>
-    0.2126 * canal(r / 255) + 0.7152 * canal(v / 255) + 0.0722 * canal(b / 255);
+    0.2126 * canal(r / 255) + 0.7152 * canal(v / 255) + 0.0722 * canal(b / 255)
 
   /** Couleurs d'arrêt d'un dégradé, s'il y en a un.
    *
@@ -69,14 +64,14 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
    *  des boutons parfaitement lisibles. On extrait donc les arrêts pour tester le PIRE
    *  d'entre eux. Voir ERREURS.md #021. */
   const arretsDeDegrade = (element: Element): [number, number, number][] => {
-    const image = getComputedStyle(element).backgroundImage;
-    if (!image || image === "none") return [];
-    const trouves = image.match(/(?:rgba?|color)\([^)]+\)/g) ?? [];
+    const image = getComputedStyle(element).backgroundImage
+    if (!image || image === 'none') return []
+    const trouves = image.match(/(?:rgba?|color)\([^)]+\)/g) ?? []
     return trouves
       .map(lire)
       .filter(([, , , a]) => a > 0)
-      .map(([r, v, b]) => [r, v, b] as [number, number, number]);
-  };
+      .map(([r, v, b]) => [r, v, b] as [number, number, number])
+  }
 
   /** Arrêts translucides du halo dérivant, lus sur le pseudo-élément qui le porte.
    *
@@ -85,12 +80,10 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
    *  `backgroundColor`. La sonde mesurait donc le fond nu et se déclarait verte pendant
    *  que le halo éclaircissait réellement le fond sous les textes. */
   const calquesDuHalo = (): [number, number, number, number][] => {
-    const image = getComputedStyle(document.body, "::before").backgroundImage;
-    if (!image || image === "none") return [];
-    return (image.match(/(?:rgba?|color)\([^)]+\)/g) ?? [])
-      .map(lire)
-      .filter(([, , , a]) => a > 0);
-  };
+    const image = getComputedStyle(document.body, '::before').backgroundImage
+    if (!image || image === 'none') return []
+    return (image.match(/(?:rgba?|color)\([^)]+\)/g) ?? []).map(lire).filter(([, , , a]) => a > 0)
+  }
 
   /** Compose les calques translucides jusqu'à trouver un fond opaque.
    *
@@ -100,47 +93,45 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
     element: Element,
     halo: [number, number, number, number] | null,
   ): [number, number, number] => {
-    const calques: [number, number, number, number][] = [];
-    let courant: Element | null = element;
-    let opaque: Element | null = null;
+    const calques: [number, number, number, number][] = []
+    let courant: Element | null = element
+    let opaque: Element | null = null
     while (courant) {
-      const [r, v, b, a] = lire(getComputedStyle(courant).backgroundColor);
+      const [r, v, b, a] = lire(getComputedStyle(courant).backgroundColor)
       if (a > 0) {
-        calques.push([r, v, b, a]);
-        opaque = courant;
+        calques.push([r, v, b, a])
+        opaque = courant
       }
-      if (a >= 1) break;
-      courant = courant.parentElement;
+      if (a >= 1) break
+      courant = courant.parentElement
     }
     // Le halo ne compte que si l'opacité s'arrête sur le corps de page. Dès qu'une carte
     // opaque s'interpose, il passe derriere elle et n'éclaire plus rien.
     if (halo && opaque === document.body && calques.length > 0) {
-      calques.splice(calques.length - 1, 0, halo);
+      calques.splice(calques.length - 1, 0, halo)
     }
     // Fond ultime du navigateur si aucun calque opaque n'est trouvé.
-    let [r, v, b] = [255, 255, 255];
+    let [r, v, b] = [255, 255, 255]
     for (let i = calques.length - 1; i >= 0; i--) {
-      const [cr, cv, cb, ca] = calques[i];
-      r = cr * ca + r * (1 - ca);
-      v = cv * ca + v * (1 - ca);
-      b = cb * ca + b * (1 - ca);
+      const [cr, cv, cb, ca] = calques[i]
+      r = cr * ca + r * (1 - ca)
+      v = cv * ca + v * (1 - ca)
+      b = cb * ca + b * (1 - ca)
     }
-    return [r, v, b];
-  };
+    return [r, v, b]
+  }
 
-  const resultats: { texte: string; rapport: number; seuil: number }[] = [];
-  for (const element of document.querySelectorAll(
-    "h1, h2, p, span, label, button, a, input",
-  )) {
-    const texte = (element.textContent ?? "").trim();
-    if (!texte || element.children.length > 0) continue;
-    const boite = element.getBoundingClientRect();
-    if (boite.width === 0 || boite.height === 0) continue;
+  const resultats: { texte: string; rapport: number; seuil: number }[] = []
+  for (const element of document.querySelectorAll('h1, h2, p, span, label, button, a, input')) {
+    const texte = (element.textContent ?? '').trim()
+    if (!texte || element.children.length > 0) continue
+    const boite = element.getBoundingClientRect()
+    if (boite.width === 0 || boite.height === 0) continue
 
-    const style = getComputedStyle(element);
-    if (style.visibility === "hidden" || style.opacity === "0") continue;
+    const style = getComputedStyle(element)
+    if (style.visibility === 'hidden' || style.opacity === '0') continue
 
-    const [tr, tv, tb, ta] = lire(style.color);
+    const [tr, tv, tb, ta] = lire(style.color)
 
     // Fonds candidats. Quand un dégradé recouvre l'élément, ce sont SES arrêts qui font
     // foi : y ajouter le fond composé introduirait un candidat faux, et comme on retient
@@ -153,94 +144,75 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
     // Tout texte passe donc réellement sous leur pic au cours du cycle, et ce candidat est
     // un vrai pire cas. Mesurer le fond immobile ne prouverait plus rien : la sonde lit un
     // instant, le fond, lui, bouge.
-    const arrets = arretsDeDegrade(element);
+    const arrets = arretsDeDegrade(element)
     const candidats: [number, number, number][] =
       arrets.length > 0
         ? arrets
         : [
             fondEffectif(element, null),
             ...calquesDuHalo().map((halo) => fondEffectif(element, halo)),
-          ];
+          ]
 
-    let rapport = Number.POSITIVE_INFINITY;
+    let rapport = Number.POSITIVE_INFINITY
     for (const [fr, fv, fb] of candidats) {
       // Un texte lui-même translucide se compose sur son fond avant comparaison.
-      const avant = [
-        tr * ta + fr * (1 - ta),
-        tv * ta + fv * (1 - ta),
-        tb * ta + fb * (1 - ta),
-      ];
-      const l1 = luminance(avant);
-      const l2 = luminance([fr, fv, fb]);
-      rapport = Math.min(
-        rapport,
-        (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05),
-      );
+      const avant = [tr * ta + fr * (1 - ta), tv * ta + fv * (1 - ta), tb * ta + fb * (1 - ta)]
+      const l1 = luminance(avant)
+      const l2 = luminance([fr, fv, fb])
+      rapport = Math.min(rapport, (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05))
     }
 
-    const taille = Number.parseFloat(style.fontSize);
-    const gras = Number.parseInt(style.fontWeight, 10) >= 700;
-    const grand = taille >= 24 || (gras && taille >= 18.66);
+    const taille = Number.parseFloat(style.fontSize)
+    const gras = Number.parseInt(style.fontWeight, 10) >= 700
+    const grand = taille >= 24 || (gras && taille >= 18.66)
     resultats.push({
       texte: texte.slice(0, 40),
       rapport: Math.round(rapport * 100) / 100,
       seuil: grand ? seuilGrand : seuilNormal,
-    });
+    })
   }
-  return resultats;
-};
+  return resultats
+}
 
 for (const theme of THEMES) {
   for (const position of POSITIONS) {
-    test(`contraste AA — thème ${theme}, transparence « ${position} »`, async ({
-      page,
-    }) => {
-      await page.emulateMedia({ colorScheme: theme });
-      await connecter(page);
-      await page.evaluate(
-        (p) => localStorage.setItem("mycounts.transparence", p),
-        position,
-      );
-      await page.reload();
+    test(`contraste AA — thème ${theme}, transparence « ${position} »`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: theme })
+      await connecter(page)
+      await page.evaluate((p) => localStorage.setItem('mycounts.transparence', p), position)
+      await page.reload()
       // Attendre le CONTENU, pas seulement la navigation : celle-ci s'affiche pendant
       // que l'écran charge encore ses données, et la sonde mesurait alors une page vide.
       // En local le chargement était trop rapide pour que ça se voie ; la CI l'a révélé.
-      await expect(page.locator("main")).toBeVisible();
-      await expect(page.locator("main li, main header")).not.toHaveCount(0);
+      await expect(page.locator('main')).toBeVisible()
+      await expect(page.locator('main li, main header')).not.toHaveCount(0)
 
-      const mesures = await page.evaluate(MESURE, [SEUIL_AA, SEUIL_AA_GRAND]);
-      expect(
-        mesures.length,
-        "aucun texte mesuré : la sonde est cassée",
-      ).toBeGreaterThan(5);
+      const mesures = await page.evaluate(MESURE, [SEUIL_AA, SEUIL_AA_GRAND])
+      expect(mesures.length, 'aucun texte mesuré : la sonde est cassée').toBeGreaterThan(5)
 
-      const insuffisants = mesures.filter((m) => m.rapport < m.seuil);
+      const insuffisants = mesures.filter((m) => m.rapport < m.seuil)
       expect(
         insuffisants,
         `textes sous le seuil — thème ${theme}, transparence « ${position} »`,
-      ).toEqual([]);
-    });
+      ).toEqual([])
+    })
   }
 }
 
-test("témoin : la sonde de contraste sait détecter un texte illisible", async ({
-  page,
-}) => {
+test('témoin : la sonde de contraste sait détecter un texte illisible', async ({ page }) => {
   // Sans ce témoin, une sonde qui renverrait toujours un rapport élevé passerait les
   // trois tests ci-dessus sans rien vérifier.
-  await connecter(page);
+  await connecter(page)
   await page.evaluate(() => {
-    const cobaye = document.createElement("p");
-    cobaye.textContent = "texte volontairement illisible";
+    const cobaye = document.createElement('p')
+    cobaye.textContent = 'texte volontairement illisible'
     // Gris moyen sur gris moyen : rapport proche de 1.
-    cobaye.style.color = "rgb(130, 130, 130)";
-    cobaye.style.backgroundColor = "rgb(140, 140, 140)";
-    document.body.append(cobaye);
-  });
-  const mesures = await page.evaluate(MESURE, [4.5, 3]);
-  const cobaye = mesures.find((m) =>
-    m.texte.startsWith("texte volontairement"),
-  );
-  expect(cobaye, "le cobaye n’a pas été mesuré").toBeDefined();
-  expect(cobaye!.rapport).toBeLessThan(2);
-});
+    cobaye.style.color = 'rgb(130, 130, 130)'
+    cobaye.style.backgroundColor = 'rgb(140, 140, 140)'
+    document.body.append(cobaye)
+  })
+  const mesures = await page.evaluate(MESURE, [4.5, 3])
+  const cobaye = mesures.find((m) => m.texte.startsWith('texte volontairement'))
+  expect(cobaye, 'le cobaye n’a pas été mesuré').toBeDefined()
+  expect(cobaye!.rapport).toBeLessThan(2)
+})
