@@ -12,7 +12,7 @@ from mycounts.repository.base import fabrique_de_sessions, moteur
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-TABLES = ("session_web", "invitation", "utilisateur", "foyer")
+TABLES = ("operation", "categorie", "compte", "session_web", "invitation", "utilisateur", "foyer")
 
 
 @pytest.fixture(autouse=True)

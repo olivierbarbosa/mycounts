@@ -10,7 +10,16 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,7 +44,12 @@ class Foyer(Base):
 
 class Utilisateur(Base):
     __tablename__ = "utilisateur"
-    __table_args__ = (UniqueConstraint("courriel", name="uq_utilisateur_courriel"),)
+    __table_args__ = (
+        UniqueConstraint("courriel", name="uq_utilisateur_courriel"),
+        CheckConstraint(
+            "paies_par_cycle between 1 and 12", name="ck_utilisateur_paies_par_cycle"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
     foyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("foyer.id", ondelete="RESTRICT"))
@@ -45,6 +59,12 @@ class Utilisateur(Base):
     nom_affichage: Mapped[str] = mapped_column(String(80))
     empreinte_mot_de_passe: Mapped[str] = mapped_column(String(255))
     actif: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # Nombre de versements de salaire qui composent UN cycle budgétaire. À 2 (quinzaine),
+    # seule une paie sur deux ouvre une période : sans ce réglage, une prime ferait
+    # repartir tous les plafonds à zéro en plein mois.
+    paies_par_cycle: Mapped[int] = mapped_column(
+        Integer, default=1, server_default="1"
+    )
     cree_le: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
