@@ -3,7 +3,7 @@
 
 PY := .venv/bin/python
 
-.PHONY: aide installer lint types garde-fous tests tests-integration tests-e2e verifier migrer db-haut db-bas front-installer front-lint
+.PHONY: aide installer lint types garde-fous tests tests-integration tests-e2e verifier migrer db-haut db-bas front-installer front-lint front-tests demo demo-arret
 
 aide:
 	@echo "make installer          Crée le venv et installe les dépendances"
@@ -12,6 +12,8 @@ aide:
 	@echo "make tests-integration  Tests contre le vrai PostgreSQL"
 	@echo "make tests-e2e          Mise en page sur 390 / 820 / 1280 px, dans un vrai navigateur"
 	@echo "make front-tests        Tests unitaires du frontend"
+	@echo "make demo               Lance l'app, accessible depuis tes autres appareils"
+	@echo "make demo-arret         Arrête les serveurs de démonstration"
 
 installer:
 	python3 -m venv .venv
@@ -69,6 +71,33 @@ migrer:
 	.venv/bin/alembic upgrade head
 
 verifier: lint types garde-fous tests
+
+# Lance l'application pour un essai depuis un autre appareil.
+#
+# ATTENTION, deux limites à connaître :
+#  1. pas de HTTPS. Sur Tailscale le tunnel est chiffré par WireGuard, donc le mot de
+#     passe ne circule pas en clair. Sur un Wi-Fi ordinaire, si.
+#  2. c'est la base de DÉVELOPPEMENT. `make tests-integration` la vide (TRUNCATE) :
+#     toute donnée saisie ici disparaîtra à la prochaine exécution des tests.
+demo: migrer
+	@pkill -f "uvicorn mycounts" 2>/dev/null || true
+	@pkill -f "mycounts/frontend/node_modules/.bin/vite" 2>/dev/null || true
+	@sleep 1
+	@($(PY) -m uvicorn mycounts.api.app:app --app-dir backend --port 8010 \
+		--host 127.0.0.1 > /tmp/mycounts-api.log 2>&1 &)
+	@(cd frontend && npm run dev > /tmp/mycounts-web.log 2>&1 &)
+	@sleep 4
+	@echo ""
+	@echo "  Sur cette machine   http://127.0.0.1:5189"
+	@echo "  Depuis un appareil  http://$$(tailscale ip -4 2>/dev/null || ipconfig getifaddr en0):5189"
+	@echo ""
+	@echo "  Le backend n'écoute que sur 127.0.0.1 : seul le proxy l'atteint."
+	@echo "  Journaux : /tmp/mycounts-api.log et /tmp/mycounts-web.log"
+
+demo-arret:
+	@pkill -f "uvicorn mycounts" 2>/dev/null || true
+	@pkill -f "mycounts/frontend/node_modules/.bin/vite" 2>/dev/null || true
+	@echo "Serveurs de démonstration arrêtés."
 
 db-haut:
 	docker compose up -d

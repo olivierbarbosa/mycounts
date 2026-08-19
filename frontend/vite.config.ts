@@ -11,10 +11,18 @@ const CHEMINS_API = ['/api', '/health']
 export default defineConfig({
   plugins: [react()],
   server: {
-    // Explicitement IPv4 : par défaut Vite n'écoute qu'en IPv6 ([::1]), et le backend
-    // écoute en IPv4. Deux piles différentes des deux côtés du proxy, c'est une heure
-    // perdue à chercher une panne qui n'existe pas.
-    host: '127.0.0.1',
+    // 0.0.0.0 pour que l'application soit joignable depuis un autre appareil — en
+    // pratique par Tailscale, dont le tunnel est chiffré de bout en bout. Le BACKEND,
+    // lui, reste sur 127.0.0.1 : seul le proxy de Vite l'atteint, il n'est donc exposé
+    // à aucun réseau.
+    //
+    // ATTENTION : ce serveur de développement ne fait PAS de HTTPS. Sur Tailscale le
+    // trafic est chiffré par WireGuard, donc le mot de passe ne circule pas en clair.
+    // Sur un Wi-Fi ordinaire, si. Ne pas y saisir de mot de passe réutilisé ailleurs.
+    host: '0.0.0.0',
+    // Vite refuse par défaut les hôtes qu'il ne connaît pas (protection anti-rebinding
+    // DNS). On autorise les adresses du réseau Tailscale et le nom de la machine.
+    allowedHosts: ['.ts.net', 'localhost', '127.0.0.1'],
     port: 5189,
     // Sans « strictPort », Vite bascule EN SILENCE sur le port suivant quand le sien est
     // pris. Un autre projet occupait 5175 et j'ai validé contre SON application sans

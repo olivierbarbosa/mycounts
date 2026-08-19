@@ -1,0 +1,148 @@
+"""Accès aux récurrences et à leur matérialisation."""
+
+from __future__ import annotations
+
+import datetime as dt
+import uuid
+from collections.abc import Sequence
+
+from sqlalchemy import ColumnElement, select
+from sqlalchemy.orm import Session
+
+from mycounts.domain.agregats import EtatOperation
+from mycounts.domain.montants import Cents
+from mycounts.domain.recurrence import UniteRecurrence
+from mycounts.models.budget import Compte, Operation, Recurrence
+from mycounts.repository.base import Principal
+from mycounts.repository.budget import _comptes_autorises
+
+
+def creer_recurrence(
+    session: Session,
+    principal: Principal,
+    *,
+    compte_id: uuid.UUID,
+    libelle: str,
+    montant_centimes: Cents,
+    ancre: dt.date,
+    unite: UniteRecurrence,
+    intervalle: int = 1,
+    categorie_id: uuid.UUID | None = None,
+    fin: dt.date | None = None,
+) -> Recurrence:
+    recurrence = Recurrence(
+        compte_id=compte_id,
+        categorie_id=categorie_id,
+        cree_par_id=principal.utilisateur_id,
+        libelle=libelle,
+        montant_centimes=montant_centimes,
+        ancre=ancre,
+        unite=unite,
+        intervalle=intervalle,
+        fin=fin,
+    )
+    session.add(recurrence)
+    session.flush()
+    return recurrence
+
+
+def recurrences_visibles(session: Session, principal: Principal) -> list[Recurrence]:
+    return list(
+        session.execute(
+            select(Recurrence)
+            .join(Compte, Compte.id == Recurrence.compte_id)
+            .where(_comptes_autorises(principal), Recurrence.active.is_(True))
+            .order_by(Recurrence.libelle)
+        ).scalars()
+    )
+
+
+def recurrence_visible(
+    session: Session, principal: Principal, recurrence_id: uuid.UUID
+) -> Recurrence | None:
+    return session.execute(
+        select(Recurrence)
+        .join(Compte, Compte.id == Recurrence.compte_id)
+        .where(Recurrence.id == recurrence_id, _comptes_autorises(principal))
+    ).scalar_one_or_none()
+
+
+def desactiver_recurrence(session: Session, recurrence: Recurrence) -> None:
+    """Désactive plutôt que supprimer : les opérations déjà matérialisées gardent leur
+    lien, et l'historique reste explicable."""
+    recurrence.active = False
+    session.flush()
+
+
+def recurrences_actives(
+    session: Session, *, foyer_id: uuid.UUID | None = None
+) -> Sequence[Recurrence]:
+    """Toutes les récurrences actives, éventuellement restreintes à un foyer.
+
+    Sans périmètre : ce n'est pas une lecture pour un utilisateur, c'est le job de
+    matérialisation qui traite l'ensemble. Le filtre par foyer n'existe que pour les
+    tests, qui doivent pouvoir isoler leur jeu de données.
+    """
+    conditions: list[ColumnElement[bool]] = [Recurrence.active.is_(True)]
+    if foyer_id is not None:
+        conditions.append(Compte.foyer_id == foyer_id)
+    return list(
+        session.execute(
+            select(Recurrence)
+            .join(Compte, Compte.id == Recurrence.compte_id)
+            .where(*conditions)
+            .order_by(Recurrence.cree_le)
+        ).scalars()
+    )
+
+
+def dates_deja_materialisees(session: Session, *, recurrence_id: uuid.UUID) -> set[dt.date]:
+    return set(
+        session.execute(
+            select(Operation.date_operation).where(Operation.recurrence_id == recurrence_id)
+        ).scalars()
+    )
+
+
+def materialiser_echeance(
+    session: Session,
+    *,
+    recurrence: Recurrence,
+    date_echeance: dt.date,
+    etat: EtatOperation,
+) -> Operation:
+    operation = Operation(
+        compte_id=recurrence.compte_id,
+        categorie_id=recurrence.categorie_id,
+        cree_par_id=recurrence.cree_par_id,
+        recurrence_id=recurrence.id,
+        libelle=recurrence.libelle,
+        montant_centimes=recurrence.montant_centimes,
+        date_operation=date_echeance,
+        etat=etat,
+    )
+    session.add(operation)
+    session.flush()
+    return operation
+
+
+def confirmer_operation(session: Session, operation: Operation) -> Operation:
+    """Passe une opération de `a_confirmer` à `confirmee`.
+
+    Le montant n'est PAS modifié ici : confirmer, c'est dire « c'est bien passé ainsi ».
+    Corriger un montant est une autre action, qui doit se voir comme telle.
+    """
+    operation.etat = EtatOperation.CONFIRMEE
+    session.flush()
+    return operation
+
+
+def operations_a_confirmer(session: Session, principal: Principal) -> list[Operation]:
+    return list(
+        session.execute(
+            select(Operation)
+            .join(Compte, Compte.id == Operation.compte_id)
+            .where(_comptes_autorises(principal), Operation.etat == EtatOperation.A_CONFIRMER)
+            .order_by(Operation.date_operation)
+        ).scalars()
+    )

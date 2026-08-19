@@ -26,6 +26,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     func,
@@ -34,6 +35,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from mycounts.domain.agregats import EtatOperation
+from mycounts.domain.recurrence import UniteRecurrence
 from mycounts.models.auth import Foyer, Utilisateur
 from mycounts.models.base import Base
 
@@ -115,6 +117,47 @@ class Categorie(Base):
     )
 
 
+class Recurrence(Base):
+    """Prélèvement ou revenu qui revient à intervalle régulier.
+
+    `ancre` est la date de la première échéance. Toutes les suivantes s'en déduisent —
+    jamais de l'échéance précédente, sinon une récurrence au 31 resterait bloquée au 28
+    après son premier février (voir `domain/recurrence.py`).
+    """
+
+    __tablename__ = "recurrence"
+    __table_args__ = (
+        CheckConstraint("montant_centimes <> 0", name="ck_recurrence_montant_non_nul"),
+        CheckConstraint("intervalle >= 1", name="ck_recurrence_intervalle"),
+        CheckConstraint("fin is null or fin >= ancre", name="ck_recurrence_fin_apres_ancre"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    compte_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("compte.id", ondelete="CASCADE"))
+    categorie_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("categorie.id", ondelete="RESTRICT"), default=None
+    )
+    cree_par_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="RESTRICT")
+    )
+
+    libelle: Mapped[str] = mapped_column(String(140))
+    montant_centimes: Mapped[int] = mapped_column(BigInteger)
+
+    ancre: Mapped[dt.date] = mapped_column(Date)
+    unite: Mapped[UniteRecurrence] = mapped_column(String(16))
+    intervalle: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    fin: Mapped[dt.date | None] = mapped_column(Date, default=None)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    compte: Mapped[Compte] = relationship()
+    categorie: Mapped[Categorie | None] = relationship()
+
+
 class Operation(Base):
     """Mouvement d'argent, réel ou prévu.
 
@@ -133,6 +176,16 @@ class Operation(Base):
         ),
         Index("ix_operation_compte_date", "compte_id", "date_operation"),
         Index("ix_operation_paie", "compte_id", "date_operation", postgresql_where="est_paie"),
+        # Clé d'idempotence de la matérialisation, explicite et documentée : le job peut
+        # être rejoué autant de fois qu'on veut sans jamais créer de doublon. Partielle,
+        # car les opérations saisies à la main n'ont pas de récurrence.
+        Index(
+            "uq_operation_par_echeance",
+            "recurrence_id",
+            "date_operation",
+            unique=True,
+            postgresql_where="recurrence_id is not null",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
@@ -142,6 +195,9 @@ class Operation(Base):
     )
     cree_par_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("utilisateur.id", ondelete="RESTRICT")
+    )
+    recurrence_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("recurrence.id", ondelete="SET NULL"), default=None
     )
 
     libelle: Mapped[str] = mapped_column(String(140))
