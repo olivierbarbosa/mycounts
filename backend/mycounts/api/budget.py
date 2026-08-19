@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, HTTPException, Query, status
 
 from mycounts.api.budget_schemas import (
@@ -10,6 +12,7 @@ from mycounts.api.budget_schemas import (
     DemandeCategorie,
     DemandeCompte,
     DemandeOperation,
+    ModificationCategorie,
     OperationPublique,
     PeriodePublique,
     ResumePublic,
@@ -38,6 +41,18 @@ def creer_compte(
     demande: DemandeCompte, session: SessionBase, principal: PrincipalCourant
 ) -> ComptePublic:
     compte = depot.creer_compte(session, principal, nom=demande.nom, prive=demande.prive)
+    if demande.solde_ouverture_centimes != 0:
+        # Le solde de départ est une opération, jamais une colonne : sinon le solde
+        # cesserait d'être une somme et deviendrait une valeur à réconcilier.
+        depot.creer_operation(
+            session,
+            principal,
+            compte_id=compte.id,
+            libelle="Solde d'ouverture",
+            montant_centimes=Cents(demande.solde_ouverture_centimes),
+            date_operation=aujourd_hui(),
+            est_ouverture=True,
+        )
     session.commit()
     return _en_compte(compte)
 
@@ -63,6 +78,47 @@ def creer_categorie(
     )
     session.commit()
     return CategoriePublique.model_validate(categorie, from_attributes=True)
+
+
+@routeur.patch("/categories/{categorie_id}", response_model=CategoriePublique)
+def modifier_categorie(
+    categorie_id: uuid.UUID,
+    demande: ModificationCategorie,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> CategoriePublique:
+    categorie = depot.categorie_visible(session, principal, categorie_id)
+    if categorie is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+    depot.modifier_categorie(
+        session, categorie, nom=demande.nom, teinte=demande.teinte, archivee=demande.archivee
+    )
+    session.commit()
+    return CategoriePublique.model_validate(categorie, from_attributes=True)
+
+
+@routeur.delete("/categories/{categorie_id}", status_code=status.HTTP_204_NO_CONTENT)
+def supprimer_categorie(
+    categorie_id: uuid.UUID, session: SessionBase, principal: PrincipalCourant
+) -> None:
+    """Suppression définitive, refusée si la catégorie sert à une opération.
+
+    Le message propose l'archivage : supprimer une catégorie utilisée changerait
+    rétroactivement les totaux d'un mois déjà clos.
+    """
+    categorie = depot.categorie_visible(session, principal, categorie_id)
+    if categorie is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+    if depot.categorie_est_utilisee(session, categorie_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Cette catégorie est utilisée par des opérations. L'archiver la retire des "
+                "listes sans réécrire l'historique."
+            ),
+        )
+    depot.supprimer_categorie(session, categorie)
+    session.commit()
 
 
 @routeur.get("/operations", response_model=list[OperationPublique])

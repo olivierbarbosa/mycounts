@@ -128,7 +128,15 @@ def test_une_categorie_utilisee_ne_peut_pas_etre_supprimee(session_bd: Session) 
     """`ondelete=RESTRICT` : supprimer une catégorie utilisée changerait rétroactivement
     les totaux d'un mois déjà clos. On archive, on ne supprime pas."""
     principal, compte = principal_avec_compte(session_bd)
-    creees = depot.creer_categories_initiales(session_bd, principal.foyer_id)
+    from mycounts.models.budget import NatureCategorie, TeinteCategorie
+
+    categorie = depot.creer_categorie(
+        session_bd,
+        principal,
+        nom="Courses",
+        nature=NatureCategorie.DEPENSE,
+        teinte=TeinteCategorie.VERT,
+    )
     session_bd.commit()
     depot.creer_operation(
         session_bd,
@@ -137,11 +145,11 @@ def test_une_categorie_utilisee_ne_peut_pas_etre_supprimee(session_bd: Session) 
         libelle="Courses",
         montant_centimes=Cents(-4590),
         date_operation=AUJOURD_HUI,
-        categorie_id=creees[0].id,
+        categorie_id=categorie.id,
     )
     session_bd.commit()
 
-    session_bd.delete(creees[0])
+    session_bd.delete(categorie)
     with pytest.raises(IntegrityError):
         session_bd.commit()
 

@@ -131,6 +131,17 @@ SIGNE_RETENU: Final[dict[Agregat, Signe]] = {
 }
 
 
+# Troisième dimension de la table : les soldes d'ouverture comptent dans les soldes mais
+# pas dans les dépenses. Un découvert de départ n'est pas une dépense du mois — l'y
+# inclure ferait sauter tous les plafonds dès la création du compte.
+INCLUT_OUVERTURES: Final[dict[Agregat, bool]] = {
+    Agregat.SOLDE_REEL: True,
+    Agregat.SOLDE_A_CONFIRMER: True,
+    Agregat.SOLDE_PROJETE: True,
+    Agregat.DEPENSES_DE_PERIODE: False,
+}
+
+
 @dataclass(frozen=True)
 class OperationCalcul:
     """Vue minimale d'une opération pour les calculs.
@@ -142,6 +153,7 @@ class OperationCalcul:
     montant: Cents
     date_operation: dt.date
     etat: EtatOperation
+    est_ouverture: bool = False
 
 
 def contribue(agregat: Agregat, etat: EtatOperation) -> Borne | None:
@@ -169,10 +181,13 @@ def calculer(
         raise ValueError("La fin de fenêtre ne peut pas précéder le jour courant.")
 
     signe = SIGNE_RETENU[agregat]
+    inclut_ouvertures = INCLUT_OUVERTURES[agregat]
     total = 0
     for operation in operations:
         borne = contribue(agregat, operation.etat)
         if borne is None:
+            continue
+        if operation.est_ouverture and not inclut_ouvertures:
             continue
         if signe is Signe.SORTIES and operation.montant >= 0:
             continue

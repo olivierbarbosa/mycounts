@@ -50,6 +50,11 @@ contient souvent l'information qu'une reformulation perd.
 l'une contenait un IBAN réel, un solde et des libellés d'opérations. Seules les
 caractéristiques de direction artistique en ont été tirées.)*
 
+> Il faut mettre des catégories par défaut et on peut ajouter ou modifier des catégories
+> voir les supprimer
+
+> Pour le premier lancement on peut demander à l'utilisateur de taper son solde actuel
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -66,6 +71,8 @@ caractéristiques de direction artistique en ont été tirées.)*
 | « on peut set le nombre de fois où on est payé dans 1 mois » | Réglage `paies_par_cycle` (1, 2, 4…). La période s'ouvre à la **première** paie du cycle ; les suivantes sont des revenus à l'intérieur et ne rouvrent pas de période. Les plafonds restent donc par cycle. Interprétation à confirmer : l'autre lecture (chaque paie ouvre une période) donnerait 2 périodes par mois. |
 | « il faut une version pc aussi » | Mobile-first **reste la base**, mais le bureau doit avoir sa propre mise en page, pas un mobile étiré. À partir de 1024 px : navigation en **rail latéral** (plus de tab bar basse), contenu élargi. Le garde-fou n°10 vérifie qu'à 1280 px la navigation n'est plus en bas de l'écran. |
 | « design d'UI néon et Liquid Glass » | **Révise la DA du lot 1.** Fond en dégradé violet profond au lieu d'un aplat quasi noir, accents néon (cyan/magenta), verre laiteux étendu aux cartes de contenu, montants en display XL avec centimes réduits, boutons d'action circulaires, tab bar très translucide. Contrepartie non négociable : tout texte posé sur verre ou dégradé passe un contrôle de contraste AA automatique — voir la décision D3. |
+| « catégories par défaut + ajouter / modifier / supprimer » | **Annule et remplace la réponse au QCM D1.** La liste par défaut est rétablie, et l'API gagne modification et suppression. Une catégorie déjà utilisée ne peut pas être supprimée (contrainte `RESTRICT`) : elle s'archive, sinon les totaux d'un mois clos changeraient rétroactivement. |
+| « au premier lancement, demander son solde actuel » | Modélisé en **opération d'ouverture**, pas en colonne `solde_initial`. Un solde reste une somme d'opérations — le stocker créerait la seconde source de vérité que tout le projet évite. L'opération porte `est_ouverture` pour être exclue des dépenses : un découvert de départ n'est pas une dépense du mois. |
 | « surtout prévu pour mobile & tablette » | Mobile-first strict : `min-width` uniquement, tab bar basse, safe areas, cibles ≥ 44 px. |
 
 ## État du chantier
@@ -75,19 +82,16 @@ caractéristiques de direction artistique en ont été tirées.)*
 
 ## Décisions prises par défaut, à confirmer
 
-Travail en boucle autonome : quand une décision produit se présente, je prends l'option la
-plus conservatrice et la plus réversible, je l'applique, et je l'inscris ici. Rien n'est
-définitif — chaque ligne dit ce que coûte l'autre choix et quel fichier changer.
-
-**Relire cette section quand elle dépasse cinq entrées** : au-delà, des choix par omission
-s'installent, ce qui est exactement l'inverse de l'intention.
+**Depuis le 2026-08-19, chaque décision est posée en choix multiples** plutôt que
+consignée ici en silence — demande explicite. Ce tableau garde la trace de ce qui a été
+tranché, et de ce qui reste ouvert.
 
 | # | Question | Option retenue | Coût si tu choisis l'autre | Fichier à changer |
 |---|---|---|---|---|
-| D1 | Liste de catégories : fournie par défaut ou entièrement libre ? | **Fournie par défaut** à la création du foyer, entièrement modifiable et supprimable. | Passer à « libre » = supprimer la liste initiale ; les opérations déjà catégorisées gardent leur catégorie. Réversible en un commit. | `backend/mycounts/domain/categories.py` |
-| D2 | Quelle paie ouvre le **tout premier** cycle quand `paies_par_cycle` > 1 ? | **La première paie saisie**, quelle qu'elle soit. Les cycles suivants se déduisent. | Passer à « l'utilisateur désigne la paie d'ancrage » = un écran de réglage en plus ; les périodes déjà calculées se recalculent. | `backend/mycounts/domain/periode.py` |
-| D4 | Que vaut la période budgétaire tant qu'aucune paie n'a été saisie ? | **Le mois civil**, explicitement marqué « estimé ». Il faut afficher quelque chose au premier lancement sans faire croire que la borne est connue. | Passer à « aucune période tant qu'il n'y a pas de paie » = un écran vide au démarrage, plus honnête mais inutilisable. | `backend/mycounts/domain/periode.py` |
-| D5 | Où vit le réglage `paies_par_cycle` ? | **Sur l'utilisateur** (colonne, défaut 1, bornée de 1 à 12) : c'est SA paie qui ouvre SA période. | Passer au niveau du foyer = un seul rythme pour tout le monde ; à revoir au lot 5 quand les comptes joints arriveront. | `backend/mycounts/models/auth.py` |
+| ~~D1~~ | ~~Liste de catégories~~ | **TRANCHÉ le 2026-08-19** : aucune catégorie imposée. L'utilisateur crée les siennes et peut en ajouter à tout moment, y compris depuis l'écran de saisie. L'amorçage automatique a été supprimé. | — | fait |
+| ~~D2~~ | ~~Ancrage du premier cycle~~ | **CONFIRMÉ le 2026-08-19** : la première paie saisie ouvre le cycle. | — | fait |
+| ~~D4~~ | ~~Période sans paie~~ | **CONFIRMÉ le 2026-08-19** : mois civil marqué « estimé ». | — | fait |
+| ~~D5~~ | ~~Niveau du réglage `paies_par_cycle`~~ | **CONFIRMÉ le 2026-08-19** : par personne. À revoir au lot 5 pour les plafonds partagés. | — | fait |
 | D6 | Comment stocker la couleur d'une catégorie ? | **Une teinte nommée** (violet, cyan, vert, ambre, rose, ardoise), résolue par `tokens.ts`. | Stocker un code hexadécimal = contourner le garde-fou n°9, et rendre impossible l'adaptation clair/sombre. | `backend/mycounts/models/budget.py` |
 | D3 | Les montants peuvent-ils être posés sur du verre, maintenant que la DA néon l'étend aux cartes ? | **Oui, mais sous condition mesurée** : tout texte sur verre ou dégradé doit passer un contraste AA (4,5:1), vérifié automatiquement dans les trois positions du réglage de transparence. La règle « jamais de montant sur du verre » du lot 1 est donc remplacée, pas abandonnée. | Revenir à des cartes opaques = plus sûr en lisibilité, mais on perd l'essentiel de l'effet demandé. | `frontend/src/design/tokens.ts`, `frontend/e2e/contraste.spec.ts` |
 

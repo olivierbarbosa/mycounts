@@ -70,7 +70,13 @@ def compte_visible(session: Session, principal: Principal, compte_id: uuid.UUID)
 
 
 def creer_categories_initiales(session: Session, foyer_id: uuid.UUID) -> list[Categorie]:
-    """Amorce le foyer avec la liste par défaut (décision D1)."""
+    """Amorce le foyer avec la liste par défaut.
+
+    Un écran vide au premier lancement décourage la saisie : on crée une catégorie avant
+    de pouvoir enregistrer une dépense, et c'est le moment où l'on remet à plus tard.
+    Toutes sont renommables, retintables, archivables et supprimables tant qu'elles ne
+    servent à aucune opération.
+    """
     creees = [
         Categorie(foyer_id=foyer_id, nom=modele.nom, nature=modele.nature, teinte=modele.teinte)
         for modele in CATEGORIES_INITIALES
@@ -78,6 +84,45 @@ def creer_categories_initiales(session: Session, foyer_id: uuid.UUID) -> list[Ca
     session.add_all(creees)
     session.flush()
     return creees
+
+
+def modifier_categorie(
+    session: Session,
+    categorie: Categorie,
+    *,
+    nom: str | None = None,
+    teinte: TeinteCategorie | None = None,
+    archivee: bool | None = None,
+) -> Categorie:
+    """La `nature` n'est volontairement PAS modifiable.
+
+    Basculer une catégorie de dépense en revenu changerait le signe attendu de toutes les
+    opérations déjà classées dessous, et donc les totaux de mois déjà clos.
+    """
+    if nom is not None:
+        categorie.nom = nom
+    if teinte is not None:
+        categorie.teinte = teinte
+    if archivee is not None:
+        categorie.archivee = archivee
+    session.flush()
+    return categorie
+
+
+def categorie_est_utilisee(session: Session, categorie_id: uuid.UUID) -> bool:
+    return (
+        session.execute(
+            select(Operation.id).where(Operation.categorie_id == categorie_id).limit(1)
+        ).first()
+        is not None
+    )
+
+
+def supprimer_categorie(session: Session, categorie: Categorie) -> None:
+    """Suppression définitive. L'appelant doit avoir vérifié qu'elle n'est pas utilisée :
+    la base refuserait de toute façon (`ondelete=RESTRICT`)."""
+    session.delete(categorie)
+    session.flush()
 
 
 def categories(
@@ -128,6 +173,7 @@ def creer_operation(
     categorie_id: uuid.UUID | None = None,
     etat: EtatOperation = EtatOperation.CONFIRMEE,
     est_paie: bool = False,
+    est_ouverture: bool = False,
 ) -> Operation:
     operation = Operation(
         compte_id=compte_id,
@@ -138,6 +184,7 @@ def creer_operation(
         date_operation=date_operation,
         etat=etat,
         est_paie=est_paie,
+        est_ouverture=est_ouverture,
     )
     session.add(operation)
     session.flush()
@@ -187,6 +234,7 @@ def operations_pour_calcul(
             montant=Cents(operation.montant_centimes),
             date_operation=operation.date_operation,
             etat=operation.etat,
+            est_ouverture=operation.est_ouverture,
         )
         for operation in operations_visibles(session, principal, comptes=comptes)
     ]

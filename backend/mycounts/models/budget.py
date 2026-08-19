@@ -128,6 +128,9 @@ class Operation(Base):
         CheckConstraint(
             "not est_paie or montant_centimes > 0", name="ck_operation_paie_positive"
         ),
+        CheckConstraint(
+            "not (est_paie and est_ouverture)", name="ck_operation_paie_ou_ouverture"
+        ),
         Index("ix_operation_compte_date", "compte_id", "date_operation"),
         Index("ix_operation_paie", "compte_id", "date_operation", postgresql_where="est_paie"),
     )
@@ -157,6 +160,12 @@ class Operation(Base):
     # Marqueur explicite d'ouverture de période budgétaire. Le déduire d'une catégorie
     # nommée « Salaire » rendrait la règle invisible et cassable en renommant.
     est_paie: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+    # Solde de départ saisi à la création du compte. C'est une OPÉRATION et non une
+    # colonne `solde_initial` : un solde reste une somme d'opérations, sans quoi on
+    # créerait la seconde source de vérité que tout le projet évite. Le marqueur sert à
+    # l'exclure des dépenses — un découvert de départ n'est pas une dépense du mois.
+    est_ouverture: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     compte: Mapped[Compte] = relationship()
     categorie: Mapped[Categorie | None] = relationship()

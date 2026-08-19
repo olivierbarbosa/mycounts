@@ -14,6 +14,7 @@ import itertools
 import pytest
 from mycounts.domain.agregats import (
     CONTRIBUTIONS,
+    INCLUT_OUVERTURES,
     SIGNE_RETENU,
     Agregat,
     Borne,
@@ -55,6 +56,32 @@ def test_la_table_est_exhaustive() -> None:
 def test_aucun_agregat_ne_manque_dans_la_table() -> None:
     assert set(CONTRIBUTIONS) == set(Agregat)
     assert set(SIGNE_RETENU) == set(Agregat), "un agrégat sans signe retenu sommerait tout"
+    assert set(INCLUT_OUVERTURES) == set(Agregat), "un agrégat sans règle d'ouverture"
+
+
+def test_un_solde_douverture_compte_dans_les_soldes_pas_dans_les_depenses() -> None:
+    """Un découvert de départ n'est pas une dépense du mois.
+
+    L'y inclure ferait sauter tous les plafonds dès la création du compte, sans qu'aucune
+    dépense réelle n'ait eu lieu.
+    """
+    ouverture = OperationCalcul(
+        montant=Cents(-15000), date_operation=AUJOURD_HUI,
+        etat=EtatOperation.CONFIRMEE, est_ouverture=True,
+    )
+    depense = operation(-4590)
+    assert somme(Agregat.SOLDE_REEL, [ouverture, depense]) == -19590
+    assert somme(Agregat.DEPENSES_DE_PERIODE, [ouverture, depense]) == -4590
+
+
+def test_temoin_une_ouverture_positive_ne_fausse_pas_les_depenses() -> None:
+    """Volet inverse : une ouverture créditrice ne doit pas non plus réduire les dépenses."""
+    ouverture = OperationCalcul(
+        montant=Cents(120000), date_operation=AUJOURD_HUI,
+        etat=EtatOperation.CONFIRMEE, est_ouverture=True,
+    )
+    assert somme(Agregat.DEPENSES_DE_PERIODE, [ouverture, operation(-4590)]) == -4590
+    assert somme(Agregat.SOLDE_REEL, [ouverture, operation(-4590)]) == 115410
 
 
 def test_les_depenses_ignorent_les_revenus() -> None:

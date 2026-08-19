@@ -25,6 +25,14 @@ class ComptePublic(BaseModel):
 class DemandeCompte(BaseModel):
     nom: str = Field(min_length=1, max_length=80)
     prive: bool = True
+    solde_ouverture_centimes: int = Field(
+        default=0,
+        description=(
+            "Solde du compte au moment de sa création, en centimes. Enregistré comme une "
+            "opération d'ouverture — un solde reste une somme d'opérations. Zéro n'en crée "
+            "aucune."
+        ),
+    )
 
 
 class CategoriePublique(BaseModel):
@@ -38,6 +46,15 @@ class DemandeCategorie(BaseModel):
     nom: str = Field(min_length=1, max_length=60)
     nature: NatureCategorie
     teinte: TeinteCategorie
+
+
+class ModificationCategorie(BaseModel):
+    """La `nature` est absente volontairement : la changer inverserait le signe attendu
+    de toutes les opérations déjà classées, et donc les totaux de mois déjà clos."""
+
+    nom: str | None = Field(default=None, min_length=1, max_length=60)
+    teinte: TeinteCategorie | None = None
+    archivee: bool | None = None
 
 
 class DemandeOperation(BaseModel):
@@ -60,6 +77,7 @@ class OperationPublique(BaseModel):
     date_operation: dt.date
     etat: EtatOperation
     est_paie: bool
+    est_ouverture: bool
 
 
 class PeriodePublique(BaseModel):

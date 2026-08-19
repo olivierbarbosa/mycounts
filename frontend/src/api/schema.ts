@@ -109,6 +109,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Categories */
+        get: operations["lister_categories_categories_get"];
+        put?: never;
+        /** Creer Categorie */
+        post: operations["creer_categorie_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comptes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Comptes */
+        get: operations["lister_comptes_comptes_get"];
+        put?: never;
+        /** Creer Compte */
+        post: operations["creer_compte_comptes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -126,10 +162,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Operations */
+        get: operations["lister_operations_operations_get"];
+        put?: never;
+        /**
+         * Creer Operation
+         * @description Saisit une opération.
+         *
+         *     Le compte et la catégorie sont revérifiés à travers le périmètre de l'appelant :
+         *     un identifiant valide chez quelqu'un d'autre doit être refusé exactement comme un
+         *     identifiant inexistant, sans distinction observable.
+         */
+        post: operations["creer_operation_operations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resume */
+        get: operations["resume_resume_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** CategoriePublique */
+        CategoriePublique: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            nature: components["schemas"]["NatureCategorie"];
+            /** Nom */
+            nom: string;
+            teinte: components["schemas"]["TeinteCategorie"];
+        };
+        /** ComptePublic */
+        ComptePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nom */
+            nom: string;
+            /** Prive */
+            prive: boolean;
+        };
         /**
          * DemandeAdhesion
          * @description Rejoindre un foyer avec un code d'invitation.
@@ -137,26 +239,73 @@ export interface components {
         DemandeAdhesion: {
             /** Code */
             code: string;
-            /**
-             * Courriel
-             * Format: email
-             */
+            /** Courriel */
             courriel: string;
             /** Mot De Passe */
             mot_de_passe: string;
             /** Nom Affichage */
             nom_affichage: string;
         };
+        /** DemandeCategorie */
+        DemandeCategorie: {
+            nature: components["schemas"]["NatureCategorie"];
+            /** Nom */
+            nom: string;
+            teinte: components["schemas"]["TeinteCategorie"];
+        };
+        /** DemandeCompte */
+        DemandeCompte: {
+            /** Nom */
+            nom: string;
+            /**
+             * Prive
+             * @default true
+             */
+            prive: boolean;
+        };
         /** DemandeConnexion */
         DemandeConnexion: {
-            /**
-             * Courriel
-             * Format: email
-             */
+            /** Courriel */
             courriel: string;
             /** Mot De Passe */
             mot_de_passe: string;
         };
+        /** DemandeOperation */
+        DemandeOperation: {
+            /** Categorie Id */
+            categorie_id?: string | null;
+            /**
+             * Compte Id
+             * Format: uuid
+             */
+            compte_id: string;
+            /**
+             * Date Operation
+             * Format: date
+             */
+            date_operation: string;
+            /**
+             * Est Paie
+             * @default false
+             */
+            est_paie: boolean;
+            /** Libelle */
+            libelle: string;
+            /**
+             * Montant Centimes
+             * @description Entier signé. Négatif = sortie, positif = entrée. Zéro refusé.
+             */
+            montant_centimes: number;
+        };
+        /**
+         * EtatOperation
+         * @description Cycle de vie d'une opération.
+         *
+         *     `prevue` → `a_confirmer` → `confirmee`. Une saisie manuelle naît directement
+         *     `confirmee` : l'utilisateur vient de la constater.
+         * @enum {string}
+         */
+        EtatOperation: "prevue" | "a_confirmer" | "confirmee";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -178,6 +327,77 @@ export interface components {
              */
             expire_le: string;
         };
+        /**
+         * NatureCategorie
+         * @enum {string}
+         */
+        NatureCategorie: "depense" | "revenu";
+        /** OperationPublique */
+        OperationPublique: {
+            /** Categorie Id */
+            categorie_id: string | null;
+            /**
+             * Compte Id
+             * Format: uuid
+             */
+            compte_id: string;
+            /**
+             * Date Operation
+             * Format: date
+             */
+            date_operation: string;
+            /** Est Paie */
+            est_paie: boolean;
+            etat: components["schemas"]["EtatOperation"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Libelle */
+            libelle: string;
+            /** Montant Centimes */
+            montant_centimes: number;
+        };
+        /** PeriodePublique */
+        PeriodePublique: {
+            /**
+             * Debut
+             * Format: date
+             */
+            debut: string;
+            /**
+             * Fin
+             * Format: date
+             */
+            fin: string;
+            /** Fin Estimee */
+            fin_estimee: boolean;
+        };
+        /**
+         * ResumePublic
+         * @description Les quatre grandeurs, toutes exposées.
+         *
+         *     Le solde réel est renvoyé même si l'interface met le projeté en avant : sans lui,
+         *     aucun écart avec la banque ne serait diagnosticable.
+         */
+        ResumePublic: {
+            /** Depenses De Periode */
+            depenses_de_periode: number;
+            periode: components["schemas"]["PeriodePublique"];
+            /** Solde A Confirmer */
+            solde_a_confirmer: number;
+            /** Solde Projete */
+            solde_projete: number;
+            /** Solde Reel */
+            solde_reel: number;
+        };
+        /**
+         * TeinteCategorie
+         * @description Teintes disponibles, résolues en couleur par `frontend/src/design/tokens.ts`.
+         * @enum {string}
+         */
+        TeinteCategorie: "violet" | "cyan" | "vert" | "ambre" | "rose" | "ardoise";
         /** UtilisateurPublic */
         UtilisateurPublic: {
             /** Courriel */
@@ -374,6 +594,138 @@ export interface operations {
             };
         };
     };
+    lister_categories_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriePublique"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creer_categorie_categories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeCategorie"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriePublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lister_comptes_comptes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComptePublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creer_compte_comptes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeCompte"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComptePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_health_get: {
         parameters: {
             query?: never;
@@ -392,6 +744,106 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    lister_operations_operations_get: {
+        parameters: {
+            query?: {
+                /** @description Restreindre à la période budgétaire en cours. */
+                periode_courante?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationPublique"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creer_operation_operations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeOperation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationPublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_resume_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

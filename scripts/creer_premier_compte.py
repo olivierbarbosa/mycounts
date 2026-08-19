@@ -80,8 +80,6 @@ def main(argv: list[str] | None = None) -> int:
             nom_affichage=arguments.nom_affichage,
             empreinte_mot_de_passe=empreinte,
         )
-        # Le foyer naît avec ses catégories (décision D1) : un écran vide au premier
-        # lancement décourage la saisie, et c'est la saisie qui fait vivre l'outil.
         depot_budget.creer_categories_initiales(session, foyer.id)
         session.commit()
     finally:
