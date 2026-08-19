@@ -23,8 +23,7 @@ Python 3.12 · FastAPI · PostgreSQL 16 · SQLAlchemy 2 · Alembic. Frontend Rea
 
 ```bash
 make installer          # venv + dépendances
-.venv/bin/alembic upgrade head   # applique les migrations
-make db-haut            # PostgreSQL sur le port 5434 (5433 est pris par un autre projet)
+make db-haut            # PostgreSQL sur le port 5434 + migrations (5433 est pris ailleurs)
 make verifier           # lint + types + garde-fous + tests unitaires
 make tests-integration  # tests contre le vrai PostgreSQL
 ```

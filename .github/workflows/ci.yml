@@ -40,5 +40,11 @@ jobs:
       - name: Vérifier (lint, types, garde-fous, tests)
         run: make verifier
 
+      # Les tests d'intégration touchent des tables : elles doivent exister. Cette étape
+      # manquait, et la CI a rougi — c'est exactement son rôle, mon poste local ayant un
+      # état que le dépôt ne reproduisait pas. Voir ERREURS.md #006.
+      - name: Appliquer les migrations
+        run: make migrer
+
       - name: Tests d'intégration (PostgreSQL réel)
         run: make tests-integration

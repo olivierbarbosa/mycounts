@@ -182,3 +182,38 @@ exactement ce qui est joignable, et il ne cassera pas à la prochaine montée de
 **Généralisation.** Tout test qui boucle sur une collection doit d'abord prouver que la
 collection n'est pas vide — et, mieux, qu'elle contient des éléments attendus nommément.
 Sinon la mesure ne peut pas rendre la réponse inverse. Même forme que #001 à #004.
+
+---
+
+## 006 — Un test vert sur un état de base que le dépôt ne sait pas reproduire
+
+**Zone** : `.github/workflows/ci.yml`, `Makefile`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que 32 tests d'intégration verts en local prouvaient que le lot 1
+tenait debout. Je venais d'écrire l'invariant « valider par le chemin de production ».
+
+**Ce que j'ai mesuré.** La CI a échoué au premier push :
+`relation "session_web" does not exist`. J'avais lancé `alembic upgrade head` **à la main**
+pendant le développement. Mon poste portait donc un état que le dépôt ne reproduisait pas,
+et aucun de mes 32 tests ne pouvait le signaler — ils s'exécutaient tous après cette
+commande manuelle.
+
+**Pourquoi ça ne prouvait rien.** La mesure « les tests passent chez moi » ne peut pas
+rendre la réponse inverse tant que l'environnement contient une étape non écrite. Ce n'est
+pas le code qui était faux, c'est le périmètre de la mesure : elle englobait mon shell.
+
+**Le contrôle qui a tranché.** La CI elle-même, sur une machine vierge. C'est le seul
+endroit du projet où l'environnement est reconstruit depuis le dépôt seul, donc le seul
+qui puisse détecter une dépendance à un geste manuel.
+
+**Correction.** Cible `make migrer` (idempotente), appelée explicitement par la CI avant
+les tests d'intégration, et par `make db-haut` en local — de sorte que démarrer la base
+et la migrer soient un seul geste, impossible à dissocier par oubli.
+
+**Généralisation.** « Ça marche chez moi » est une mesure dont le périmètre inclut des
+choses non versionnées. La question à se poser n'est pas « est-ce que le test passe ? »
+mais « **sur quelle machine, reconstruite comment ?** ». Et une conséquence directe : ne
+jamais annoncer qu'un lot est terminé avant que la CI l'ait confirmé — c'est exactement
+la règle « vérification verte avant d'ouvrir le lot suivant », que je venais d'inscrire
+dans CLAUDE.md et que j'ai enfreinte au commit suivant.
