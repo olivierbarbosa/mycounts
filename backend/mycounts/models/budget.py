@@ -257,5 +257,11 @@ class Operation(Base):
     # l'exclure des dépenses — un découvert de départ n'est pas une dépense du mois.
     est_ouverture: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
+    # Écartée volontairement : un prélèvement rejeté par la banque, une échéance qui n'est
+    # finalement pas passée. La ligne RESTE en base — c'est ce qui empêche le job de
+    # matérialisation de la recréer au passage suivant, la clé d'idempotence
+    # `uq_operation_par_echeance` la voyant toujours.
+    annulee: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
     compte: Mapped[Compte] = relationship()
     categorie: Mapped[Categorie | None] = relationship()

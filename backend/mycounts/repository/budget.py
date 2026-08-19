@@ -191,6 +191,64 @@ def creer_operation(
     return operation
 
 
+def operation_visible(
+    session: Session, principal: Principal, operation_id: uuid.UUID
+) -> Operation | None:
+    return session.execute(
+        select(Operation)
+        .join(Compte, Compte.id == Operation.compte_id)
+        .where(Operation.id == operation_id, _comptes_autorises(principal))
+    ).scalar_one_or_none()
+
+
+def modifier_operation(
+    session: Session,
+    operation: Operation,
+    *,
+    libelle: str | None = None,
+    montant_centimes: Cents | None = None,
+    date_operation: dt.date | None = None,
+    categorie_id: uuid.UUID | None = None,
+) -> Operation:
+    """Corrige une opération.
+
+    `est_paie` n'est pas modifiable : basculer une opération en paie déplacerait les
+    bornes de toutes les périodes suivantes, et donc les totaux de mois déjà consultés.
+    Pour corriger une paie mal saisie, on la supprime et on la ressaisit.
+    """
+    if libelle is not None:
+        operation.libelle = libelle
+    if montant_centimes is not None:
+        operation.montant_centimes = montant_centimes
+    if date_operation is not None:
+        operation.date_operation = date_operation
+    if categorie_id is not None:
+        operation.categorie_id = categorie_id
+    session.flush()
+    return operation
+
+
+def retirer_operation(session: Session, operation: Operation) -> str:
+    """Retire une opération des écrans, et renvoie ce qui a été fait.
+
+    Deux cas, et l'appelant n'a pas à les distinguer :
+
+    - **saisie manuelle** : suppression définitive, la ligne n'a aucune raison de rester ;
+    - **issue d'une récurrence** : marquée annulée et CONSERVÉE. La supprimer serait
+      inutile — le job de matérialisation la recréerait au passage suivant, puisque sa
+      clé d'idempotence ne la verrait plus. La garder annulée est ce qui rend le retrait
+      définitif.
+    """
+    if operation.recurrence_id is None:
+        session.delete(operation)
+        session.flush()
+        return "supprimee"
+
+    operation.annulee = True
+    session.flush()
+    return "annulee"
+
+
 def operations_visibles(
     session: Session,
     principal: Principal,
@@ -203,7 +261,12 @@ def operations_visibles(
 
     Les bornes de date sont **incluses** des deux côtés, comme les périodes budgétaires.
     """
-    conditions: list[ColumnElement[bool]] = [_comptes_autorises(principal)]
+    # Les opérations annulées ne remontent jamais : elles n'existent en base que pour
+    # empêcher le job de les recréer.
+    conditions: list[ColumnElement[bool]] = [
+        _comptes_autorises(principal),
+        Operation.annulee.is_(False),
+    ]
     if depuis is not None:
         conditions.append(Operation.date_operation >= depuis)
     if jusqu_a is not None:
@@ -235,6 +298,7 @@ def operations_pour_calcul(
             date_operation=operation.date_operation,
             etat=operation.etat,
             est_ouverture=operation.est_ouverture,
+            annulee=operation.annulee,
         )
         for operation in operations_visibles(session, principal, comptes=comptes)
     ]
@@ -252,6 +316,7 @@ def dates_de_paie(
         _comptes_autorises(principal),
         Operation.est_paie.is_(True),
         Operation.etat != EtatOperation.PREVUE,
+        Operation.annulee.is_(False),
     ]
     if comptes is not None:
         conditions.append(Operation.compte_id.in_(comptes))

@@ -69,6 +69,21 @@ class DemandeOperation(BaseModel):
     est_paie: bool = False
 
 
+class ModificationOperation(BaseModel):
+    """Champs corrigeables d'une opération.
+
+    `compte_id` et `est_paie` sont absents à dessein. Déplacer une opération changerait
+    le solde de deux comptes ; basculer une opération en paie déplacerait les bornes de
+    toutes les périodes suivantes, donc des totaux déjà consultés. Ces deux corrections
+    passent par une suppression et une nouvelle saisie, où elles se voient.
+    """
+
+    libelle: str | None = Field(default=None, min_length=1, max_length=140)
+    montant_centimes: int | None = None
+    date_operation: dt.date | None = None
+    categorie_id: uuid.UUID | None = None
+
+
 class OperationPublique(BaseModel):
     id: uuid.UUID
     compte_id: uuid.UUID
@@ -79,6 +94,7 @@ class OperationPublique(BaseModel):
     etat: EtatOperation
     est_paie: bool
     est_ouverture: bool
+    recurrence_id: uuid.UUID | None = None
 
 
 class PeriodePublique(BaseModel):

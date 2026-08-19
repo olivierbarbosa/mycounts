@@ -13,6 +13,7 @@ import itertools
 
 import pytest
 from mycounts.domain.agregats import (
+    COMPTE_LES_ANNULEES,
     CONTRIBUTIONS,
     INCLUT_OUVERTURES,
     SIGNE_RETENU,
@@ -57,6 +58,32 @@ def test_aucun_agregat_ne_manque_dans_la_table() -> None:
     assert set(CONTRIBUTIONS) == set(Agregat)
     assert set(SIGNE_RETENU) == set(Agregat), "un agrégat sans signe retenu sommerait tout"
     assert set(INCLUT_OUVERTURES) == set(Agregat), "un agrégat sans règle d'ouverture"
+    assert set(COMPTE_LES_ANNULEES) == set(Agregat), "un agrégat sans règle d'annulation"
+
+
+def test_une_operation_annulee_nentre_dans_aucun_agregat() -> None:
+    """Une échéance écartée volontairement disparaît de tous les totaux.
+
+    Elle reste en base pour que le job ne la recrée pas — c'est justement pour ça qu'il
+    faut l'exclure explicitement des calculs plutôt que de compter sur son absence.
+    """
+    annulee = OperationCalcul(
+        montant=Cents(-4590), date_operation=AUJOURD_HUI,
+        etat=EtatOperation.CONFIRMEE, annulee=True,
+    )
+    for agregat in Agregat:
+        assert somme(agregat, [annulee]) == 0, f"{agregat} compte une opération annulée"
+
+
+def test_temoin_la_meme_operation_non_annulee_compte_bien() -> None:
+    """Volet inverse : sans lui, un filtre qui exclurait TOUT passerait le test
+    précédent."""
+    vivante = OperationCalcul(
+        montant=Cents(-4590), date_operation=AUJOURD_HUI,
+        etat=EtatOperation.CONFIRMEE, annulee=False,
+    )
+    assert somme(Agregat.SOLDE_REEL, [vivante]) == -4590
+    assert somme(Agregat.DEPENSES_DE_PERIODE, [vivante]) == -4590
 
 
 def test_un_solde_douverture_compte_dans_les_soldes_pas_dans_les_depenses() -> None:

@@ -13,6 +13,7 @@ from mycounts.api.budget_schemas import (
     DemandeCompte,
     DemandeOperation,
     ModificationCategorie,
+    ModificationOperation,
     OperationPublique,
     PeriodePublique,
     ResumePublic,
@@ -183,6 +184,67 @@ def creer_operation(
     )
     session.commit()
     return OperationPublique.model_validate(operation, from_attributes=True)
+
+
+@routeur.patch("/operations/{operation_id}", response_model=OperationPublique)
+def modifier_operation(
+    operation_id: uuid.UUID,
+    demande: ModificationOperation,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> OperationPublique:
+    """Corrige une opération déjà saisie."""
+    operation = depot.operation_visible(session, principal, operation_id)
+    if operation is None or operation.annulee:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Opération introuvable.")
+    if demande.montant_centimes is not None and demande.montant_centimes == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Un montant nul ne décrit aucune opération.",
+        )
+    if (
+        operation.est_paie
+        and demande.montant_centimes is not None
+        and demande.montant_centimes <= 0
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Une paie ouvre une période budgétaire : son montant doit rester positif.",
+        )
+    if demande.categorie_id is not None and (
+        depot.categorie_visible(session, principal, demande.categorie_id) is None
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+
+    depot.modifier_operation(
+        session,
+        operation,
+        libelle=demande.libelle,
+        montant_centimes=Cents(demande.montant_centimes)
+        if demande.montant_centimes is not None
+        else None,
+        date_operation=demande.date_operation,
+        categorie_id=demande.categorie_id,
+    )
+    session.commit()
+    return OperationPublique.model_validate(operation, from_attributes=True)
+
+
+@routeur.delete("/operations/{operation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def supprimer_operation(
+    operation_id: uuid.UUID, session: SessionBase, principal: PrincipalCourant
+) -> None:
+    """Retire une opération.
+
+    Une saisie manuelle est supprimée ; une opération issue d'un prélèvement est annulée
+    et conservée, faute de quoi le job la recréerait au passage suivant. La distinction
+    est faite par le repository — l'appelant demande simplement le retrait.
+    """
+    operation = depot.operation_visible(session, principal, operation_id)
+    if operation is None or operation.annulee:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Opération introuvable.")
+    depot.retirer_operation(session, operation)
+    session.commit()
 
 
 def _resumer(session: SessionBase, principal: PrincipalCourant) -> ResumePeriode:

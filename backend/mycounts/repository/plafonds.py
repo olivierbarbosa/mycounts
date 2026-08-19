@@ -109,6 +109,7 @@ def operations_categorisees(
             date_operation=o.date_operation,
             etat=o.etat,
             est_ouverture=o.est_ouverture,
+            annulee=o.annulee,
             categorie_id=o.categorie_id,
         )
         for o in lignes

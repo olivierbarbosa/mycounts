@@ -8,15 +8,22 @@ fichier se corrige dans le même commit. Toute ligne ici doit pointer vers un fi
 existant : une ligne sans fichier est une intention, sa place est dans le plan ou dans
 `BOUCLE.md`.
 
-## État : lot 2 terminé
+## État
 
-Existe : authentification et foyer, comptes privés, catégories (créer / renommer /
-retinter / archiver / supprimer), opérations, période budgétaire de paie à paie, soldes
-et liste, amorçage avec solde d'ouverture. Interface néon + Liquid Glass, mobile-first
-avec rail latéral au-delà de 1024 px.
+**Livré** : authentification et foyer ; comptes privés ; catégories (créer, renommer,
+retinter, archiver, supprimer) ; opérations ; période budgétaire de paie à paie ; soldes
+et liste ; amorçage avec solde d'ouverture ; récurrences, matérialisation idempotente,
+calendrier mensuel et file « à confirmer » ; plafonds par catégorie **côté serveur**.
+Interface néon + Liquid Glass sur palette lavande, mobile d'abord, rail latéral au-delà
+de 1024 px.
 
-**N'existe pas encore** : récurrences et agenda (lot 3), plafonds (lot 4), comptes joints
-et partage (lot 5), déploiement VPS (lot 6).
+**Manque** : modifier / supprimer / détailler une opération (l'action la plus fréquente
+est à sens unique) ; écran des plafonds ; virements entre comptes ; page Épargne ; onglet
+Foyer et comptes joints ; déploiement VPS.
+
+Le plan d'exécution détaillé vit dans `docs/PLAN.md` — il fixe pour chaque écran ce qu'il
+fait **et ce qu'il ne fait pas**. Cette seconde colonne existe parce que trois écrans ont
+été refaits deux ou trois fois faute de l'avoir écrite avant de coder.
 
 ## Stack
 
@@ -59,6 +66,13 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 - **Une adresse électronique est validée par `normaliser_courriel()`**, dans le domaine.
   Le schéma d'API l'appelle via `AfterValidator` — pas d'`EmailStr`, qui ferait un second
   auteur de la règle.
+- **Un virement n'est ni une dépense ni un revenu** : l'argent change de poche sans
+  quitter le foyer. Il reste dans les soldes des deux comptes, sort des dépenses et des
+  plafonds.
+- **Une classe utilitaire ne déclare rien que son consommateur puisse vouloir
+  contredire** — deux incidents pour la même cause (ERREURS.md #008 et #020).
+- **Une sonde de mesure a un domaine de validité** : le connaître avant de croire son
+  verdict. Celle du contraste m'a trompé trois fois (#011, #021).
 - **Frontend : `design/tokens.ts` est l'auteur unique de la palette.** Les composants
   n'écrivent que `var(--…)`. DA néon + Liquid Glass : dégradé violet, surfaces en verre.
   Un texte PEUT être posé sur du verre, à une condition mesurée — contraste AA de 4,5:1

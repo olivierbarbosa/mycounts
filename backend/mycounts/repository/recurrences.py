@@ -133,6 +133,11 @@ def recurrences_actives(
 
 
 def dates_deja_materialisees(session: Session, *, recurrence_id: uuid.UUID) -> set[dt.date]:
+    """Dates déjà traitées pour cette récurrence, **annulées comprises**.
+
+    C'est délibéré : une échéance annulée doit rester « déjà traitée », sinon le job la
+    recréerait au passage suivant et l'annulation ne tiendrait pas une journée.
+    """
     return set(
         session.execute(
             select(Operation.date_operation).where(Operation.recurrence_id == recurrence_id)
@@ -178,7 +183,13 @@ def operations_a_confirmer(session: Session, principal: Principal) -> list[Opera
         session.execute(
             select(Operation)
             .join(Compte, Compte.id == Operation.compte_id)
-            .where(_comptes_autorises(principal), Operation.etat == EtatOperation.A_CONFIRMER)
+            .where(
+                _comptes_autorises(principal),
+                Operation.etat == EtatOperation.A_CONFIRMER,
+                # Une échéance annulée reste en base pour bloquer sa rematérialisation ;
+                # elle n'a rien à faire dans une file d'attente d'action.
+                Operation.annulee.is_(False),
+            )
             .order_by(Operation.date_operation)
         ).scalars()
     )

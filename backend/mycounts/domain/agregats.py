@@ -142,6 +142,18 @@ INCLUT_OUVERTURES: Final[dict[Agregat, bool]] = {
 }
 
 
+# Quatrième dimension. Contrairement aux trois autres, elle ne varie PAS selon l'agrégat :
+# une opération annulée n'entre nulle part. Elle est écrite comme une table quand même,
+# pour la même raison que les précédentes — le jour où un agrégat voudrait les compter
+# (un journal d'audit, par exemple), il faudra le déclarer ici et non l'oublier.
+COMPTE_LES_ANNULEES: Final[dict[Agregat, bool]] = {
+    Agregat.SOLDE_REEL: False,
+    Agregat.SOLDE_A_CONFIRMER: False,
+    Agregat.SOLDE_PROJETE: False,
+    Agregat.DEPENSES_DE_PERIODE: False,
+}
+
+
 @dataclass(frozen=True)
 class OperationCalcul:
     """Vue minimale d'une opération pour les calculs.
@@ -154,6 +166,7 @@ class OperationCalcul:
     date_operation: dt.date
     etat: EtatOperation
     est_ouverture: bool = False
+    annulee: bool = False
 
 
 def contribue(agregat: Agregat, etat: EtatOperation) -> Borne | None:
@@ -182,10 +195,13 @@ def calculer(
 
     signe = SIGNE_RETENU[agregat]
     inclut_ouvertures = INCLUT_OUVERTURES[agregat]
+    compte_les_annulees = COMPTE_LES_ANNULEES[agregat]
     total = 0
     for operation in operations:
         borne = contribue(agregat, operation.etat)
         if borne is None:
+            continue
+        if operation.annulee and not compte_les_annulees:
             continue
         if operation.est_ouverture and not inclut_ouvertures:
             continue
