@@ -88,6 +88,11 @@
 }
 
 .operation {
+  /* Toute la ligne est cliquable : sur téléphone, viser une petite zone au sein d'une
+     ligne est le meilleur moyen de rater son geste. */
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: var(--espace-m);

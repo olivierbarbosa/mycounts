@@ -13,6 +13,7 @@ import styles from './Accueil.module.css'
 
 type Props = {
   readonly surSaisie: () => void
+  readonly surOperationChoisie: (operation: OperationPublique) => void
   readonly comptes: readonly ComptePublic[]
   readonly categories: readonly CategoriePublique[]
   readonly rafraichissement: number
@@ -45,7 +46,13 @@ function dateCivile(iso: string): Date {
   return new Date(annee, mois - 1, jour)
 }
 
-export function Accueil({ surSaisie, comptes, categories, rafraichissement }: Props) {
+export function Accueil({
+  surSaisie,
+  surOperationChoisie,
+  comptes,
+  categories,
+  rafraichissement,
+}: Props) {
   const [resume, setResume] = useState<ResumePublic | null>(null)
   const [operations, setOperations] = useState<readonly OperationPublique[]>([])
 
@@ -125,7 +132,13 @@ export function Accueil({ surSaisie, comptes, categories, rafraichissement }: Pr
               : undefined
             const compte = parCompte.get(operation.compte_id)
             return (
-              <li key={operation.id} className={styles.operation}>
+              <li key={operation.id}>
+                <button
+                  type="button"
+                  className={styles.operation}
+                  onClick={() => surOperationChoisie(operation)}
+                  aria-label={`Détail de ${operation.libelle}`}
+                >
                 <span
                   className={`${styles.pastille} ${
                     TEINTES[categorie?.teinte ?? 'ardoise'] ?? styles.teinteArdoise
@@ -143,7 +156,8 @@ export function Accueil({ surSaisie, comptes, categories, rafraichissement }: Pr
                     {operation.est_ouverture ? ' · ouverture' : ''}
                   </span>
                 </span>
-                <Montant centimes={operation.montant_centimes} taille="ligne" />
+                  <Montant centimes={operation.montant_centimes} taille="ligne" />
+                </button>
               </li>
             )
           })}

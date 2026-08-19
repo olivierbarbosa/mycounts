@@ -1,0 +1,211 @@
+/* Détail d'une opération. Même mécanique que la feuille de saisie : la feuille monte
+   depuis le bas, se recentre sur grand écran. Rien de nouveau à apprendre. */
+
+.voile {
+  position: fixed;
+  inset: 0;
+  background: var(--couleur-verre-bord-sombre);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 20;
+}
+
+.feuille {
+  width: 100%;
+  max-height: 92dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-l);
+  padding: var(--espace-xl);
+  padding-bottom: calc(var(--espace-xl) + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--rayon-grand) var(--rayon-grand) 0 0;
+  background: var(--couleur-surface-haute);
+  backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .feuille {
+    background: var(--couleur-surface-opaque);
+  }
+}
+
+.entete {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+}
+
+.titre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 18px;
+  font-weight: var(--typo-gras-fort);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Le montant en display : c'est l'information qu'on vient chercher. */
+.montant {
+  display: flex;
+  justify-content: center;
+  padding: var(--espace-m) 0;
+}
+
+.faits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.fait {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--espace-l);
+  font-size: 14px;
+}
+
+.cle {
+  color: var(--couleur-texte-attenue);
+  flex: 0 0 auto;
+}
+
+.valeur {
+  text-align: right;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+.etiquette {
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+  color: var(--couleur-texte-attenue);
+}
+
+.saisie,
+.choix {
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: var(--espace-m) var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font-size: 16px;
+}
+
+.saisie:focus,
+.choix:focus {
+  border-color: var(--couleur-accent-clair);
+  box-shadow: 0 0 0 3px var(--couleur-lueur-accent);
+  outline: none;
+}
+
+.actions {
+  display: flex;
+  gap: var(--espace-m);
+  flex-wrap: wrap;
+}
+
+.principal {
+  flex: 1;
+  min-width: 140px;
+  min-height: var(--cible-tactile);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  font-size: 16px;
+  font-weight: var(--typo-gras-fort);
+  box-shadow:
+    inset 0 0 0 1px var(--couleur-contour-clair),
+    0 1px 2px var(--couleur-contour-sombre);
+}
+
+.principal:disabled {
+  opacity: 0.55;
+}
+
+.secondaire {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-xl);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-texte);
+  font-size: 15px;
+}
+
+.destructif {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-debit);
+  font-size: 15px;
+}
+
+.destructif:hover {
+  border-color: var(--couleur-debit);
+}
+
+.confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-debit);
+}
+
+.question {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--couleur-texte-attenue);
+  line-height: 1.5;
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 14px;
+}
+
+@media (min-width: 600px) {
+  .voile {
+    align-items: center;
+  }
+
+  .feuille {
+    max-width: 520px;
+    border-radius: var(--rayon-grand);
+  }
+}

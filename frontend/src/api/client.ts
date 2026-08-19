@@ -132,6 +132,23 @@ export const api = {
       body: JSON.stringify(saisie),
     }),
 
+  modifierOperation: (
+    id: string,
+    modifications: {
+      libelle?: string
+      montant_centimes?: number
+      date_operation?: string
+      categorie_id?: string | null
+    },
+  ) =>
+    appeler<OperationPublique>(`/operations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(modifications),
+    }),
+
+  supprimerOperation: (id: string) =>
+    appeler<void>(`/operations/${id}`, { method: 'DELETE' }),
+
   resume: () => appeler<ResumePublic>('/resume'),
 
   agenda: (jours = 60) => appeler<EcheanceAgenda[]>(`/agenda?jours=${jours}`),

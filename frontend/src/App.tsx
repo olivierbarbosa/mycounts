@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from 'react'
 import type {
   CategoriePublique,
   ComptePublic,
+  OperationPublique,
   RecurrencePublique,
   UtilisateurPublic,
 } from './api/client'
 import { api } from './api/client'
 import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
+import { FeuilleOperation } from './composants/FeuilleOperation'
 import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
 import { FeuilleSaisie } from './composants/FeuilleSaisie'
 import { Accueil } from './ecrans/Accueil'
@@ -32,6 +34,7 @@ export function App() {
   const [saisieOuverte, setSaisieOuverte] = useState(false)
   const [recurrenceOuverte, setRecurrenceOuverte] = useState(false)
   const [recurrenceAModifier, setRecurrenceAModifier] = useState<RecurrencePublique>()
+  const [operationChoisie, setOperationChoisie] = useState<OperationPublique>()
   // Compteur d'invalidation : incrémenté après chaque écriture, il force les écrans à
   // relire le serveur. Recalculer un solde côté client dupliquerait la règle métier.
   const [rafraichissement, setRafraichissement] = useState(0)
@@ -57,6 +60,7 @@ export function App() {
     setSaisieOuverte(false)
     setRecurrenceOuverte(false)
     setRecurrenceAModifier(undefined)
+    setOperationChoisie(undefined)
     await chargerReferentiels()
     setRafraichissement((n) => n + 1)
   }, [chargerReferentiels])
@@ -84,6 +88,7 @@ export function App() {
           categories={categories}
           rafraichissement={rafraichissement}
           surSaisie={() => setSaisieOuverte(true)}
+          surOperationChoisie={setOperationChoisie}
         />
       )}
 
@@ -95,6 +100,7 @@ export function App() {
           surChangement={() => setRafraichissement((n) => n + 1)}
           surNouvelleRecurrence={() => {
             setRecurrenceAModifier(undefined)
+    setOperationChoisie(undefined)
             setRecurrenceOuverte(true)
           }}
           surModificationRecurrence={(recurrence) => {
@@ -127,6 +133,17 @@ export function App() {
         />
       )}
 
+      {operationChoisie !== undefined && (
+        <FeuilleOperation
+          key={operationChoisie.id}
+          operation={operationChoisie}
+          comptes={comptes}
+          categories={categories}
+          surFermeture={() => setOperationChoisie(undefined)}
+          surChangement={apresEcriture}
+        />
+      )}
+
       {recurrenceOuverte && (
         <FeuilleRecurrence
           key={recurrenceAModifier?.id ?? 'nouvelle'}
@@ -136,6 +153,7 @@ export function App() {
           surFermeture={() => {
             setRecurrenceOuverte(false)
             setRecurrenceAModifier(undefined)
+    setOperationChoisie(undefined)
           }}
           surEnregistrement={apresEcriture}
         />

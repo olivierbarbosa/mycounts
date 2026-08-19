@@ -234,6 +234,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operations/{operation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Supprimer Operation
+         * @description Retire une opération.
+         *
+         *     Une saisie manuelle est supprimée ; une opération issue d'un prélèvement est annulée
+         *     et conservée, faute de quoi le job la recréerait au passage suivant. La distinction
+         *     est faite par le repository — l'appelant demande simplement le retrait.
+         */
+        delete: operations["supprimer_operation_api_operations__operation_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifier Operation
+         * @description Corrige une opération déjà saisie.
+         */
+        patch: operations["modifier_operation_api_operations__operation_id__patch"];
+        trace?: never;
+    };
     "/api/operations/{operation_id}/confirmer": {
         parameters: {
             query?: never;
@@ -591,6 +619,25 @@ export interface components {
             teinte?: components["schemas"]["TeinteCategorie"] | null;
         };
         /**
+         * ModificationOperation
+         * @description Champs corrigeables d'une opération.
+         *
+         *     `compte_id` et `est_paie` sont absents à dessein. Déplacer une opération changerait
+         *     le solde de deux comptes ; basculer une opération en paie déplacerait les bornes de
+         *     toutes les périodes suivantes, donc des totaux déjà consultés. Ces deux corrections
+         *     passent par une suppression et une nouvelle saisie, où elles se voient.
+         */
+        ModificationOperation: {
+            /** Categorie Id */
+            categorie_id?: string | null;
+            /** Date Operation */
+            date_operation?: string | null;
+            /** Libelle */
+            libelle?: string | null;
+            /** Montant Centimes */
+            montant_centimes?: number | null;
+        };
+        /**
          * ModificationRecurrence
          * @description Champs modifiables d'un prélèvement.
          *
@@ -645,6 +692,8 @@ export interface components {
             libelle: string;
             /** Montant Centimes */
             montant_centimes: number;
+            /** Recurrence Id */
+            recurrence_id?: string | null;
         };
         /** PeriodePublique */
         PeriodePublique: {
@@ -1273,6 +1322,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OperationPublique"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supprimer_operation_api_operations__operation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    modifier_operation_api_operations__operation_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModificationOperation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationPublique"];
                 };
             };
             /** @description Validation Error */
