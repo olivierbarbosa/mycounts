@@ -632,3 +632,35 @@ là, mieux vaut un GET qui rattrape qu'un écran qui ment.
 question n'est pas « chacune est-elle juste ? » mais « **existe-t-il un état que ni l'une
 ni l'autre ne montre ?** ». Même forme que #010, où une opération tombait entre quatre
 agrégats tous corrects isolément.
+
+---
+
+## 019 — Une CI bloquée quarante minutes sur une option d'installation
+
+**Zone** : `Makefile`, cible `front-installer`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que `npx playwright install --with-deps chromium` était la commande
+recommandée pour la CI — c'est celle que la documentation met en avant — et qu'elle
+coûterait quelques dizaines de secondes.
+
+**Ce que j'ai mesuré.** Deux exécutions bloquées : l'étape « Installer le frontend » est
+restée `in_progress` pendant plus de quarante minutes, sans erreur ni sortie. Les étapes
+précédentes étaient toutes vertes ; les suivantes, en attente. `--with-deps` déclenche un
+`apt-get install` système qui n'a jamais rendu la main sur le runner.
+
+**Pourquoi je ne l'ai pas vu plus tôt.** Ma nouvelle cadence — pousser sans attendre la
+CI — est bonne, mais elle déplace la détection au tour suivant. Entre-temps, un second
+commit s'est empilé derrière le premier, bloqué de la même façon. Un blocage silencieux
+est plus long à voir qu'un échec : rien ne rougit, la file grossit simplement.
+
+**Le contrôle qui a tranché.** Lire les **étapes** du job (`gh api …/jobs`), et non son
+statut global. « En cours » ne dit pas *où*.
+
+**Correction.** `playwright install chromium` sans `--with-deps` : les bibliothèques dont
+Chromium a besoin sont déjà présentes sur `ubuntu-latest`. Les navigateurs sont par
+ailleurs mis en cache depuis le commit précédent.
+
+**Généralisation.** Ne plus attendre la CI ne dispense pas de regarder si elle **avance**.
+Un job qui ne finit jamais ne produit aucun signal rouge — il faut donc contrôler la durée,
+pas seulement la conclusion.

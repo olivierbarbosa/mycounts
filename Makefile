@@ -50,7 +50,10 @@ MOT_DE_PASSE_E2E := correct cheval batterie agrafe
 
 front-installer:
 	cd frontend && npm ci --silent
-	cd frontend && npx playwright install --with-deps chromium
+	# Sans « --with-deps » : cette option lance un apt-get système qui, sur les runners
+	# GitHub, est resté bloqué 40 minutes sans jamais rendre la main. Les bibliothèques
+	# dont Chromium a besoin sont déjà présentes sur ubuntu-latest.
+	cd frontend && npx playwright install chromium
 
 front-lint:
 	cd frontend && npx tsc --noEmit
@@ -72,19 +75,21 @@ migrer:
 
 verifier: lint types garde-fous tests
 
+# Base DISTINCTE pour la démonstration. Les tests d'intégration vident la base de
+# développement à chaque exécution : la démo y perdait ses données et son compte à
+# chaque tour. Une base séparée est le seul moyen que les deux usages cohabitent.
+URL_DEMO := postgresql+psycopg://mycounts:mycounts@localhost:5434/mycounts_demo
+
 # Lance l'application pour un essai depuis un autre appareil.
 #
-# ATTENTION, deux limites à connaître :
-#  1. pas de HTTPS. Sur Tailscale le tunnel est chiffré par WireGuard, donc le mot de
-#     passe ne circule pas en clair. Sur un Wi-Fi ordinaire, si.
-#  2. c'est la base de DÉVELOPPEMENT. `make tests-integration` la vide (TRUNCATE) :
-#     toute donnée saisie ici disparaîtra à la prochaine exécution des tests.
-demo: migrer
+# ATTENTION : pas de HTTPS. Sur Tailscale le tunnel est chiffré par WireGuard, donc le
+# mot de passe ne circule pas en clair. Sur un Wi-Fi ordinaire, si.
+demo: demo-migrer
 	@pkill -f "uvicorn mycounts" 2>/dev/null || true
 	@pkill -f "mycounts/frontend/node_modules/.bin/vite" 2>/dev/null || true
 	@sleep 1
-	@($(PY) -m uvicorn mycounts.api.app:app --app-dir backend --port 8010 \
-		--host 127.0.0.1 > /tmp/mycounts-api.log 2>&1 &)
+	@(MYCOUNTS_DATABASE_URL="$(URL_DEMO)" $(PY) -m uvicorn mycounts.api.app:app \
+		--app-dir backend --port 8010 --host 127.0.0.1 > /tmp/mycounts-api.log 2>&1 &)
 	@(cd frontend && npm run dev > /tmp/mycounts-web.log 2>&1 &)
 	@sleep 4
 	@echo ""
@@ -92,7 +97,16 @@ demo: migrer
 	@echo "  Depuis un appareil  http://$$(tailscale ip -4 2>/dev/null || ipconfig getifaddr en0):5189"
 	@echo ""
 	@echo "  Le backend n'écoute que sur 127.0.0.1 : seul le proxy l'atteint."
+	@echo "  Base dédiée « mycounts_demo » : les tests ne l'effacent pas."
 	@echo "  Journaux : /tmp/mycounts-api.log et /tmp/mycounts-web.log"
+
+# Applique les migrations sur la base de démonstration et s'assure qu'un compte existe.
+demo-migrer:
+	MYCOUNTS_DATABASE_URL="$(URL_DEMO)" .venv/bin/alembic upgrade head
+	MYCOUNTS_DATABASE_URL="$(URL_DEMO)" \
+		MYCOUNTS_MOT_DE_PASSE_INITIAL="$(MOT_DE_PASSE_E2E)" \
+		$(PY) -m scripts.creer_premier_compte "Mon foyer" "$(COURRIEL_E2E)" "Olivier" \
+		--ignorer-si-existe
 
 demo-arret:
 	@pkill -f "uvicorn mycounts" 2>/dev/null || true
