@@ -755,3 +755,26 @@ maintenant au démarrage que la révision de la base est la tête Alembic, et **
 démarrer** sinon, en nommant la commande à lancer. Témoin dans
 `tests/integration/test_garde_migrations.py`, vérifié par mutation : garde-fou neutralisé,
 le test rougit. `make demo` gagne `--reload` pour la moitié qui manquait.
+
+## #023 — Mon témoin ne testait rien : un raccourci CSS écrasait la mutation
+
+**Ce que je croyais.** Qu'un garde-fou tout neuf sur la hauteur des modales était aveugle.
+Je lui avais opposé une feuille regonflée de 120 px, puis de 300 px : vert les deux fois.
+J'ai commencé à soupçonner ma sonde.
+
+**Ce que j'ai mesuré.** `getComputedStyle(feuille).paddingTop` valait `16px`. La mutation
+n'avait jamais atteint la page : je l'insérais en TÊTE de la règle, où le raccourci
+`padding: var(--espace-l)` écrit trois lignes plus bas l'écrasait intégralement.
+
+**Pourquoi ma mesure ne prouvait rien.** Elle ne portait pas sur le sujet que je croyais.
+Le test voyait une feuille intacte et la déclarait conforme — ce qu'elle était. Sixième
+entrée de cette famille sur vingt-trois, et la plus sournoise : ici le mauvais sujet
+n'était ni une machine, ni un port, ni un commit, mais une déclaration CSS silencieusement
+annulée par une autre.
+
+**Le contrôle qui aurait tranché.** Avoir lu la valeur EFFECTIVE dans le navigateur avant
+de conclure quoi que ce soit sur le test — un seul `getComputedStyle`, trente secondes.
+Vérifier que le fichier contient la mutation ne prouve rien : j'avais bien vérifié, et
+compté une occurrence. Le fichier la contenait ; la page, non. Reposée en fin de règle,
+la mutation a fait rougir le test sur-le-champ, en nommant « Supprimer » et
+« Enregistrer » comme hors écran.

@@ -15,13 +15,17 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--espace-l);
-  padding: var(--espace-xl);
-  padding-bottom: calc(var(--espace-xl) + env(safe-area-inset-bottom, 0px));
+  /* Serré d'abord : sur un téléphone, la hauteur est la ressource rare, et une feuille
+     qui déborde cache ses propres actions. L'air revient dès que l'écran peut le payer.
+     Cette feuille de style sert aussi aux prélèvements, qui ont deux champs de plus. */
+  gap: var(--espace-m);
+  padding: var(--espace-l);
+  padding-bottom: calc(var(--espace-l) + env(safe-area-inset-bottom, 0px));
   border-radius: var(--rayon-grand) var(--rayon-grand) 0 0;
   background: var(--couleur-surface-haute);
   backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
-  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou))
+    saturate(var(--verre-saturation));
   border-top: 1px solid var(--couleur-bordure);
 }
 
@@ -84,7 +88,7 @@
   font-weight: var(--typo-gras-moyen);
 }
 
-.sens[aria-pressed='true'] {
+.sens[aria-pressed="true"] {
   background: var(--couleur-degrade-accent);
   color: var(--couleur-accent-contraste);
   /* Contour interne d'un pixel : il détache le bouton du fond sans agrandir la cible.
@@ -150,5 +154,14 @@
   .feuille {
     max-width: 520px;
     border-radius: var(--rayon-grand);
+  }
+}
+
+/* Au-delà du téléphone, la hauteur cesse d'être rare : la feuille retrouve son air. */
+@media (min-width: 480px) {
+  .feuille {
+    gap: var(--espace-l);
+    padding: var(--espace-xl);
+    padding-bottom: calc(var(--espace-xl) + env(safe-area-inset-bottom, 0px));
   }
 }

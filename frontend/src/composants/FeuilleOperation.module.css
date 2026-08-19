@@ -17,13 +17,16 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--espace-l);
-  padding: var(--espace-xl);
-  padding-bottom: calc(var(--espace-xl) + env(safe-area-inset-bottom, 0px));
+  /* Serré d'abord : sur un téléphone, la hauteur est la ressource rare, et une feuille
+     qui déborde cache ses propres actions. L'air revient dès que l'écran peut le payer. */
+  gap: var(--espace-m);
+  padding: var(--espace-l);
+  padding-bottom: calc(var(--espace-l) + env(safe-area-inset-bottom, 0px));
   border-radius: var(--rayon-grand) var(--rayon-grand) 0 0;
   background: var(--couleur-surface-haute);
   backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
-  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou))
+    saturate(var(--verre-saturation));
   border-top: 1px solid var(--couleur-bordure);
 }
 
@@ -54,14 +57,15 @@
 .montant {
   display: flex;
   justify-content: center;
-  padding: var(--espace-m) 0;
 }
 
 .faits {
+  /* Trois faits sur une ligne qui se replie, plutôt que trois lignes pleine largeur : la
+     lecture ne perd rien, la feuille gagne une soixantaine de pixels. */
   display: flex;
-  flex-direction: column;
-  gap: var(--espace-s);
-  padding: var(--espace-l);
+  flex-wrap: wrap;
+  gap: var(--espace-s) var(--espace-l);
+  padding: var(--espace-m) var(--espace-l);
   border-radius: var(--rayon-moyen);
   background: var(--couleur-surface);
   border: 1px solid var(--couleur-bordure);
@@ -69,10 +73,9 @@
 
 .fait {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  gap: var(--espace-l);
-  font-size: 14px;
+  gap: var(--espace-xs, 4px);
+  font-size: 13px;
 }
 
 .cle {
@@ -81,7 +84,6 @@
 }
 
 .valeur {
-  text-align: right;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -91,6 +93,15 @@
   display: flex;
   flex-direction: column;
   gap: var(--espace-s);
+  min-width: 0;
+}
+
+/* Montant et date côte à côte : deux valeurs courtes qui n'ont aucun besoin de toute la
+   largeur, et une ligne de moins à faire défiler. */
+.duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espace-m);
 }
 
 .etiquette {
@@ -207,5 +218,14 @@
   .feuille {
     max-width: 520px;
     border-radius: var(--rayon-grand);
+  }
+}
+
+/* Au-delà du téléphone, la hauteur cesse d'être rare : la feuille retrouve son air. */
+@media (min-width: 480px) {
+  .feuille {
+    gap: var(--espace-l);
+    padding: var(--espace-xl);
+    padding-bottom: calc(var(--espace-xl) + env(safe-area-inset-bottom, 0px));
   }
 }
