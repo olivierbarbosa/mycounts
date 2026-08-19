@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 TABLES = (
+    "plafond",
     "operation",
     "recurrence",
     "categorie",

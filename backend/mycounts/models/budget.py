@@ -158,6 +158,40 @@ class Recurrence(Base):
     categorie: Mapped[Categorie | None] = relationship()
 
 
+class Plafond(Base):
+    """Limite de dépense sur une catégorie, pour une période budgétaire.
+
+    Le plafond est **personnel** : c'est la paie de son propriétaire qui découpe les
+    périodes sur lesquelles il se mesure. Les plafonds partagés viendront avec les
+    comptes joints, quand la question de la période commune sera tranchée.
+
+    Le montant est stocké **positif** : un plafond est une limite, pas une dépense. La
+    consommation, elle, se calcule et n'est jamais stockée.
+    """
+
+    __tablename__ = "plafond"
+    __table_args__ = (
+        CheckConstraint("montant_centimes > 0", name="ck_plafond_montant_positif"),
+        UniqueConstraint(
+            "utilisateur_id", "categorie_id", name="uq_plafond_par_categorie_et_personne"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    utilisateur_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="CASCADE")
+    )
+    categorie_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("categorie.id", ondelete="CASCADE")
+    )
+    montant_centimes: Mapped[int] = mapped_column(BigInteger)
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    categorie: Mapped[Categorie] = relationship()
+
+
 class Operation(Base):
     """Mouvement d'argent, réel ou prévu.
 

@@ -146,3 +146,31 @@ class EcheanceAgenda(BaseModel):
     montant_centimes: int
     date_echeance: dt.date
     categorie_id: uuid.UUID | None
+
+
+class DemandePlafond(BaseModel):
+    categorie_id: uuid.UUID
+    montant_centimes: int = Field(
+        gt=0,
+        description="Limite en centimes, toujours positive : c'est une limite, pas une dépense.",
+    )
+
+
+class PlafondPublic(BaseModel):
+    """État complet d'un plafond sur la période courante.
+
+    `consomme` et `a_venir` sont exposés séparément et ne doivent JAMAIS être additionnés
+    sous le nom de « dépensé » : annoncer 380 € dépensés alors que 150 € ne sont pas
+    encore partis est la confusion qui fait cesser de croire l'outil.
+    """
+
+    id: uuid.UUID
+    categorie_id: uuid.UUID
+    categorie_nom: str
+    limite_centimes: int
+    consomme_centimes: int
+    a_venir_centimes: int
+    restant_centimes: int
+    part_consommee: int
+    depasse: bool
+    depasse_avec_les_echeances: bool
