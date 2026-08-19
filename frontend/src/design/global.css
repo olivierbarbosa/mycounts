@@ -46,6 +46,21 @@ textarea {
   color: inherit;
 }
 
+/* Un `<select>` natif dessine sa liste déroulante avec le thème du SYSTÈME, pas celui de
+   la page : sur fond sombre, elle s'ouvrait en blanc plein écran, illisible. `color-scheme`
+   sur l'élément lui-même indique au navigateur quel thème employer pour cette liste, et
+   les options reçoivent un fond opaque — une option translucide se superpose au contenu
+   derrière elle. */
+select {
+  color-scheme: inherit;
+  background-color: var(--couleur-surface-opaque);
+}
+
+select option {
+  background-color: var(--couleur-surface-opaque);
+  color: var(--couleur-texte);
+}
+
 /* Toute cible tactile atteint la taille minimale des Human Interface Guidelines.
    Sur mobile, un bouton plus petit se rate une fois sur trois. */
 button,

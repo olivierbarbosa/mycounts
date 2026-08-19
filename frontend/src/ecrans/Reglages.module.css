@@ -67,7 +67,7 @@
   .page {
     max-width: none;
     margin: 0;
-    padding-left: calc(216px + var(--espace-l) * 3);
+    padding-left: calc(232px + var(--espace-xxl));
     padding-right: var(--espace-xxl);
     padding-bottom: var(--espace-xxl);
   }

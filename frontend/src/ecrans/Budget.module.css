@@ -1,0 +1,210 @@
+.page {
+  min-height: 100dvh;
+  padding: var(--espace-xl);
+  padding-top: calc(var(--espace-xl) + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xl);
+}
+
+.titre {
+  margin: 0;
+  font-family: var(--typo-famille-chiffres);
+  font-size: 28px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: -0.02em;
+}
+
+.sousTitre {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+.liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plafond {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  backdrop-filter: blur(var(--verre-flou));
+  -webkit-backdrop-filter: blur(var(--verre-flou));
+  border: 1px solid var(--couleur-bordure);
+  box-shadow: inset 0 1px 0 var(--couleur-lueur-bordure);
+}
+
+.entetePlafond {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-m);
+}
+
+.nom {
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
+
+/* La jauge : une barre neutre, remplie proportionnellement. La couleur de remplissage
+   n'est PAS le seul signal — le texte sous la barre dit toujours l'état en toutes
+   lettres. */
+.jauge {
+  height: 8px;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-haute);
+  overflow: hidden;
+}
+
+.remplissage {
+  height: 100%;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-accent);
+  transition: width 260ms ease-out;
+}
+
+.remplissageAlerte {
+  background: var(--couleur-alerte);
+}
+
+.remplissageDepasse {
+  background: var(--couleur-debit);
+}
+
+.detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-xs) var(--espace-l);
+  align-items: baseline;
+}
+
+.mention {
+  font-size: 13px;
+  color: var(--couleur-texte-attenue);
+}
+
+/* L'à-venir se distingue visuellement du consommé : ce sont deux natures d'information,
+   et les fondre en une seule ligne serait exactement ce que le domaine refuse. */
+.aVenir {
+  font-size: 13px;
+  color: var(--couleur-alerte);
+}
+
+.alerte {
+  margin: 0;
+  font-size: 13px;
+  color: var(--couleur-alerte);
+}
+
+.depassement {
+  margin: 0;
+  font-size: 13px;
+  color: var(--couleur-debit);
+  font-weight: var(--typo-gras-moyen);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-s);
+  align-items: center;
+}
+
+.saisie,
+.choix {
+  min-height: var(--cible-tactile);
+  padding: var(--espace-s) var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  font-size: 16px;
+}
+
+.saisie {
+  flex: 1;
+  min-width: 120px;
+}
+
+.valider {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-contraste);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+  transition: background-color 160ms ease-out;
+}
+
+.valider:hover:not(:disabled) {
+  background: var(--couleur-accent-clair);
+  color: var(--couleur-fond);
+}
+
+.valider:disabled {
+  opacity: 0.55;
+}
+
+.action {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-m);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+}
+
+.vide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-l);
+  padding: var(--espace-xxl) var(--espace-xl);
+  border-radius: var(--rayon-grand);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  text-align: center;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+.vide p {
+  margin: 0;
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 13px;
+}
+
+@media (min-width: 600px) {
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    max-width: none;
+    margin: 0;
+    padding-left: calc(232px + var(--espace-xxl));
+    padding-right: var(--espace-xxl);
+    padding-bottom: var(--espace-xxl);
+  }
+}

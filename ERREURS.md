@@ -664,3 +664,35 @@ ailleurs mis en cache depuis le commit précédent.
 **Généralisation.** Ne plus attendre la CI ne dispense pas de regarder si elle **avance**.
 Un job qui ne finit jamais ne produit aucun signal rouge — il faut donc contrôler la durée,
 pas seulement la conclusion.
+
+---
+
+## 020 — La classe « Verre » a écrasé son hôte une seconde fois
+
+**Zone** : `frontend/src/composants/Verre.module.css`, `BarreOnglets.module.css`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Qu'après avoir retiré `position` de la classe `.verre` (ERREURS.md
+#008), elle était devenue sûre à combiner : elle ne déclarait plus que du matériau, pas
+de la mise en page.
+
+**Ce que j'ai mesuré.** En retirant le fond du rail au format bureau (`background: none`
+dans une media query), le panneau bleu est resté à l'écran. Même spécificité, feuille
+`Verre` chargée après : c'est elle qui gagnait, exactement comme la première fois. La
+capture d'écran l'a montré, pas un test.
+
+**Pourquoi la première correction n'a pas suffi.** J'avais traité le symptôme —
+`position` — sans voir la propriété du problème : **toute** déclaration d'une classe
+utilitaire est une décision retirée à son consommateur. `background` et `backdrop-filter`
+sont tout aussi structurants que `position` dès lors qu'un écran veut les contredire selon
+la taille de la fenêtre.
+
+**Correction.** La barre de navigation porte désormais son propre verre, écrit dans son
+module, et le retire elle-même au format bureau. La classe utilitaire n'est plus appliquée
+de l'extérieur sur un élément dont la mise en page varie.
+
+**Généralisation.** Une classe utilitaire n'est combinable sans risque que si son
+consommateur n'a jamais besoin de contredire ce qu'elle déclare. Quand ce besoin existe,
+la solution n'est pas d'augmenter la spécificité : c'est de déplacer la déclaration chez
+celui qui décide. Deuxième occurrence — la première correction avait traité le cas, pas
+la cause.

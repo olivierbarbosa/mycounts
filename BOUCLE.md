@@ -64,6 +64,15 @@ caractéristiques de direction artistique en ont été tirées.)*
 >
 > ou celle la plutot : https://webgradients.com/palette/stripe-website-color-palette
 
+> c'est bug les catégories & moi je voulais pour l'agenda un vrai calendrier ou l'on vois
+> les logos des abonnements avec un UI beau et un format simple savoir si c'était tous les
+> mois ou par an le prélèvement
+
+> Tu peux aussi retravailler la navbar je la trouve immonde
+>
+> enfaite l'idée de la navbar était bien l'effet qui était mal fait dessus et la couleur je
+> pense ça faisait pas assez prenium
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -85,6 +94,9 @@ caractéristiques de direction artistique en ont été tirées.)*
 | « effet glow néon et halo sur le background avec dégradé » | Deux halos radiaux fixes sur le fond (violet en haut, cyan en bas), plus une lueur néon sur les surfaces en verre et les éléments actifs. **Les halos passent DERRIÈRE le contenu et ne portent jamais de texte** : le contrôle de contraste AA reste la limite, et il a déjà refusé deux versions de la pastille de catégorie. |
 | « le background est trop prononcé » | Dégradé et halos **désaturés d'un cran** : le violet passe de `#5B21B6` à `#3B1D73` en haut, et les halos perdent environ la moitié de leur opacité. Le glow reste sur les surfaces et les éléments actifs, où il est voulu ; c'est le fond qui redevient un fond. |
 | « utilise la palette Stripe » | Palette reprise telle quelle : `#635bff` primaire, `#0a2540` fond sombre, `#f6f9fc` surface claire, `#00d4ff` accent. Le fond passe du violet au **bleu nuit**. Contrainte inchangée : le contraste AA arbitre — `#635bff` sur blanc donne 4,68:1, il passe de justesse et devient donc la limite basse ; `#00d4ff` ne portera jamais de texte, il reste aux lueurs et aux liserés. |
+| « c'est bug les catégories » | Deux causes distinctes : (1) le `<select>` natif ouvre sa liste avec le thème CLAIR du système sur un fond sombre — illisible ; (2) les catégories affichées étaient des restes de mes tests, antérieurs à l'isolation de la base de démonstration. Les deux sont corrigées. |
+| « la navbar : l'idée était bonne, l'effet et la couleur pas assez premium » | Le rail plein hauteur est **conservé**. Ce qui change : verre nettement plus discret (le bloc était un aplat bleu sans profondeur), liseré fin et lumineux plutôt qu'une bordure épaisse, espacement plus généreux, item actif marqué par un fond translucide et un indicateur latéral au lieu d'un aplat plein. Le premium vient de la retenue, pas de l'intensité. |
+| « un vrai calendrier avec les logos des abonnements et la fréquence » | L'agenda passe d'une liste à une **grille mensuelle**. Chaque échéance porte une pastille de marque et sa fréquence en toutes lettres (« tous les mois », « tous les ans »). Les logos viennent d'une bibliothèque locale, sans appel réseau : récupérer un favicon en ligne enverrait à un tiers la liste de tes abonnements. |
 | « surtout prévu pour mobile & tablette » | Mobile-first strict : `min-width` uniquement, tab bar basse, safe areas, cibles ≥ 44 px. |
 
 ## État du chantier

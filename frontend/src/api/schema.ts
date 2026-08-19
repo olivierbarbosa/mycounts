@@ -258,6 +258,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plafonds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister */
+        get: operations["lister_api_plafonds_get"];
+        /**
+         * Definir
+         * @description Définit ou met à jour le plafond d'une catégorie.
+         *
+         *     `PUT` et non `POST` : l'opération est idempotente, un seul plafond existant par
+         *     personne et par catégorie. Rejouer la même demande donne le même état.
+         */
+        put: operations["definir_api_plafonds_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plafonds/{plafond_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Supprimer */
+        delete: operations["supprimer_api_plafonds__plafond_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/recurrences": {
         parameters: {
             query?: never;
@@ -430,6 +471,19 @@ export interface components {
              */
             montant_centimes: number;
         };
+        /** DemandePlafond */
+        DemandePlafond: {
+            /**
+             * Categorie Id
+             * Format: uuid
+             */
+            categorie_id: string;
+            /**
+             * Montant Centimes
+             * @description Limite en centimes, toujours positive : c'est une limite, pas une dépense.
+             */
+            montant_centimes: number;
+        };
         /** DemandeRecurrence */
         DemandeRecurrence: {
             /**
@@ -577,6 +631,42 @@ export interface components {
             fin: string;
             /** Fin Estimee */
             fin_estimee: boolean;
+        };
+        /**
+         * PlafondPublic
+         * @description État complet d'un plafond sur la période courante.
+         *
+         *     `consomme` et `a_venir` sont exposés séparément et ne doivent JAMAIS être additionnés
+         *     sous le nom de « dépensé » : annoncer 380 € dépensés alors que 150 € ne sont pas
+         *     encore partis est la confusion qui fait cesser de croire l'outil.
+         */
+        PlafondPublic: {
+            /** A Venir Centimes */
+            a_venir_centimes: number;
+            /**
+             * Categorie Id
+             * Format: uuid
+             */
+            categorie_id: string;
+            /** Categorie Nom */
+            categorie_nom: string;
+            /** Consomme Centimes */
+            consomme_centimes: number;
+            /** Depasse */
+            depasse: boolean;
+            /** Depasse Avec Les Echeances */
+            depasse_avec_les_echeances: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Limite Centimes */
+            limite_centimes: number;
+            /** Part Consommee */
+            part_consommee: number;
+            /** Restant Centimes */
+            restant_centimes: number;
         };
         /** RecurrencePublique */
         RecurrencePublique: {
@@ -1188,6 +1278,103 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OperationPublique"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lister_api_plafonds_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlafondPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    definir_api_plafonds_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandePlafond"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlafondPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supprimer_api_plafonds__plafond_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plafond_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

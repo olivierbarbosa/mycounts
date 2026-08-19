@@ -16,6 +16,7 @@ export type ResumePublic = components['schemas']['ResumePublic']
 export type RecurrencePublique = components['schemas']['RecurrencePublique']
 export type EcheanceAgenda = components['schemas']['EcheanceAgenda']
 export type UniteRecurrence = components['schemas']['UniteRecurrence']
+export type PlafondPublic = components['schemas']['PlafondPublic']
 
 export type SaisieRecurrence = {
   compte_id: string
@@ -150,4 +151,18 @@ export const api = {
 
   confirmer: (id: string) =>
     appeler<OperationPublique>(`/operations/${id}/confirmer`, { method: 'POST' }),
+
+  plafonds: () => appeler<PlafondPublic[]>('/plafonds'),
+
+  definirPlafond: (categorieId: string, montantCentimes: number) =>
+    appeler<PlafondPublic[]>('/plafonds', {
+      method: 'PUT',
+      body: JSON.stringify({
+        categorie_id: categorieId,
+        montant_centimes: montantCentimes,
+      }),
+    }),
+
+  supprimerPlafond: (id: string) =>
+    appeler<void>(`/plafonds/${id}`, { method: 'DELETE' }),
 }
