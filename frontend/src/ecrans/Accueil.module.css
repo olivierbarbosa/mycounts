@@ -25,21 +25,31 @@
 .nom {
   margin: 0;
   font-family: var(--typo-famille-chiffres);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: var(--typo-gras-display);
   letter-spacing: -0.02em;
 }
 
-/* Carte de contenu : aplat opaque, JAMAIS de verre. Un montant posé sur une surface
-   translucide change de contraste selon ce qui défile dessous. */
+/* Carte de contenu en verre. La règle du lot 1 (« jamais de montant sur du verre ») est
+   remplacée par une contrainte mesurée : le contraste de tout texte posé ici est vérifié
+   automatiquement dans les trois positions du réglage de transparence. Voir BOUCLE.md,
+   décision D3. Le dégradé de fond étant fixe et sombre, la variation reste faible. */
 .carte {
   background: var(--couleur-surface);
+  backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
   border: 1px solid var(--couleur-bordure);
   border-radius: var(--rayon-grand);
   padding: var(--espace-xl);
   display: flex;
   flex-direction: column;
   gap: var(--espace-s);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .carte {
+    background: var(--couleur-surface-opaque);
+  }
 }
 
 .libelleCarte {
@@ -64,12 +74,20 @@
 .boutonSecondaire {
   min-height: var(--cible-tactile);
   padding: var(--espace-m) var(--espace-xl);
-  border-radius: var(--rayon-moyen);
+  border-radius: var(--rayon-pilule);
   border: 1px solid var(--couleur-bordure);
-  background: var(--couleur-surface);
+  background: var(--couleur-surface-haute);
+  backdrop-filter: blur(var(--verre-flou));
+  -webkit-backdrop-filter: blur(var(--verre-flou));
   color: var(--couleur-texte);
   font-size: 15px;
   font-weight: var(--typo-gras-moyen);
+  transition: background-color 160ms ease;
+}
+
+.boutonSecondaire:hover {
+  background: var(--couleur-surface-haute);
+  box-shadow: 0 0 0 1px var(--couleur-accent-clair);
 }
 
 .code {

@@ -52,9 +52,9 @@ front-installer:
 front-lint:
 	cd frontend && npx tsc --noEmit
 
+# Le compte de démonstration est créé par le globalSetup de Playwright, pas ici : la
+# suite doit être lançable seule, sans dépendre d'une étape make exécutée avant.
 tests-e2e: migrer
-	MYCOUNTS_MOT_DE_PASSE_INITIAL="$(MOT_DE_PASSE_E2E)" $(PY) -m scripts.creer_premier_compte \
-		"Foyer d'essai" "$(COURRIEL_E2E)" "Essai" --ignorer-si-existe
 	cd frontend && MYCOUNTS_COURRIEL_TEST="$(COURRIEL_E2E)" \
 		MYCOUNTS_MOT_DE_PASSE_TEST="$(MOT_DE_PASSE_E2E)" npx playwright test
 

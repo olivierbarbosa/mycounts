@@ -20,9 +20,9 @@
 .titre {
   margin: 0;
   font-family: var(--typo-famille-chiffres);
-  font-size: 34px;
+  font-size: 38px;
   font-weight: var(--typo-gras-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .sousTitre {
@@ -31,10 +31,28 @@
   font-size: 15px;
 }
 
+/* Le formulaire est posé sur une carte de verre : c'est la surface qui donne son
+   matériau à l'écran d'entrée. Le contraste de tout ce qu'elle porte est vérifié
+   automatiquement (e2e/contraste.spec.ts). */
 .formulaire {
   display: flex;
   flex-direction: column;
   gap: var(--espace-l);
+  padding: var(--espace-xl);
+  border-radius: var(--rayon-grand);
+  background: var(--couleur-surface);
+  backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  border: 1px solid var(--couleur-bordure);
+  box-shadow:
+    inset 0 1px 0 var(--couleur-verre-speculaire),
+    0 18px 48px var(--couleur-verre-bord-sombre);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .formulaire {
+    background: var(--couleur-surface-opaque);
+  }
 }
 
 .champ {
@@ -53,15 +71,21 @@
   width: 100%;
   min-height: var(--cible-tactile);
   padding: var(--espace-m) var(--espace-l);
-  border-radius: var(--rayon-moyen);
+  border-radius: var(--rayon-pilule);
   border: 1px solid var(--couleur-bordure);
   background: var(--couleur-surface);
+  backdrop-filter: blur(var(--verre-flou));
+  -webkit-backdrop-filter: blur(var(--verre-flou));
+  color: var(--couleur-texte);
   /* 16px minimum : en dessous, iOS Safari zoome à la mise au point du champ. */
   font-size: 16px;
 }
 
 .saisie:focus {
-  border-color: var(--couleur-accent);
+  border-color: var(--couleur-accent-clair);
+  /* Lueur néon à la mise au point. Elle DOUBLE le liseré, elle ne le remplace pas :
+     une information portée par la seule lueur serait invisible en contraste élevé. */
+  box-shadow: 0 0 0 3px var(--couleur-lueur-accent);
   outline: none;
 }
 
@@ -69,11 +93,17 @@
   min-height: var(--cible-tactile);
   padding: var(--espace-m) var(--espace-xl);
   border: none;
-  border-radius: var(--rayon-moyen);
+  border-radius: var(--rayon-pilule);
   background: var(--couleur-accent);
   color: var(--couleur-accent-contraste);
   font-size: 16px;
   font-weight: var(--typo-gras-fort);
+  box-shadow: 0 8px 28px var(--couleur-lueur-accent);
+  transition: box-shadow 200ms ease;
+}
+
+.bouton:hover:not(:disabled) {
+  box-shadow: 0 10px 34px var(--couleur-lueur-accent);
 }
 
 .bouton:disabled {
@@ -85,7 +115,7 @@
   margin: 0;
   padding: var(--espace-m) var(--espace-l);
   border-radius: var(--rayon-moyen);
-  background: var(--couleur-surface);
+  background: var(--couleur-surface-haute);
   border: 1px solid var(--couleur-debit);
   color: var(--couleur-debit);
   font-size: 14px;

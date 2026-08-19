@@ -3,7 +3,7 @@
   gap: var(--espace-xs);
   padding: var(--espace-xs);
   border-radius: var(--rayon-pilule);
-  background: var(--couleur-surface);
+  background: var(--couleur-surface-haute);
   border: 1px solid var(--couleur-bordure);
 }
 

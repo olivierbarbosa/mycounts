@@ -353,3 +353,39 @@ qui n'a pas encore eu lieu serait dépassé dès le premier jour de la période.
 séparément ne dit rien de leur **couverture commune**. Il faut un contrôle qui vérifie
 qu'aucune donnée ne tombe entre eux — la même forme d'erreur que #005, où une collection
 vide faisait passer une boucle de vérification.
+
+---
+
+## 011 — Une sonde de contraste qui mesurait faux
+
+**Zone** : `frontend/e2e/contraste.spec.ts`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que ma sonde de contraste, en lisant `getComputedStyle().color` et
+`.backgroundColor`, mesurait ce que l'œil reçoit.
+
+**Ce que j'ai mesuré.** Elle annonçait 1,56:1 sur les onglets de navigation — un texte
+prétendument illisible, alors qu'il l'est parfaitement. La cause : les surfaces produites
+par `color-mix()` sont renvoyées au format `color(srgb 0.1 0.1 0.14 / 0.72)`, dont les
+composantes vont de 0 à 1. Mon extracteur les lisait comme des valeurs 0–255 : toute
+surface en verre était donc perçue comme un quasi-noir.
+
+**Pourquoi c'était le pire cas.** Une sonde absente laisse un doute. Une sonde fausse
+donne des ordres : j'allais éclaircir des couleurs qui n'avaient aucun problème, et la
+correction aurait dégradé la DA pour rien. Le témoin « la sonde sait détecter un texte
+illisible » ne l'a pas attrapée — il vérifiait qu'elle voit un vrai défaut, pas qu'elle
+s'abstient sur ce qui va bien.
+
+**Le contrôle qui a tranché.** Le désaccord entre la mesure et l'observation directe :
+1,56:1 aurait dû être visiblement illisible sur la capture d'écran, et ne l'était pas.
+C'est le seul moment du projet où l'œil a corrigé l'instrument, et non l'inverse.
+
+**Ce que la sonde corrigée a réellement trouvé** — deux défauts authentiques, invisibles
+à l'œil : `texteFaible` à 45 % d'opacité donnait 3,49:1, et le blanc sur l'accent
+`#8B5CF6` donnait 4,23:1, tous deux sous le seuil AA de 4,5. Les opacités et la teinte de
+l'accent ne sont donc plus choisies à l'œil : ce sont les valeurs les plus vives qui
+passent encore le seuil.
+
+**Généralisation.** Un instrument de mesure doit être étalonné dans les deux sens : sur
+un cas qu'il doit rejeter **et** sur un cas qu'il doit accepter. Mon témoin ne couvrait
+que le premier. Même forme que #002 — un test calibré sur un seul côté ne borne rien.

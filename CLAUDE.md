@@ -51,8 +51,11 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   Le schéma d'API l'appelle via `AfterValidator` — pas d'`EmailStr`, qui ferait un second
   auteur de la règle.
 - **Frontend : `design/tokens.ts` est l'auteur unique de la palette.** Les composants
-  n'écrivent que `var(--…)`. Le Liquid Glass est réservé aux couches flottantes ; un
-  montant n'est jamais posé sur du verre.
+  n'écrivent que `var(--…)`. DA néon + Liquid Glass : dégradé violet, surfaces en verre.
+  Un texte PEUT être posé sur du verre, à une condition mesurée — contraste AA de 4,5:1
+  vérifié dans les deux thèmes et les trois positions de transparence
+  (`frontend/e2e/contraste.spec.ts`). Les opacités de texte et la teinte de l'accent sont
+  donc contraintes par la mesure, pas choisies à l'œil.
 - **Mobile d'abord, bureau à part entière.** Media queries `min-width` uniquement. À
   partir de 1024 px la navigation devient un rail latéral — pas une tab bar centrée dans
   le vide.

@@ -14,6 +14,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],
+  /* Le compte de démonstration est (re)créé avant la suite : les tests d'intégration
+     vident les tables, donc il ne survit pas d'une exécution à l'autre. */
+  globalSetup: './e2e/preparation.ts',
   use: {
     baseURL: 'http://127.0.0.1:5189',
   },
