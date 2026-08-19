@@ -78,8 +78,10 @@ tête **ce qu'il ne détecte pas** — lire cette section avant de lui faire con
   « aucun », l'exécuter contre l'implémentation fautive.
 - Valider par le chemin de production : PostgreSQL réel, pas SQLite ; l'écran, pas `curl`.
 - **Vérification verte AVANT d'ouvrir le lot suivant**, toujours : `make verifier`,
-  `make tests-integration`, puis la CI réellement passée. Et lire les logs, pas seulement
-  le statut : un job vert dont les tests ont été *skippés* ne prouve rien.
+  `make tests-integration`, `make tests-e2e`, puis la CI réellement passée. Deux pièges,
+  tous deux rencontrés : un job vert dont les tests ont été *skippés* ne prouve rien
+  (lire les compteurs), et `gh run list --limit 1` renvoie souvent l'exécution du commit
+  PRÉCÉDENT — sélectionner par `headSha == git rev-parse HEAD`.
 - `ERREURS.md` se relit avant de toucher une zone où je me suis déjà trompé. Les trois
   entrées actuelles ont la même forme : *une vérification qui ne consulte que sa propre
   source*.

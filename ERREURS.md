@@ -389,3 +389,31 @@ passent encore le seuil.
 **Généralisation.** Un instrument de mesure doit être étalonné dans les deux sens : sur
 un cas qu'il doit rejeter **et** sur un cas qu'il doit accepter. Mon témoin ne couvrait
 que le premier. Même forme que #002 — un test calibré sur un seul côté ne borne rien.
+
+---
+
+## 012 — J'allais rapporter la CI d'un autre commit
+
+**Zone** : méthode de vérification, `gh run list`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que `gh run list --limit 1` juste après un `git push` renvoyait
+l'exécution de ce push.
+
+**Ce que j'ai mesuré.** Les chiffres affichés étaient « 117 tests unitaires, 32
+d'intégration » — ceux du commit **précédent**. Le commit que je venais de pousser en
+contenait 136 et 48. GitHub n'avait pas encore créé l'exécution : `--limit 1` a donc
+renvoyé la plus récente *existante*, c'est-à-dire l'ancienne, avec un statut vert
+parfaitement valide… pour un autre code.
+
+**Pourquoi ça ne prouvait rien.** « La dernière exécution est verte » ne dit rien de
+« mon commit est vert ». La mesure était juste, la question était fausse. Sans les
+compteurs de tests, qui ont détonné, je l'aurais rapporté comme une vérification.
+
+**Le contrôle qui a tranché — et qui est maintenant la méthode.** Sélectionner
+l'exécution par `headSha` égal à `git rev-parse HEAD`, en attendant qu'elle apparaisse.
+Jamais « la dernière ».
+
+**Généralisation.** Troisième variante du même piège après #006 et #007 : la mesure porte
+sur le mauvais sujet. Machine, port, et maintenant commit. La question à se poser n'est
+pas « est-ce vert ? » mais « **vert pour quoi, exactement ?** ».
