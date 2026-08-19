@@ -191,3 +191,86 @@ def test_le_type_dun_compte_est_rendu_par_lapi(client: TestClient, session_bd: S
 
     par_nom = {c["nom"]: c["type_compte"] for c in client.get("/api/comptes").json()}
     assert par_nom == {"Courant": TypeCompte.COURANT, "Livret A": TypeCompte.EPARGNE}
+
+
+def test_lepargne_ne_gonfle_pas_le_solde_de_laccueil(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Mettre 500 € sur un livret ne doit pas enrichir le solde du quotidien.
+
+    C'est la raison d'être du type de compte. Sans lui, l'accueil annoncerait la somme
+    des deux, et la décision de dépenser se prendrait sur un chiffre faux.
+    """
+    session_ouverte(client, session_bd)
+    creer_compte_api(client, "Courant", ouverture=100_000)
+    avant = client.get("/api/resume").json()
+
+    creer_compte_api(client, "Livret A", ouverture=50_000, type_compte="epargne")
+    apres = client.get("/api/resume").json()
+
+    assert apres["solde_reel"] == avant["solde_reel"]
+    assert apres["solde_projete"] == avant["solde_projete"]
+
+    # Et le témoin : un compte COURANT du même montant, lui, change bien le solde.
+    creer_compte_api(client, "Second courant", ouverture=50_000)
+    avec_courant = client.get("/api/resume").json()
+    assert avec_courant["solde_reel"] - avant["solde_reel"] == 50_000
+
+
+def test_lepargne_totalise_ses_comptes_et_ce_qui_y_a_ete_verse(
+    client: TestClient, session_bd: Session
+) -> None:
+    session_ouverte(client, session_bd)
+    courant = creer_compte_api(client, "Courant", ouverture=100_000)
+    livret = creer_compte_api(client, "Livret A", ouverture=50_000, type_compte="epargne")
+
+    avant = client.get("/api/epargne").json()
+    assert avant["total_centimes"] == 50_000
+    assert avant["verse_sur_la_periode_centimes"] == 0, (
+        "un solde d'ouverture n'est pas un versement : personne ne l'a mis de côté ce mois-ci"
+    )
+
+    client.post(
+        "/api/virements",
+        json={
+            "compte_source_id": courant,
+            "compte_destination_id": livret,
+            "montant_centimes": 20_000,
+            "date_operation": AUJOURD_HUI.isoformat(),
+        },
+    )
+
+    apres = client.get("/api/epargne").json()
+    assert apres["total_centimes"] == 70_000
+    assert apres["verse_sur_la_periode_centimes"] == 20_000
+    assert [c["nom"] for c in apres["comptes"]] == ["Livret A"]
+
+
+def test_un_virement_sortant_de_lepargne_ne_compte_pas_comme_verse(
+    client: TestClient, session_bd: Session
+) -> None:
+    """« Versé sur la période » mesure un effort, pas un solde.
+
+    Sans le filtre sur le sens, reprendre 200 € sur le livret ferait BAISSER le versé, et
+    un aller-retour du même montant le laisserait à zéro alors que de l'argent a bien
+    circulé. Pire : un total négatif se lirait comme « j'ai désépargné », ce qui est vrai,
+    mais ce n'est pas la question posée par cette ligne.
+    """
+    session_ouverte(client, session_bd)
+    courant = creer_compte_api(client, "Courant", ouverture=100_000)
+    livret = creer_compte_api(client, "Livret A", ouverture=50_000, type_compte="epargne")
+
+    for source, destination in ((courant, livret), (livret, courant)):
+        client.post(
+            "/api/virements",
+            json={
+                "compte_source_id": source,
+                "compte_destination_id": destination,
+                "montant_centimes": 20_000,
+                "date_operation": AUJOURD_HUI.isoformat(),
+            },
+        )
+
+    epargne = client.get("/api/epargne").json()
+    assert epargne["verse_sur_la_periode_centimes"] == 20_000, "seul l'entrant compte"
+    assert epargne["total_centimes"] == 50_000, "l'aller-retour laisse le livret intact"

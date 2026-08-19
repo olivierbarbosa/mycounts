@@ -8,11 +8,13 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from mycounts.api.budget_schemas import (
     CategoriePublique,
+    CompteEpargne,
     ComptePublic,
     DemandeCategorie,
     DemandeCompte,
     DemandeOperation,
     DemandeVirement,
+    EpargnePublique,
     ModificationCategorie,
     ModificationOperation,
     OperationPublique,
@@ -21,7 +23,9 @@ from mycounts.api.budget_schemas import (
     VirementCree,
 )
 from mycounts.api.dependances import PrincipalCourant, SessionBase
+from mycounts.domain.agregats import Agregat, calculer
 from mycounts.domain.calendrier import aujourd_hui
+from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.montants import Cents
 from mycounts.domain.resume import ResumePeriode, resumer
 from mycounts.jobs.materialisation import materialiser
@@ -301,11 +305,58 @@ def _resumer(session: SessionBase, principal: PrincipalCourant) -> ResumePeriode
     materialiser(session, foyer_id=principal.foyer_id)
     utilisateur = depot_auth.utilisateur_par_id(session, principal.utilisateur_id)
     paies_par_cycle = utilisateur.paies_par_cycle if utilisateur else 1
+    # Le résumé de l'accueil ne porte que sur les comptes COURANTS. Mélanger un livret
+    # au compte courant fait croire à une aisance qui n'existe pas : l'écran annoncerait
+    # 4 000 € alors que 3 500 sont mis de côté, et la décision de dépenser se prendrait
+    # sur un chiffre faux. L'épargne a son propre total, sur sa propre page.
+    courants = depot.ids_des_comptes(session, principal, type_compte=TypeCompte.COURANT)
     return resumer(
-        depot.operations_pour_calcul(session, principal),
-        depot.dates_de_paie(session, principal),
+        depot.operations_pour_calcul(session, principal, comptes=courants),
+        depot.dates_de_paie(session, principal, comptes=courants),
         aujourd_hui=aujourd_hui(),
         paies_par_cycle=paies_par_cycle,
+    )
+
+
+@routeur.get("/epargne", response_model=EpargnePublique)
+def epargne(session: SessionBase, principal: PrincipalCourant) -> EpargnePublique:
+    """Total épargné, solde de chaque livret, et ce qui y a été versé sur la période.
+
+    Le solde retenu est le solde RÉEL. Un livret n'a ni échéance à confirmer ni
+    prélèvement à venir : y projeter quoi que ce soit inventerait un argent qui n'arrive
+    de nulle part.
+    """
+    comptes_epargne = depot.ids_des_comptes(session, principal, type_compte=TypeCompte.EPARGNE)
+    periode = _resumer(session, principal).periode
+    aujourd_hui_ = aujourd_hui()
+
+    par_compte: list[CompteEpargne] = []
+    for compte in depot.comptes_visibles(session, principal, type_compte=TypeCompte.EPARGNE):
+        solde = calculer(
+            Agregat.SOLDE_REEL,
+            depot.operations_pour_calcul(session, principal, comptes=[compte.id]),
+            aujourd_hui=aujourd_hui_,
+            fin_de_fenetre=max(aujourd_hui_, periode.fin),
+        )
+        par_compte.append(
+            CompteEpargne(id=compte.id, nom=compte.nom, solde_centimes=int(solde))
+        )
+
+    return EpargnePublique(
+        total_centimes=sum(c.solde_centimes for c in par_compte),
+        verse_sur_la_periode_centimes=int(
+            depot.total_verse_par_virement(
+                session,
+                principal,
+                comptes=comptes_epargne,
+                debut=periode.debut,
+                fin=periode.fin,
+            )
+        ),
+        periode=PeriodePublique(
+            debut=periode.debut, fin=periode.fin, fin_estimee=periode.fin_estimee
+        ),
+        comptes=par_compte,
     )
 
 

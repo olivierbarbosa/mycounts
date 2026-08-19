@@ -256,3 +256,22 @@ class VirementCree(BaseModel):
     virement_id: uuid.UUID
     sortie: OperationPublique
     entree: OperationPublique
+
+
+class CompteEpargne(BaseModel):
+    id: uuid.UUID
+    nom: str
+    solde_centimes: int
+
+
+class EpargnePublique(BaseModel):
+    """Ce que le foyer a mis de côté, et ce qu'il y a versé sur la période.
+
+    Séparé du résumé de l'accueil à dessein : les deux totaux répondent à des questions
+    différentes, et les additionner ferait croire à une aisance qui n'existe pas.
+    """
+
+    total_centimes: int
+    verse_sur_la_periode_centimes: int
+    periode: PeriodePublique
+    comptes: list[CompteEpargne]

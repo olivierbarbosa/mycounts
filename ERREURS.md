@@ -848,3 +848,31 @@ contredire : le style n'est pas vérifié en CI, donc tout restait vert.
 n'avais pas touché — trois secondes, réponse sans ambiguïté : zéro. C'est ce que j'ai fini
 par faire, après trois commits. Le style est maintenant écrit dans `frontend/.prettierrc`,
 pour que la question ne se repose plus à celui qui lancera l'outil.
+
+## #027 — Deux fautes de requête qui rendaient des chiffres d'argent faux
+
+**Ce que je croyais.** Que filtrer les comptes d'épargne en Python était équivalent à le
+faire en SQL, et qu'une clause `where` suffisait à joindre deux tables.
+
+**Ce que j'ai mesuré.** Deux échecs successifs du même test, avec deux causes distinctes.
+
+D'abord une épargne à **zéro** alors que le livret contenait 500 €. La colonne
+`type_compte` est un `String(16)` : SQLAlchemy rend une chaîne, pas un membre de
+`TypeCompte`. Mon `compte.type_compte is not TypeCompte.EPARGNE` était donc vrai pour
+TOUS les comptes — l'identité échoue là où l'égalité aurait réussi, `StrEnum` comparant
+bien à sa valeur. Aucune erreur, aucun type refusé : juste une boucle qui ne garde rien.
+
+Puis un « versé sur la période » de **400 € pour un virement de 200**. Ma requête
+d'agrégat référençait `Compte` dans son `where` sans jointure : PostgreSQL a ajouté la
+table au `FROM` en produit cartésien, et la somme s'est trouvée multipliée par le nombre
+de comptes du foyer.
+
+**Pourquoi ces fautes sont sournoises.** Aucune ne lève. La première rend zéro, la
+seconde un multiple — deux résultats parfaitement plausibles à la lecture. Sur un écran
+d'épargne, « vous avez versé 400 € ce mois-ci » ne se conteste pas de tête.
+
+**Le contrôle qui a tranché.** Le test portait sur des montants CHOISIS pour se
+distinguer : 500 € d'ouverture, 200 € virés, deux comptes. Un test à un seul compte
+n'aurait pas vu le facteur deux ; un test à montants égaux n'aurait pas vu lequel des
+deux était compté. C'est le choix des nombres qui a fait parler la mesure, pas sa
+présence.

@@ -17,7 +17,7 @@ import datetime as dt
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import ColumnElement, and_, or_, select
+from sqlalchemy import ColumnElement, and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from mycounts.domain.agregats import EtatOperation, OperationCalcul
@@ -60,11 +60,26 @@ def creer_compte(
     return compte
 
 
-def comptes_visibles(session: Session, principal: Principal) -> list[Compte]:
+def comptes_visibles(
+    session: Session, principal: Principal, *, type_compte: TypeCompte | None = None
+) -> list[Compte]:
+    """Comptes que l'appelant peut voir, éventuellement d'un seul type.
+
+    Le filtre est posé en SQL et non sur les objets rendus : la colonne est un `String`,
+    donc l'attribut vaut une chaîne à l'exécution et non un membre de `TypeCompte`. Un
+    `is` sur cette valeur est faux pour TOUS les comptes, silencieusement — c'est ce qui
+    a d'abord rendu une épargne vide.
+    """
+    conditions: list[ColumnElement[bool]] = [
+        _comptes_autorises(principal),
+        Compte.archive.is_(False),
+    ]
+    if type_compte is not None:
+        conditions.append(Compte.type_compte == type_compte)
     return list(
         session.execute(
             select(Compte)
-            .where(_comptes_autorises(principal), Compte.archive.is_(False))
+            .where(*conditions)
             .order_by(Compte.cree_le)
         ).scalars()
     )
@@ -348,6 +363,67 @@ def operations_visibles(
             .order_by(Operation.date_operation.desc(), Operation.cree_le.desc())
         ).scalars()
     )
+
+
+def ids_des_comptes(
+    session: Session, principal: Principal, *, type_compte: TypeCompte
+) -> list[uuid.UUID]:
+    """Identifiants des comptes du foyer d'un type donné, archivés compris.
+
+    Les archivés sont inclus à dessein : leur argent existe toujours, et les exclure ici
+    ferait varier le solde du foyer au moment d'archiver un compte — un changement de
+    présentation qui déplacerait un chiffre. `comptes_visibles` les écarte parce qu'elle
+    sert à PROPOSER des comptes, ce qui est une autre question.
+    """
+    return list(
+        session.execute(
+            select(Compte.id).where(
+                _comptes_autorises(principal), Compte.type_compte == type_compte
+            )
+        ).scalars()
+    )
+
+
+def total_verse_par_virement(
+    session: Session,
+    principal: Principal,
+    *,
+    comptes: Sequence[uuid.UUID],
+    debut: dt.date,
+    fin: dt.date,
+) -> Cents:
+    """Somme des virements ENTRANTS sur ces comptes, entre deux dates incluses.
+
+    Seulement les virements, et seulement les entrées. Un intérêt versé par la banque ou
+    une saisie manuelle sur le livret ne sont pas « ce que j'ai mis de côté ce mois-ci » —
+    les compter gonflerait un chiffre dont l'utilisateur se sert pour juger son effort.
+
+    Ce n'est volontairement pas un agrégat de `domain/agregats.py` : les agrégats
+    répondent à « ce solde vaut combien », celui-ci à « d'où vient l'argent ». Lui donner
+    une ligne dans la table obligerait les quatre autres à déclarer un axe qui ne les
+    concerne pas.
+    """
+    if not comptes:
+        return Cents(0)
+    total = session.execute(
+        # La jointure n'est pas décorative : `_comptes_autorises` porte sur `Compte`, et
+        # sans elle PostgreSQL ajoute la table au FROM en produit cartésien. La somme est
+        # alors multipliée par le nombre de comptes du foyer — un chiffre d'argent faux,
+        # et faux d'un facteur qui change avec le nombre de comptes.
+        select(func.coalesce(func.sum(Operation.montant_centimes), 0))
+        .select_from(Operation)
+        .join(Compte, Compte.id == Operation.compte_id)
+        .where(
+            _comptes_autorises(principal),
+            Operation.compte_id.in_(comptes),
+            Operation.virement_id.is_not(None),
+            Operation.montant_centimes > 0,
+            Operation.annulee.is_(False),
+            Operation.date_operation >= debut,
+            Operation.date_operation <= fin,
+        )
+    ).scalar_one()
+    return Cents(int(total))
 
 
 def operations_pour_calcul(
