@@ -202,7 +202,9 @@
   color: var(--couleur-accent-contraste);
   font-size: 26px;
   line-height: 1;
-  box-shadow: 0 10px 32px var(--couleur-lueur-accent);
+  /* Une ombre portée neutre, pas une lueur colorée : elle donne la profondeur sans
+     l'effet « bouton qui brille ». */
+  box-shadow: 0 10px 28px var(--couleur-verre-bord-sombre);
   z-index: 11;
 }
 

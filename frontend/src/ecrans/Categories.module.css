@@ -123,7 +123,7 @@
   color: var(--couleur-accent-contraste);
   font-size: 15px;
   font-weight: var(--typo-gras-fort);
-  box-shadow: 0 6px 20px var(--couleur-lueur-accent);
+  transition: background-color 160ms ease-out;
 }
 
 .valider:disabled {

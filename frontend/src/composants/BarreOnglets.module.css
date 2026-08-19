@@ -42,7 +42,6 @@
 .onglet[aria-current='page'] {
   color: var(--couleur-accent-contraste);
   background: var(--couleur-accent);
-  box-shadow: 0 0 20px var(--couleur-lueur-accent);
 }
 
 .icone {

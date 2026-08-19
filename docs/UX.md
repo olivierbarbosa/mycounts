@@ -68,19 +68,21 @@ demander de saisir un `-` est une source d'erreur qui ne se voit qu'au solde sui
 
 ---
 
-## Une règle du playbook que ce projet enfreint sciemment
+## Où le glow a le droit d'être
 
-> **« Éviter les effets de glow sur les boutons primaires ; préférer le contraste et
-> l'espacement. »**
+> Règle du playbook : **« Éviter les effets de glow sur les boutons primaires ; préférer
+> le contraste et l'espacement. »**
 
-mycounts en met, à la demande explicite du propriétaire du produit (direction artistique
-néon + Liquid Glass). Le compromis retenu : le glow est **décoratif et ne porte jamais
-d'information**, et le contraste du bouton est mesuré indépendamment de lui — un texte
-lisible uniquement grâce à sa lueur échouerait au contrôle AA.
+Arbitrage retenu le 2026-08-19 : **lueur sur les surfaces, pas sur les boutons**.
 
-C'est un désaccord assumé, pas un oubli. Si le rendu paraît « cheap » à l'usage, la règle
-du playbook a probablement raison et le glow doit se réduire aux surfaces, pas aux
-boutons.
+- **Autorisé** : halo de fond, liseré des cartes en verre, survol d'une ligne de liste,
+  anneau de mise au point d'un champ (`:focus`, où il double le liseré sans le remplacer).
+- **Interdit** : boutons d'action, onglet actif, bouton flottant. Ils s'appuient sur le
+  contraste et l'espacement ; leur profondeur vient d'une ombre **neutre**, pas colorée.
+
+La raison : sur un écran où l'on saisit de l'argent, un bouton qui brille lit « démo »
+plutôt que « produit ». L'ambiance néon reste portée par le fond et le verre, où elle ne
+concurrence aucune information.
 
 ---
 

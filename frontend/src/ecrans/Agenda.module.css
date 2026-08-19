@@ -98,7 +98,7 @@
 
 .bouton:hover {
   border-color: var(--couleur-accent-clair);
-  box-shadow: 0 0 18px var(--couleur-lueur-accent);
+  background: var(--couleur-surface-haute);
 }
 
 .vide {
@@ -141,7 +141,7 @@
   color: var(--couleur-accent-contraste);
   font-size: 26px;
   line-height: 1;
-  box-shadow: 0 10px 32px var(--couleur-lueur-accent);
+  box-shadow: 0 10px 28px var(--couleur-verre-bord-sombre);
   z-index: 11;
 }
 

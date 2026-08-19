@@ -98,12 +98,16 @@
   color: var(--couleur-accent-contraste);
   font-size: 16px;
   font-weight: var(--typo-gras-fort);
-  box-shadow: 0 8px 28px var(--couleur-lueur-accent);
-  transition: box-shadow 200ms ease;
+  /* Pas de lueur sur un bouton d'action : le contraste et l'espacement portent la
+     hiérarchie. Une lueur sur le bouton principal fait « démo » plutôt que « produit »,
+     et c'est gênant sur un écran où l'on saisit de l'argent. Le néon reste sur les
+     surfaces — voir docs/UX.md. */
+  transition: background-color 160ms ease-out;
 }
 
 .bouton:hover:not(:disabled) {
-  box-shadow: 0 10px 34px var(--couleur-lueur-accent);
+  background: var(--couleur-accent-clair);
+  color: var(--couleur-fond);
 }
 
 .bouton:disabled {
