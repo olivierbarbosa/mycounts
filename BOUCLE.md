@@ -78,6 +78,38 @@ caractéristiques de direction artistique en ont été tirées.)*
 
 > essaye cette palette de couleur : #FFF4BF #FFBEFB #DC95FF #8C56D4
 
+> Agenda tu peux renommer en Calendrier et on peut y ajouter que les prélèvements aucun
+> revenu. Le but de cette page est seulement de :
+> * Ajouter un prélévement pour calculer ses charges
+> * Savoir en un coup d'oeil quand et qui prélève a quelle date
+> * Ajouter un prélèvement ou charge mensuellement ou anuellement si il débit 1x par mois
+>   ou alors 1x par an ou même trimestrielle il faut prendre en compte un peu tout les
+>   types de prélèvement
+
+> Attention par contre quand tu travaille l'UI & l'UX il faut surtout penser simple et
+> efficace on veut aller au plus rapide et surtout penser aux utilisateurs smartphone qui
+> on un ecran pas aussi grand qu'une tablette et pc
+
+> Attention il faut pouvoir supprimer un prélèvement également
+
+> et il faut afficher le calendrier aussi sur les versions tablette et téléphone
+
+> Pour les icones des pages je te laisse aller chercher une vrai blibliothèque pour un
+> rendu prenium
+
+> Et il faudrait implémenter quand on a pas le logo qu'on puisse par rapport a un nom que
+> ça recherche le logo sur internet et l'importe depuis le site officiel
+
+> Je reviens sur ce que j'ai dis il faut pouvoir : Modifier/Ajouter/Supprimer un
+> prélèvement.
+
+> Et le a venir c'est toujours sur le mois en cours on veut voir les prélèvement qui ne
+> sont pas encore passé sur le mois en cours
+
+> Pareil il faut ajouter le fait de pouvoir supprimer modifier une dépense
+
+> et regarder le détails aussi
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -105,6 +137,16 @@ caractéristiques de direction artistique en ont été tirées.)*
 | « boutons : contour + dégradé » | Deux tokens ajoutés, auteurs uniques : `--degrade-accent` (dégradé vertical subtil) et `--contour-clair` (liseré interne d'un pixel). Le contour est **interne** (`inset`) : un contour externe agrandirait la cible et casserait l'alignement des rangées de boutons. |
 | « essaye cette palette : #FFF4BF #FFBEFB #DC95FF #8C56D4 » | Palette lavande appliquée. Mesure faite avant de coder : `#8C56D4` donne **4,53:1** avec du blanc — il passe le seuil AA de justesse et devient donc le seul des quatre à pouvoir porter du texte clair. Les trois autres (crème, rose, mauve clair) sont trop lumineux : ils vont aux lueurs, aux liserés et aux pastilles de catégorie, jamais à un libellé sur fond coloré. |
 | « un vrai calendrier avec les logos des abonnements et la fréquence » | L'agenda passe d'une liste à une **grille mensuelle**. Chaque échéance porte une pastille de marque et sa fréquence en toutes lettres (« tous les mois », « tous les ans »). Les logos viennent d'une bibliothèque locale, sans appel réseau : récupérer un favicon en ligne enverrait à un tiers la liste de tes abonnements. |
+| *(mesure qui contredit la décision « bibliothèque locale de logos »)* | `simple-icons` ne contient que **7 marques sur 18** d'abonnements courants en France, pour **25 Mo** de dépendance. Les absentes sont les plus fréquentes en prélèvement : Free, SFR, EDF, Canal+, Amazon Prime, Disney+, Engie. Remplacé par des **pastilles de marque générées** — initiale et couleur stable dérivée du nom : couverture 100 %, zéro dépendance, zéro question de marque déposée. Des logos réels restent ajoutables plus tard, marque par marque. |
+| « Agenda → Calendrier, prélèvements seulement » | L'écran ne crée ni n'affiche plus aucun revenu : c'est une page de **charges**. La bascule Prélèvement/Revenu disparaît de la feuille, le montant est toujours négatif, et le calendrier filtre les montants positifs. Les revenus récurrents restent possibles côté API (pas de régression), simplement l'interface ne les propose plus ici — un salaire se saisit à l'accueil, coché « c'est ma paie ». |
+| « prendre en compte tous les types de prélèvement » | Raccourcis explicites dans la feuille : mensuel, trimestriel, semestriel, annuel, hebdomadaire, plus un mode libre « tous les N ». Le moteur les gérait déjà (unité × intervalle) — ce qui manquait, c'était de les **nommer** : personne ne traduit « tous les 3 mois » en « intervalle 3, unité mois » sans hésiter. |
+| « penser simple, efficace, smartphone d'abord » | Règle de conduite permanente, inscrite dans `docs/UX.md`. |
+| « supprimer un prélèvement » puis « Modifier/Ajouter/Supprimer » | **Fait** : liste des prélèvements avec crayon et corbeille, confirmation avant l'arrêt. Une modification ne réécrit PAS les prélèvements déjà passés — un abonnement dont le tarif augmente n'a pas coûté davantage les mois précédents. |
+| « le calendrier aussi sur tablette et téléphone » | **Fait** : la grille s'affiche partout. Sous 600 px, les libellés cèdent la place à des points, et taper une case révèle le détail du jour en dessous. Sept colonnes sur 390 px donnent des cases de 48 px : assez pour un numéro et des points, pas pour un mot. |
+| « une vraie bibliothèque d'icônes » | **Fait** : `lucide-react`, tree-shakable. Coût mesuré : +8 ko gzip au bundle. Les glyphes Unicode ont disparu — un caractère change de dessin selon la police du système et ne s'aligne jamais deux fois pareil. |
+| « chercher le logo sur internet depuis le site officiel » | **En attente d'arbitrage.** Faisable, mais la requête doit partir du SERVEUR et non du navigateur, avec cache : sinon chaque logo révèle à un tiers, depuis ton adresse IP, quels abonnements tu as. Question posée. |
+| « à venir = le mois en cours, non encore passé » | **À faire** : la section liste aujourd'hui 60 jours glissants. À restreindre aux échéances du mois civil en cours postérieures à aujourd'hui. |
+| « modifier / supprimer une dépense, et voir son détail » | **À faire** : l'API n'a ni PATCH ni DELETE sur les opérations. À ajouter des deux côtés, avec la même règle que les catégories — confirmation avant suppression. |
 | « surtout prévu pour mobile & tablette » | Mobile-first strict : `min-width` uniquement, tab bar basse, safe areas, cibles ≥ 44 px. |
 
 ## État du chantier

@@ -1,20 +1,26 @@
+import { CalendarDays, House, Settings } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
-import type { CategoriePublique, ComptePublic, UtilisateurPublic } from './api/client'
+import type {
+  CategoriePublique,
+  ComptePublic,
+  RecurrencePublique,
+  UtilisateurPublic,
+} from './api/client'
 import { api } from './api/client'
 import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
 import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
 import { FeuilleSaisie } from './composants/FeuilleSaisie'
 import { Accueil } from './ecrans/Accueil'
-import { Agenda } from './ecrans/Agenda'
+import { Calendrier } from './ecrans/Calendrier'
 import { Connexion } from './ecrans/Connexion'
 import { PremierCompte } from './ecrans/PremierCompte'
 import { Reglages } from './ecrans/Reglages'
 
 const ONGLETS: readonly Onglet[] = [
-  { cle: 'accueil', libelle: 'Accueil', icone: '◎' },
-  { cle: 'agenda', libelle: 'Agenda', icone: '▤' },
-  { cle: 'reglages', libelle: 'Réglages', icone: '⚙' },
+  { cle: 'accueil', libelle: 'Accueil', Icone: House },
+  { cle: 'calendrier', libelle: 'Calendrier', Icone: CalendarDays },
+  { cle: 'reglages', libelle: 'Réglages', Icone: Settings },
 ]
 
 export function App() {
@@ -25,6 +31,7 @@ export function App() {
   const [categories, setCategories] = useState<readonly CategoriePublique[]>([])
   const [saisieOuverte, setSaisieOuverte] = useState(false)
   const [recurrenceOuverte, setRecurrenceOuverte] = useState(false)
+  const [recurrenceAModifier, setRecurrenceAModifier] = useState<RecurrencePublique>()
   // Compteur d'invalidation : incrémenté après chaque écriture, il force les écrans à
   // relire le serveur. Recalculer un solde côté client dupliquerait la règle métier.
   const [rafraichissement, setRafraichissement] = useState(0)
@@ -49,6 +56,7 @@ export function App() {
   const apresEcriture = useCallback(async () => {
     setSaisieOuverte(false)
     setRecurrenceOuverte(false)
+    setRecurrenceAModifier(undefined)
     await chargerReferentiels()
     setRafraichissement((n) => n + 1)
   }, [chargerReferentiels])
@@ -79,13 +87,20 @@ export function App() {
         />
       )}
 
-      {onglet === 'agenda' && (
-        <Agenda
+      {onglet === 'calendrier' && (
+        <Calendrier
           comptes={comptes}
           categories={categories}
           rafraichissement={rafraichissement}
           surChangement={() => setRafraichissement((n) => n + 1)}
-          surNouvelleRecurrence={() => setRecurrenceOuverte(true)}
+          surNouvelleRecurrence={() => {
+            setRecurrenceAModifier(undefined)
+            setRecurrenceOuverte(true)
+          }}
+          surModificationRecurrence={(recurrence) => {
+            setRecurrenceAModifier(recurrence)
+            setRecurrenceOuverte(true)
+          }}
         />
       )}
 
@@ -114,9 +129,14 @@ export function App() {
 
       {recurrenceOuverte && (
         <FeuilleRecurrence
+          key={recurrenceAModifier?.id ?? 'nouvelle'}
           comptes={comptes}
           categories={categories}
-          surFermeture={() => setRecurrenceOuverte(false)}
+          aModifier={recurrenceAModifier}
+          surFermeture={() => {
+            setRecurrenceOuverte(false)
+            setRecurrenceAModifier(undefined)
+          }}
           surEnregistrement={apresEcriture}
         />
       )}

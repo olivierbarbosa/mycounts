@@ -67,6 +67,42 @@ def recurrence_visible(
     ).scalar_one_or_none()
 
 
+def modifier_recurrence(
+    session: Session,
+    recurrence: Recurrence,
+    *,
+    libelle: str | None = None,
+    montant_centimes: Cents | None = None,
+    ancre: dt.date | None = None,
+    unite: UniteRecurrence | None = None,
+    intervalle: int | None = None,
+    categorie_id: uuid.UUID | None = None,
+    fin: dt.date | None = None,
+) -> Recurrence:
+    """Modifie un prélèvement. Les opérations DÉJÀ matérialisées ne bougent pas.
+
+    Changer le montant d'un abonnement ne réécrit pas les prélèvements passés : ils ont
+    eu lieu au montant d'alors. Seules les échéances futures suivent le nouveau réglage.
+    Réécrire l'historique ferait changer des soldes de mois déjà clos.
+    """
+    if libelle is not None:
+        recurrence.libelle = libelle
+    if montant_centimes is not None:
+        recurrence.montant_centimes = montant_centimes
+    if ancre is not None:
+        recurrence.ancre = ancre
+    if unite is not None:
+        recurrence.unite = unite
+    if intervalle is not None:
+        recurrence.intervalle = intervalle
+    if categorie_id is not None:
+        recurrence.categorie_id = categorie_id
+    if fin is not None:
+        recurrence.fin = fin
+    session.flush()
+    return recurrence
+
+
 def desactiver_recurrence(session: Session, recurrence: Recurrence) -> None:
     """Désactive plutôt que supprimer : les opérations déjà matérialisées gardent leur
     lien, et l'historique reste explicable."""

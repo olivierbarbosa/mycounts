@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from mycounts.api.budget_schemas import (
     DemandeRecurrence,
     EcheanceAgenda,
+    ModificationRecurrence,
     OperationPublique,
     RecurrencePublique,
 )
@@ -67,6 +68,58 @@ def creer_recurrence(
         compte_id=demande.compte_id,
         libelle=demande.libelle,
         montant_centimes=Cents(demande.montant_centimes),
+        ancre=demande.ancre,
+        unite=demande.unite,
+        intervalle=demande.intervalle,
+        categorie_id=demande.categorie_id,
+        fin=demande.fin,
+    )
+    session.commit()
+    return RecurrencePublique.model_validate(recurrence, from_attributes=True)
+
+
+@routeur.patch("/recurrences/{recurrence_id}", response_model=RecurrencePublique)
+def modifier_recurrence(
+    recurrence_id: uuid.UUID,
+    demande: ModificationRecurrence,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> RecurrencePublique:
+    """Modifie un prélèvement.
+
+    Les opérations déjà matérialisées ne changent pas : un abonnement dont le tarif
+    augmente n'a pas coûté davantage les mois précédents.
+    """
+    recurrence = depot.recurrence_visible(session, principal, recurrence_id)
+    if recurrence is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Prélèvement introuvable."
+        )
+    if demande.montant_centimes is not None and demande.montant_centimes == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Un montant nul ne décrit aucune échéance.",
+        )
+    if demande.categorie_id is not None and (
+        depot_budget.categorie_visible(session, principal, demande.categorie_id) is None
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+
+    nouvelle_ancre = demande.ancre or recurrence.ancre
+    nouvelle_fin = demande.fin or recurrence.fin
+    if nouvelle_fin is not None and nouvelle_fin < nouvelle_ancre:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La fin d'un prélèvement ne peut pas précéder sa première échéance.",
+        )
+
+    depot.modifier_recurrence(
+        session,
+        recurrence,
+        libelle=demande.libelle,
+        montant_centimes=Cents(demande.montant_centimes)
+        if demande.montant_centimes is not None
+        else None,
         ancre=demande.ancre,
         unite=demande.unite,
         intervalle=demande.intervalle,

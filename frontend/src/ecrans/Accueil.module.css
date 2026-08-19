@@ -201,6 +201,8 @@
   bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   width: 56px;
   height: 56px;
+  display: grid;
+  place-items: center;
   border-radius: var(--rayon-pilule);
   border: none;
   background: var(--couleur-degrade-accent);

@@ -1,6 +1,11 @@
 import { type FormEvent, useState } from 'react'
 
-import type { CategoriePublique, ComptePublic, UniteRecurrence } from '../api/client'
+import type {
+  CategoriePublique,
+  ComptePublic,
+  RecurrencePublique,
+  UniteRecurrence,
+} from '../api/client'
 import { ErreurApi, api } from '../api/client'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import styles from './FeuilleSaisie.module.css'
@@ -10,13 +15,28 @@ type Props = {
   readonly categories: readonly CategoriePublique[]
   readonly surFermeture: () => void
   readonly surEnregistrement: () => void
+  /** Prélèvement existant à modifier. Absent = création. */
+  readonly aModifier?: RecurrencePublique
 }
 
-const UNITES: readonly { readonly cle: UniteRecurrence; readonly libelle: string }[] = [
-  { cle: 'mois', libelle: 'mois' },
-  { cle: 'semaine', libelle: 'semaines' },
-  { cle: 'an', libelle: 'ans' },
-  { cle: 'jour', libelle: 'jours' },
+/** Rythmes nommés plutôt qu'un couple « intervalle × unité ».
+ *
+ *  Le moteur gérait déjà tous les cas ; ce qui manquait, c'était de les NOMMER. Personne
+ *  ne traduit « tous les 3 mois » en « intervalle 3, unité mois » sans hésiter, et une
+ *  hésitation à la saisie finit en prélèvement mal daté. */
+const RYTHMES: readonly {
+  readonly cle: string
+  readonly libelle: string
+  readonly unite: UniteRecurrence
+  readonly intervalle: number
+}[] = [
+  { cle: 'mensuel', libelle: 'Tous les mois', unite: 'mois', intervalle: 1 },
+  { cle: 'trimestriel', libelle: 'Tous les 3 mois', unite: 'mois', intervalle: 3 },
+  { cle: 'semestriel', libelle: 'Tous les 6 mois', unite: 'mois', intervalle: 6 },
+  { cle: 'annuel', libelle: 'Tous les ans', unite: 'an', intervalle: 1 },
+  { cle: 'hebdomadaire', libelle: 'Toutes les semaines', unite: 'semaine', intervalle: 1 },
+  { cle: 'quinzaine', libelle: 'Toutes les 2 semaines', unite: 'semaine', intervalle: 2 },
+  { cle: 'libre', libelle: 'Autre rythme…', unite: 'mois', intervalle: 1 },
 ]
 
 const aujourdHuiLocal = (): string => {
@@ -26,26 +46,44 @@ const aujourdHuiLocal = (): string => {
   return `${maintenant.getFullYear()}-${mois}-${jour}`
 }
 
+/** Retrouve le rythme nommé correspondant à un couple unité × intervalle.
+ *
+ *  Sans ça, rouvrir un prélèvement trimestriel afficherait « Tous les mois » et le
+ *  ferait basculer au mensuel dès la première validation — une modification qu'on n'a
+ *  pas demandée est pire qu'un champ vide. */
+function rythmeDe(unite: UniteRecurrence, intervalle: number): string {
+  const trouve = RYTHMES.find(
+    (r) => r.cle !== 'libre' && r.unite === unite && r.intervalle === intervalle,
+  )
+  return trouve?.cle ?? 'libre'
+}
+
 export function FeuilleRecurrence({
   comptes,
   categories,
   surFermeture,
   surEnregistrement,
+  aModifier,
 }: Props) {
-  const [sortie, setSortie] = useState(true)
-  const [montant, setMontant] = useState('')
-  const [libelle, setLibelle] = useState('')
-  const [ancre, setAncre] = useState(aujourdHuiLocal)
-  const [unite, setUnite] = useState<UniteRecurrence>('mois')
-  const [intervalle, setIntervalle] = useState('1')
-  const [compteId, setCompteId] = useState(comptes[0]?.id ?? '')
-  const [categorieId, setCategorieId] = useState('')
+  const enModification = aModifier !== undefined
+  const [montant, setMontant] = useState(() =>
+    aModifier ? (Math.abs(aModifier.montant_centimes) / 100).toFixed(2).replace('.', ',') : '',
+  )
+  const [libelle, setLibelle] = useState(aModifier?.libelle ?? '')
+  const [ancre, setAncre] = useState(aModifier?.ancre ?? aujourdHuiLocal)
+  const [rythme, setRythme] = useState(() =>
+    aModifier ? rythmeDe(aModifier.unite, aModifier.intervalle) : 'mensuel',
+  )
+  const [uniteLibre, setUniteLibre] = useState<UniteRecurrence>(aModifier?.unite ?? 'mois')
+  const [intervalleLibre, setIntervalleLibre] = useState(String(aModifier?.intervalle ?? 1))
+  const [compteId, setCompteId] = useState(aModifier?.compte_id ?? comptes[0]?.id ?? '')
+  const [categorieId, setCategorieId] = useState(aModifier?.categorie_id ?? '')
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
 
-  const categoriesDuSens = categories.filter((c) =>
-    sortie ? c.nature === 'depense' : c.nature === 'revenu',
-  )
+  // Cet écran ne crée que des CHARGES : pas de bascule, pas de catégorie de revenu.
+  const categoriesDeDepense = categories.filter((c) => c.nature === 'depense')
+  const rythmeLibre = rythme === 'libre'
 
   async function soumettre(evenement: FormEvent) {
     evenement.preventDefault()
@@ -63,17 +101,30 @@ export function FeuilleRecurrence({
       return
     }
 
+    const choisi = RYTHMES.find((r) => r.cle === rythme) ?? RYTHMES[0]
+    const unite = rythmeLibre ? uniteLibre : choisi.unite
+    const intervalle = rythmeLibre
+      ? Math.max(1, Number(intervalleLibre) || 1)
+      : choisi.intervalle
+
+    // Toujours négatif : c'est un prélèvement. L'utilisateur tape un montant positif et
+    // n'a pas à penser au signe.
+    const commun = {
+      libelle: libelle.trim(),
+      montant_centimes: -Math.abs(centimes),
+      ancre,
+      unite,
+      intervalle,
+      categorie_id: categorieId || null,
+    }
+
     setEnCours(true)
     try {
-      await api.creerRecurrence({
-        compte_id: compteId,
-        libelle: libelle.trim(),
-        montant_centimes: sortie ? -Math.abs(centimes) : Math.abs(centimes),
-        ancre,
-        unite,
-        intervalle: Math.max(1, Number(intervalle) || 1),
-        categorie_id: categorieId || null,
-      })
+      if (enModification) {
+        await api.modifierRecurrence(aModifier.id, commun)
+      } else {
+        await api.creerRecurrence({ compte_id: compteId, ...commun })
+      }
       surEnregistrement()
     } catch (cause) {
       setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
@@ -87,35 +138,12 @@ export function FeuilleRecurrence({
       className={styles.voile}
       role="dialog"
       aria-modal="true"
-      aria-label="Ajouter une échéance récurrente"
+      aria-label={aModifier ? 'Modifier un prélèvement' : 'Ajouter un prélèvement'}
     >
       <form className={styles.feuille} onSubmit={soumettre} noValidate>
-        <h2 className={styles.titre}>Échéance récurrente</h2>
-
-        <div className={styles.bascule} role="group" aria-label="Sens de l'échéance">
-          <button
-            type="button"
-            className={styles.sens}
-            aria-pressed={sortie}
-            onClick={() => {
-              setSortie(true)
-              setCategorieId('')
-            }}
-          >
-            Prélèvement
-          </button>
-          <button
-            type="button"
-            className={styles.sens}
-            aria-pressed={!sortie}
-            onClick={() => {
-              setSortie(false)
-              setCategorieId('')
-            }}
-          >
-            Revenu
-          </button>
-        </div>
+        <h2 className={styles.titre}>
+          {enModification ? 'Modifier le prélèvement' : 'Nouveau prélèvement'}
+        </h2>
 
         <div className={styles.champ}>
           <label className={styles.etiquette} htmlFor="montant-recurrence">
@@ -166,33 +194,46 @@ export function FeuilleRecurrence({
         </div>
 
         <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="intervalle-recurrence">
+          <label className={styles.etiquette} htmlFor="rythme-recurrence">
             Fréquence
           </label>
-          <div className={styles.bascule}>
-            <input
-              id="intervalle-recurrence"
-              className={styles.saisie}
-              type="number"
-              min={1}
-              max={60}
-              value={intervalle}
-              onChange={(e) => setIntervalle(e.target.value)}
-              aria-label="Tous les combien"
-            />
-            <select
-              className={styles.choix}
-              value={unite}
-              aria-label="Unité de fréquence"
-              onChange={(e) => setUnite(e.target.value as UniteRecurrence)}
-            >
-              {UNITES.map((u) => (
-                <option key={u.cle} value={u.cle}>
-                  {u.libelle}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            id="rythme-recurrence"
+            className={styles.choix}
+            value={rythme}
+            onChange={(e) => setRythme(e.target.value)}
+          >
+            {RYTHMES.map((r) => (
+              <option key={r.cle} value={r.cle}>
+                {r.libelle}
+              </option>
+            ))}
+          </select>
+
+          {rythmeLibre && (
+            <div className={styles.bascule}>
+              <input
+                className={styles.saisie}
+                type="number"
+                min={1}
+                max={60}
+                value={intervalleLibre}
+                onChange={(e) => setIntervalleLibre(e.target.value)}
+                aria-label="Tous les combien"
+              />
+              <select
+                className={styles.choix}
+                value={uniteLibre}
+                aria-label="Unité de fréquence"
+                onChange={(e) => setUniteLibre(e.target.value as UniteRecurrence)}
+              >
+                <option value="jour">jours</option>
+                <option value="semaine">semaines</option>
+                <option value="mois">mois</option>
+                <option value="an">ans</option>
+              </select>
+            </div>
+          )}
         </div>
 
         <div className={styles.champ}>
@@ -206,7 +247,7 @@ export function FeuilleRecurrence({
             onChange={(e) => setCategorieId(e.target.value)}
           >
             <option value="">Sans catégorie</option>
-            {categoriesDuSens.map((categorie) => (
+            {categoriesDeDepense.map((categorie) => (
               <option key={categorie.id} value={categorie.id}>
                 {categorie.nom}
               </option>
@@ -214,7 +255,7 @@ export function FeuilleRecurrence({
           </select>
         </div>
 
-        {comptes.length > 1 && (
+        {comptes.length > 1 && !enModification && (
           <div className={styles.champ}>
             <label className={styles.etiquette} htmlFor="compte-recurrence">
               Compte
@@ -249,7 +290,7 @@ export function FeuilleRecurrence({
             type="submit"
             disabled={enCours || montant.trim() === '' || libelle.trim() === ''}
           >
-            {enCours ? 'Enregistrement…' : 'Enregistrer'}
+            {enCours ? 'Enregistrement…' : enModification ? 'Modifier' : 'Enregistrer'}
           </button>
         </div>
       </form>

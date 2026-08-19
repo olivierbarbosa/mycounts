@@ -1,9 +1,13 @@
+import type { LucideIcon } from 'lucide-react'
+
 import styles from './BarreOnglets.module.css'
 
 export type Onglet = {
   readonly cle: string
   readonly libelle: string
-  readonly icone: string
+  /** Composant d'icône, pas un caractère : un glyphe Unicode change de dessin selon la
+   *  police du système et ne s'aligne jamais deux fois pareil. */
+  readonly Icone: LucideIcon
 }
 
 type Props = {
@@ -27,9 +31,7 @@ export function BarreOnglets({ onglets, actif, surChangement }: Props) {
           aria-current={onglet.cle === actif ? 'page' : undefined}
           onClick={() => surChangement(onglet.cle)}
         >
-          <span className={styles.icone} aria-hidden="true">
-            {onglet.icone}
-          </span>
+          <onglet.Icone className={styles.icone} size={20} strokeWidth={2} aria-hidden />
           {onglet.libelle}
         </button>
       ))}

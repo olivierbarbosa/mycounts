@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
@@ -155,7 +156,7 @@ export function Accueil({ surSaisie, comptes, categories, rafraichissement }: Pr
         onClick={surSaisie}
         aria-label="Saisir une opération"
       >
-        +
+        <Plus size={24} strokeWidth={2.4} aria-hidden />
       </button>
     </main>
   )

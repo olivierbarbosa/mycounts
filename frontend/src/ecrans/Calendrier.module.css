@@ -135,6 +135,8 @@
   bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   width: 56px;
   height: 56px;
+  display: grid;
+  place-items: center;
   border-radius: var(--rayon-pilule);
   border: none;
   background: var(--couleur-degrade-accent);
@@ -168,4 +170,55 @@
     bottom: var(--espace-xxl);
     right: var(--espace-xxl);
   }
+}
+
+/* Bouton d'icône seul : la cible reste à 44 px même si le dessin fait 17 px. */
+.boutonIcone {
+  display: grid;
+  place-items: center;
+  min-width: var(--cible-tactile);
+  min-height: var(--cible-tactile);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+}
+
+.boutonIcone:hover {
+  color: var(--couleur-debit);
+  border-color: var(--couleur-bordure);
+}
+
+/* Confirmation avant d'arrêter un prélèvement. Une action destructive ne part jamais
+   d'un seul geste — même si, ici, l'historique est préservé. */
+.confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface-haute);
+  border: 1px solid var(--couleur-debit);
+}
+
+.questionConfirmation {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.actionsConfirmation {
+  display: flex;
+  gap: var(--espace-s);
+}
+
+.supprimer {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-debit);
+  color: var(--couleur-accent-contraste);
+  font-size: 14px;
+  font-weight: var(--typo-gras-fort);
 }

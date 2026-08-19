@@ -68,8 +68,7 @@
 }
 
 .icone {
-  font-size: 17px;
-  line-height: 1;
+  flex: 0 0 auto;
 }
 
 .marque {
@@ -172,9 +171,7 @@
   }
 
   .icone {
-    font-size: 16px;
-    width: 18px;
-    text-align: center;
-    opacity: 0.85;
+    flex: 0 0 auto;
+    opacity: 0.9;
   }
 }

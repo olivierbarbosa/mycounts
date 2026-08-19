@@ -144,6 +144,12 @@ export const api = {
       body: JSON.stringify(saisie),
     }),
 
+  modifierRecurrence: (id: string, modifications: Partial<SaisieRecurrence>) =>
+    appeler<RecurrencePublique>(`/recurrences/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(modifications),
+    }),
+
   arreterRecurrence: (id: string) =>
     appeler<void>(`/recurrences/${id}`, { method: 'DELETE' }),
 

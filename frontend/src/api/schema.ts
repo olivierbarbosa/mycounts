@@ -335,7 +335,14 @@ export interface paths {
         delete: operations["arreter_recurrence_api_recurrences__recurrence_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Modifier Recurrence
+         * @description Modifie un prélèvement.
+         *
+         *     Les opérations déjà matérialisées ne changent pas : un abonnement dont le tarif
+         *     augmente n'a pas coûté davantage les mois précédents.
+         */
+        patch: operations["modifier_recurrence_api_recurrences__recurrence_id__patch"];
         trace?: never;
     };
     "/api/resume": {
@@ -582,6 +589,28 @@ export interface components {
             /** Nom */
             nom?: string | null;
             teinte?: components["schemas"]["TeinteCategorie"] | null;
+        };
+        /**
+         * ModificationRecurrence
+         * @description Champs modifiables d'un prélèvement.
+         *
+         *     Le `compte_id` est absent : déplacer un prélèvement d'un compte à l'autre changerait
+         *     le solde de deux comptes rétroactivement. On arrête et on recrée.
+         */
+        ModificationRecurrence: {
+            /** Ancre */
+            ancre?: string | null;
+            /** Categorie Id */
+            categorie_id?: string | null;
+            /** Fin */
+            fin?: string | null;
+            /** Intervalle */
+            intervalle?: number | null;
+            /** Libelle */
+            libelle?: string | null;
+            /** Montant Centimes */
+            montant_centimes?: number | null;
+            unite?: components["schemas"]["UniteRecurrence"] | null;
         };
         /**
          * NatureCategorie
@@ -1472,6 +1501,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    modifier_recurrence_api_recurrences__recurrence_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recurrence_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModificationRecurrence"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurrencePublique"];
+                };
             };
             /** @description Validation Error */
             422: {

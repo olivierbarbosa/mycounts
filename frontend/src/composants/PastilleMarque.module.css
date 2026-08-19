@@ -1,0 +1,36 @@
+/* Pastille identifiant un service. Un logo réel serait plus immédiat, mais aucune
+   bibliothèque libre ne couvre les marques d'abonnement françaises — voir BOUCLE.md.
+   Une pastille générée a l'avantage d'être TOUJOURS présente : pas de cases vides au
+   milieu d'un calendrier. */
+
+.pastille {
+  display: grid;
+  place-items: center;
+  border-radius: var(--rayon-moyen);
+  font-weight: var(--typo-gras-fort);
+  font-family: var(--typo-famille-chiffres);
+  letter-spacing: -0.02em;
+  /* Le texte reste la couleur standard : sa lisibilité est déjà garantie, alors qu'une
+     couleur dérivée d'un hachage ne peut pas l'être. La teinte vit dans le fond. */
+  color: var(--couleur-texte);
+  background: color-mix(in srgb, var(--teinte-marque) 30%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte-marque) 45%, transparent);
+}
+
+.petite {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+}
+
+.moyenne {
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+}
+
+.grande {
+  width: 44px;
+  height: 44px;
+  font-size: 16px;
+}

@@ -218,3 +218,103 @@ def test_une_fin_anterieure_a_lancre_est_refusee(
         },
     )
     assert reponse.status_code == 422
+
+
+# --- Modification d'un prélèvement -----------------------------------------------
+
+
+def test_modifier_un_prelevement(client: TestClient, session_bd: Session) -> None:
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    recurrence = creer_recurrence_api(client, compte_id, AUJOURD_HUI + dt.timedelta(days=3))
+
+    reponse = client.patch(
+        f"/api/recurrences/{recurrence['id']}",
+        json={"libelle": "Abonnement vidéo", "montant_centimes": -1599, "intervalle": 3},
+    )
+    assert reponse.status_code == 200
+    assert reponse.json()["libelle"] == "Abonnement vidéo"
+    assert reponse.json()["montant_centimes"] == -1599
+    assert reponse.json()["intervalle"] == 3
+
+
+def test_modifier_ne_reecrit_pas_lhistorique(client: TestClient, session_bd: Session) -> None:
+    """Un abonnement dont le tarif augmente n'a pas coûté davantage les mois précédents.
+
+    Réécrire les opérations déjà matérialisées ferait changer des soldes de mois clos.
+    """
+    principal = session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    recurrence = creer_recurrence_api(client, compte_id, AUJOURD_HUI - dt.timedelta(days=1))
+    materialiser(session_bd, foyer_id=principal.foyer_id)
+
+    passees_avant = client.get("/api/operations?periode_courante=false").json()
+    montant_avant = passees_avant[0]["montant_centimes"]
+
+    client.patch(f"/api/recurrences/{recurrence['id']}", json={"montant_centimes": -9999})
+
+    passees_apres = client.get("/api/operations?periode_courante=false").json()
+    assert passees_apres[0]["montant_centimes"] == montant_avant, (
+        "le prélèvement déjà passé ne doit pas changer de montant"
+    )
+
+
+def test_la_modification_change_les_echeances_futures(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Volet inverse : sans lui, une modification qui ne changerait RIEN passerait le
+    test précédent."""
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    recurrence = creer_recurrence_api(client, compte_id, AUJOURD_HUI + dt.timedelta(days=3))
+
+    avant = client.get("/api/agenda?jours=90").json()
+    client.patch(f"/api/recurrences/{recurrence['id']}", json={"montant_centimes": -9999})
+    apres = client.get("/api/agenda?jours=90").json()
+
+    assert all(e["montant_centimes"] == -1099 for e in avant)
+    assert all(e["montant_centimes"] == -9999 for e in apres)
+
+
+def test_modifier_un_prelevement_dun_autre_foyer_est_introuvable(
+    client: TestClient, session_bd: Session
+) -> None:
+    from mycounts.domain.montants import Cents
+    from mycounts.domain.recurrence import UniteRecurrence
+    from mycounts.repository import budget as depot_budget
+    from mycounts.repository import recurrences as depot_rec
+
+    from tests.integration.test_api_auth import creer_compte as creer_utilisateur
+
+    autre_foyer, autre_utilisateur = creer_utilisateur(session_bd, "b@essai.fr", nom_foyer="B")
+    autre = Principal(utilisateur_id=autre_utilisateur, foyer_id=autre_foyer)
+    compte = depot_budget.creer_compte(session_bd, autre, nom="Perso B")
+    session_bd.commit()
+    etrangere = depot_rec.creer_recurrence(
+        session_bd,
+        autre,
+        compte_id=compte.id,
+        libelle="Abonnement B",
+        montant_centimes=Cents(-500),
+        ancre=AUJOURD_HUI,
+        unite=UniteRecurrence.MOIS,
+    )
+    session_bd.commit()
+
+    session_ouverte(client, session_bd)
+    reponse = client.patch(
+        f"/api/recurrences/{etrangere.id}", json={"montant_centimes": -100}
+    )
+    assert reponse.status_code == 404
+
+
+def test_un_montant_nul_en_modification_est_refuse(
+    client: TestClient, session_bd: Session
+) -> None:
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    recurrence = creer_recurrence_api(client, compte_id, AUJOURD_HUI)
+    reponse = client.patch(
+        f"/api/recurrences/{recurrence['id']}", json={"montant_centimes": 0}
+    )
+    assert reponse.status_code == 422

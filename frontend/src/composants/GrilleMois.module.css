@@ -1,0 +1,218 @@
+/* Grille mensuelle, affichée sur TOUTES les tailles.
+   Sur téléphone, sept colonnes donnent des cases d'environ 48 px : trop étroites pour un
+   libellé, largement assez pour un numéro et des points. Le détail du jour s'affiche donc
+   en dessous quand on tape une case — un geste, pas un écran de plus. */
+
+.calendrier {
+  display: block;
+}
+
+.entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-m);
+  margin-bottom: var(--espace-m);
+}
+
+.mois {
+  margin: 0;
+  font-family: var(--typo-famille-chiffres);
+  font-size: 18px;
+  font-weight: var(--typo-gras-fort);
+  text-transform: capitalize;
+}
+
+.navigation {
+  display: flex;
+  gap: var(--espace-s);
+}
+
+.fleche {
+  display: grid;
+  place-items: center;
+  min-width: var(--cible-tactile);
+  min-height: var(--cible-tactile);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font-size: 15px;
+}
+
+.fleche:hover {
+  border-color: var(--couleur-accent-clair);
+}
+
+.jours,
+.grille {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.jours {
+  margin-bottom: 6px;
+}
+
+.nomJour {
+  text-align: center;
+  font-size: 11px;
+  font-weight: var(--typo-gras-moyen);
+  color: var(--couleur-texte-faible);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.case {
+  /* Sur téléphone : une case carrée et compacte, sans libellé. */
+  min-height: 46px;
+  padding: 4px;
+  border-radius: var(--rayon-petit);
+  background: var(--couleur-surface);
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.selectionne {
+  border-color: var(--couleur-accent);
+  background: color-mix(in srgb, var(--couleur-accent) 18%, transparent);
+}
+
+/* Points : sur téléphone, ils remplacent les libellés. Trois au plus, puis un point
+   neutre qui dit « il y en a d'autres ». */
+.points {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.point {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-accent-clair);
+}
+
+.pointSurplus {
+  background: var(--couleur-texte-faible);
+}
+
+/* Détail du jour sélectionné, sous la grille. N'existe que sur téléphone : au-dessus de
+   600 px, les libellés tiennent directement dans les cases. */
+.detailJour {
+  margin-top: var(--espace-m);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+.titreDetail {
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+  color: var(--couleur-texte-attenue);
+  text-transform: capitalize;
+}
+
+.ligneDetail {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+  padding: var(--espace-s) var(--espace-m);
+  border-radius: var(--rayon-petit);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.libelleDetail {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Un jour hors du mois affiché reste visible mais s'efface : le supprimer casserait
+   l'alignement des colonnes sur les jours de la semaine. */
+.horsMois {
+  opacity: 0.32;
+}
+
+.aujourdhui {
+  border-color: var(--couleur-accent-clair);
+}
+
+.numero {
+  font-size: 11px;
+  font-weight: var(--typo-gras-moyen);
+  color: var(--couleur-texte-attenue);
+  font-variant-numeric: tabular-nums;
+}
+
+.aujourdhui .numero {
+  color: var(--couleur-texte);
+  font-weight: var(--typo-gras-fort);
+}
+
+.echeances {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.echeance {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.libelleEcheance {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--couleur-texte-attenue);
+}
+
+.surplus {
+  font-size: 10px;
+  color: var(--couleur-texte-faible);
+}
+
+@media (min-width: 600px) {
+  /* À partir de la tablette, les cases s'agrandissent et accueillent les libellés :
+     les points et le panneau de détail ne servent plus. */
+  .case {
+    min-height: 92px;
+    padding: var(--espace-s);
+    align-items: stretch;
+    text-align: left;
+    cursor: default;
+  }
+
+  .numero {
+    font-size: 12px;
+  }
+
+  .points,
+  .detailJour {
+    display: none;
+  }
+}
+
+/* En dessous de 600 px, les libellés dans les cases sont illisibles : seuls les points
+   restent. */
+@media (max-width: 599.98px) {
+  .echeances {
+    display: none;
+  }
+}

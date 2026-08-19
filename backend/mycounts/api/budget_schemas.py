@@ -120,6 +120,22 @@ class DemandeRecurrence(BaseModel):
     fin: dt.date | None = None
 
 
+class ModificationRecurrence(BaseModel):
+    """Champs modifiables d'un prélèvement.
+
+    Le `compte_id` est absent : déplacer un prélèvement d'un compte à l'autre changerait
+    le solde de deux comptes rétroactivement. On arrête et on recrée.
+    """
+
+    libelle: str | None = Field(default=None, min_length=1, max_length=140)
+    montant_centimes: int | None = None
+    ancre: dt.date | None = None
+    unite: UniteRecurrence | None = None
+    intervalle: int | None = Field(default=None, ge=1, le=60)
+    categorie_id: uuid.UUID | None = None
+    fin: dt.date | None = None
+
+
 class RecurrencePublique(BaseModel):
     id: uuid.UUID
     compte_id: uuid.UUID
