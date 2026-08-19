@@ -91,9 +91,13 @@ PORT_WEB_DEMO := 5190
 # mot de passe ne circule pas en clair. Sur un Wi-Fi ordinaire, si.
 demo: demo-migrer demo-arret
 	@sleep 1
+	@# --reload : sans lui, la démonstration continue de servir le code du jour où elle a
+	@# été lancée. Vite recharge le frontend à chaud, pas uvicorn — d'où une interface à
+	@# jour posée sur une API figée, et des « Not Found » sur des routes pourtant écrites.
+	@# Voir ERREURS.md #022.
 	@(MYCOUNTS_DATABASE_URL="$(URL_DEMO)" $(PY) -m uvicorn mycounts.api.app:app \
-		--app-dir backend --port $(PORT_API_DEMO) --host 127.0.0.1 \
-		> /tmp/mycounts-api.log 2>&1 &)
+		--app-dir backend --port $(PORT_API_DEMO) --host 127.0.0.1 --reload \
+		--reload-dir backend > /tmp/mycounts-api.log 2>&1 &)
 	@(cd frontend && MYCOUNTS_PORT_WEB=$(PORT_WEB_DEMO) MYCOUNTS_PORT_API=$(PORT_API_DEMO) \
 		npm run dev > /tmp/mycounts-web.log 2>&1 &)
 	@sleep 4

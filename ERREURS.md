@@ -729,3 +729,29 @@ validité, et il faut le connaître : `backgroundColor` ne décrit qu'une couleu
 fois de suite, ce sont ses angles morts qui m'ont trompé — jamais le code mesuré. Et une
 règle d'agrégation comme « prendre le pire » n'est saine que si tous les candidats sont
 valides.
+
+## #022 — J'ai livré une interface à jour posée sur une API figée, deux fois
+
+**Ce que je croyais.** Que la démonstration servait le code que je venais d'écrire.
+J'avais vérifié à l'écran que le détail d'une opération s'affichait, et j'en avais conclu
+que la suppression marchait. Olivier a cliqué sur Supprimer : « Not Found ».
+
+**Ce que j'ai mesuré.** Le schéma OpenAPI du serveur de démonstration ne contenait ni
+`DELETE` ni `PATCH /api/operations/{id}`. Vite recharge le frontend à chaud, uvicorn non :
+l'écran était à jour, l'API datait d'avant la fonctionnalité.
+
+**Pourquoi ma mesure ne prouvait rien.** J'avais vérifié la seule moitié qui se recharge
+toute seule. Un affichage correct ne dit rien de la route qu'il appelle : c'est
+exactement #017, que j'avais déjà écrite, et que j'ai refaite.
+
+**Et une seconde cause dessous.** Après redémarrage, la suppression rendait 500 :
+`column operation.annulee does not exist`. J'avais migré la base de développement, pas
+celle de la démonstration. L'application avait démarré sans broncher sur un schéma
+incompatible et n'a échoué qu'à la première requête touchant la colonne — un message
+opaque, très loin de sa cause.
+
+**Le contrôle qui aurait tranché.** Ne pas dépendre de ma rigueur. L'API vérifie
+maintenant au démarrage que la révision de la base est la tête Alembic, et **refuse de
+démarrer** sinon, en nommant la commande à lancer. Témoin dans
+`tests/integration/test_garde_migrations.py`, vérifié par mutation : garde-fou neutralisé,
+le test rougit. `make demo` gagne `--reload` pour la moitié qui manquait.
