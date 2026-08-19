@@ -217,3 +217,103 @@ mais « **sur quelle machine, reconstruite comment ?** ». Et une conséquence d
 jamais annoncer qu'un lot est terminé avant que la CI l'ait confirmé — c'est exactement
 la règle « vérification verte avant d'ouvrir le lot suivant », que je venais d'inscrire
 dans CLAUDE.md et que j'ai enfreinte au commit suivant.
+
+---
+
+## 007 — Vérifier une application… qui n'était pas la mienne
+
+**Zone** : `frontend/vite.config.ts`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Qu'ouvrir `http://127.0.0.1:5175` après avoir démarré `npm run dev`
+me montrait mycounts.
+
+**Ce que j'ai mesuré.** Le HTML renvoyé contenait `data-app="admin"` et des noms de
+thèmes (« Halo Boréal », « Signal Cyan ») qui n'existent nulle part dans ce dépôt :
+c'était le back-office d'un **autre projet**. Le port 5175 était déjà pris ; Vite avait
+basculé **en silence** sur 5176, et je testais l'application de quelqu'un d'autre. Second
+piège d'environnement partagé de la journée, après PostgreSQL sur 5433.
+
+**Pourquoi ça ne prouvait rien.** « Le serveur répond sur ce port » ne dit rien de
+**quelle** application répond. La mesure n'avait aucun moyen de rendre la réponse
+inverse : une page s'affichait, donc tout allait bien.
+
+**Le contrôle qui a tranché — et qui est maintenant en place.** `strictPort: true` : le
+démarrage échoue au lieu de glisser sur le port suivant. Et le premier contrôle d'un
+parcours vérifie désormais l'identité de l'application (`<title>mycounts</title>`), pas
+seulement un code 200.
+
+**Effet de bord découvert dans la foulée.** Vite n'écoutait qu'en IPv6 (`[::1]`) alors que
+le backend écoute en IPv4 : `curl 127.0.0.1` restait suspendu sans erreur. `host:
+'127.0.0.1'` est désormais explicite des deux côtés.
+
+**Généralisation.** Avant de croire une vérification, s'assurer qu'elle porte sur le bon
+sujet. Un port, un hôte, une base : trois façons de mesurer soigneusement la mauvaise
+chose.
+
+---
+
+## 008 — Un composant qui écrasait le positionnement de son hôte
+
+**Zone** : `frontend/src/composants/Verre.module.css`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que la capture d'écran suffisait à valider la barre de navigation :
+elle apparaissait bien en bas, en verre, avec le bon accent.
+
+**Ce que j'ai mesuré.** `getBoundingClientRect()` sur la barre : `bas: 860` pour une
+fenêtre de `819`. Elle dépassait de **41 px sous le bord**, ses boutons étaient
+partiellement inatteignables. Et `gauche: 0, largeur: 1440` au lieu d'une pilule de
+420 px. La cause : `.verre` déclarait `position: relative` pour ancrer un `::before`, et
+cette règle — même spécificité, feuille chargée après — écrasait le `position: fixed` de
+la barre.
+
+**Pourquoi la capture ne prouvait rien.** Une image montre ce qui est peint dans le
+cadre, pas ce qui déborde en dehors. Le regard ne peut pas rendre la réponse inverse sur
+ce qu'il ne voit pas.
+
+**Le contrôle qui a tranché — et qui est maintenant en place.** Mesure numérique de la
+géométrie, puis un test Playwright sur les trois tailles : la navigation doit tenir
+entièrement dans la fenêtre, être une barre basse sur téléphone et un rail vertical sur
+bureau. Vérifié en réintroduisant `position: relative` : deux tests rougissent.
+
+**Correction de fond.** Le reflet spéculaire passe par un second calque de `background`
+au lieu d'un `::before`. La classe `.verre` n'impose donc plus **aucune** propriété de
+positionnement — la cause disparaît au lieu d'être compensée par plus de spécificité.
+
+**Généralisation.** Une classe utilitaire qui déclare `position` s'approprie une décision
+qui appartient à son hôte. Deux auteurs pour une même propriété : c'est l'anti-pattern
+n°3 sous sa forme CSS, et le dernier chargé gagne en silence.
+
+---
+
+## 009 — Le script créait des comptes que l'API refusait
+
+**Zone** : `scripts/creer_premier_compte.py`, `backend/mycounts/api/schemas.py`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que la validation d'adresse était couverte : le schéma d'API utilisait
+`EmailStr` de Pydantic, ce qui est la pratique courante.
+
+**Ce que j'ai mesuré.** En donnant l'adresse `essai@mycounts.test` au script de création,
+le compte est créé **sans erreur** — puis la connexion échoue en 422 : « the part after
+the @-sign is a special-use or reserved name ». Le compte existait, en base, inutilisable.
+Aucun de mes 119 tests ne le voyait, parce que tous utilisaient des adresses valides.
+
+**Pourquoi ça ne prouvait rien.** Deux validateurs, deux auteurs : `EmailStr` dans le
+schéma, `strip().lower()` dans le domaine. Chacun testé séparément, aucun test ne
+comparait leurs frontières — et c'est précisément à la frontière qu'ils divergeaient.
+
+**Le contrôle qui a tranché.** Un test de bout en bout, qui a utilisé un domaine `.test`
+par simple hygiène (ne pas écrire un vrai domaine dans un dépôt). L'erreur a été trouvée
+par accident, pas par un contrôle dirigé — c'est la chance qui a joué, et il ne faut pas
+compter dessus.
+
+**Correction.** `normaliser_courriel()` valide ET normalise, dans le domaine. Le schéma
+d'API l'appelle via `AfterValidator` au lieu d'`EmailStr` : un seul auteur, donc plus de
+frontière où diverger. Testé des deux côtés — adresses refusées ET adresses acceptées,
+car un validateur qui refuse tout passerait le premier volet.
+
+**Généralisation.** Quand deux chemins écrivent dans la même table, ils doivent partager
+le **même** validateur, pas deux validateurs « équivalents ». « Équivalent » n'est
+vérifiable que sur les cas qu'on a pensé à comparer.

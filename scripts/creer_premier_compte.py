@@ -16,6 +16,7 @@ import os
 import sys
 
 from mycounts.domain.securite import (
+    CourrielInvalide,
     MotDePasseTropCourt,
     hacher_mot_de_passe,
     normaliser_courriel,
@@ -40,12 +41,27 @@ def main(argv: list[str] | None = None) -> int:
     analyseur.add_argument("nom_foyer")
     analyseur.add_argument("courriel")
     analyseur.add_argument("nom_affichage")
+    analyseur.add_argument(
+        "--ignorer-si-existe",
+        action="store_true",
+        help="Sortir en succès si le compte existe déjà (utile pour les tests de bout en bout).",
+    )
     arguments = analyseur.parse_args(argv)
 
-    courriel = normaliser_courriel(arguments.courriel)
+    try:
+        # Même validation que l'API : sans elle, on créait des comptes que la connexion
+        # refusait ensuite (ERREURS.md #009).
+        courriel = normaliser_courriel(arguments.courriel)
+    except CourrielInvalide as erreur:
+        print(f"Adresse invalide : {erreur}", file=sys.stderr)
+        return 1
+
     session = fabrique_de_sessions()()
     try:
         if depot.utilisateur_par_courriel(session, courriel) is not None:
+            if arguments.ignorer_si_existe:
+                print(f"Compte {courriel} déjà présent, rien à faire.")
+                return 0
             print(f"Un compte existe déjà pour {courriel}.", file=sys.stderr)
             return 1
 

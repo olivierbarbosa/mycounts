@@ -11,6 +11,7 @@ import datetime as dt
 import pytest
 from mycounts.domain.securite import (
     LONGUEUR_MINIMALE_MOT_DE_PASSE,
+    CourrielInvalide,
     MotDePasseTropCourt,
     empreinte_jeton,
     engendrer_jeton,
@@ -127,3 +128,37 @@ def test_les_durees_vont_dans_le_bon_sens() -> None:
     assert expiration_session(instant) > instant
     assert expiration_invitation(instant) > instant
     assert expiration_invitation(instant) < expiration_session(instant)
+
+
+@pytest.mark.parametrize(
+    "adresse",
+    [
+        "x@mycounts.test",  # TLD réservé
+        "x@machine.localhost",
+        "x@quelquechose.invalid",
+        "sans-arobase.fr",
+        "@sansnom.fr",
+        "x@",
+        "",
+        "deux@arobas@fr.fr",
+    ],
+)
+def test_courriel_invalide_refuse(adresse: str) -> None:
+    """L'API et les scripts refusent exactement les mêmes adresses.
+
+    Une version antérieure laissait les scripts créer des comptes avec des adresses que
+    la connexion refusait ensuite : le compte existait et était inutilisable.
+    Voir ERREURS.md #009.
+    """
+    with pytest.raises(CourrielInvalide):
+        normaliser_courriel(adresse)
+
+
+@pytest.mark.parametrize(
+    "adresse",
+    ["a@b.fr", "olivier@exemple.fr", "essai@mycounts-demo.fr", "prenom.nom+etiquette@site.co.uk"],
+)
+def test_courriel_valide_accepte(adresse: str) -> None:
+    """Volet inverse : sans lui, une fonction qui refuserait TOUT passerait le test
+    précédent."""
+    assert normaliser_courriel(adresse) == adresse

@@ -1,0 +1,119 @@
+/* Écran de connexion. Mobile d'abord : une seule colonne, champs pleine largeur.
+   Pas de verre ici — c'est du contenu, pas une couche flottante. */
+
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--espace-xl);
+  padding-top: calc(var(--espace-xl) + env(safe-area-inset-top, 0px));
+  gap: var(--espace-xl);
+}
+
+.entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+.titre {
+  margin: 0;
+  font-family: var(--typo-famille-chiffres);
+  font-size: 34px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: -0.02em;
+}
+
+.sousTitre {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 15px;
+}
+
+.formulaire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-l);
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+.etiquette {
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+  color: var(--couleur-texte-attenue);
+}
+
+.saisie {
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: var(--espace-m) var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface);
+  /* 16px minimum : en dessous, iOS Safari zoome à la mise au point du champ. */
+  font-size: 16px;
+}
+
+.saisie:focus {
+  border-color: var(--couleur-accent);
+  outline: none;
+}
+
+.bouton {
+  min-height: var(--cible-tactile);
+  padding: var(--espace-m) var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-contraste);
+  font-size: 16px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.bouton:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.erreur {
+  margin: 0;
+  padding: var(--espace-m) var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-debit);
+  color: var(--couleur-debit);
+  font-size: 14px;
+}
+
+.pied {
+  color: var(--couleur-texte-faible);
+  font-size: 13px;
+  margin: 0;
+}
+
+@media (min-width: 600px) {
+  .page {
+    max-width: 460px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* La connexion reste une colonne centrée sur bureau : il n'y a rien d'autre à montrer,
+   et étaler deux champs sur 1400 px ne rendrait service à personne. Seule la respiration
+   augmente. */
+@media (min-width: 1024px) {
+  .page {
+    gap: var(--espace-xxl);
+  }
+
+  .titre {
+    font-size: 40px;
+  }
+}

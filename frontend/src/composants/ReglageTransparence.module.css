@@ -1,0 +1,25 @@
+.groupe {
+  display: flex;
+  gap: var(--espace-xs);
+  padding: var(--espace-xs);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.option {
+  flex: 1;
+  padding: var(--espace-s) var(--espace-m);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+  white-space: nowrap;
+}
+
+.option[aria-pressed='true'] {
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-contraste);
+}

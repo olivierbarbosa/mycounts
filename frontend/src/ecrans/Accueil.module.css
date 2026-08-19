@@ -1,0 +1,137 @@
+.page {
+  min-height: 100dvh;
+  padding: var(--espace-xl);
+  padding-top: calc(var(--espace-xl) + env(safe-area-inset-top, 0px));
+  /* Réserve la hauteur de la tab bar flottante : sans elle, le dernier élément de la
+     liste passe définitivement sous le verre et devient inatteignable. */
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xl);
+}
+
+.entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+}
+
+.salutation {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+.nom {
+  margin: 0;
+  font-family: var(--typo-famille-chiffres);
+  font-size: 28px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: -0.02em;
+}
+
+/* Carte de contenu : aplat opaque, JAMAIS de verre. Un montant posé sur une surface
+   translucide change de contraste selon ce qui défile dessous. */
+.carte {
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-grand);
+  padding: var(--espace-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+.libelleCarte {
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.aVenir {
+  color: var(--couleur-texte-faible);
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+}
+
+.boutonSecondaire {
+  min-height: var(--cible-tactile);
+  padding: var(--espace-m) var(--espace-xl);
+  border-radius: var(--rayon-moyen);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  word-break: break-all;
+  color: var(--couleur-accent-clair);
+  margin: 0;
+}
+
+@media (min-width: 600px) {
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* Bureau : le rail de navigation occupe la gauche, le contenu se décale et s'organise
+   en deux colonnes. Sans cette règle, la page resterait une colonne étroite au milieu
+   d'un écran vide — un mobile étiré, pas une version bureau. */
+@media (min-width: 1024px) {
+  .page {
+    max-width: none;
+    margin: 0;
+    padding-left: calc(216px + var(--espace-l) * 3);
+    padding-right: var(--espace-xxl);
+    padding-bottom: var(--espace-xxl);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'entete entete'
+      'carte1 carte2'
+      'actions actions';
+    align-content: start;
+    gap: var(--espace-xl);
+  }
+
+  .entete {
+    grid-area: entete;
+  }
+
+  .carte:nth-of-type(1) {
+    grid-area: carte1;
+  }
+
+  .carte:nth-of-type(2) {
+    grid-area: carte2;
+  }
+
+  .actions {
+    grid-area: actions;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .boutonSecondaire {
+    flex: 0 0 auto;
+  }
+
+  .nom {
+    font-size: 34px;
+  }
+}

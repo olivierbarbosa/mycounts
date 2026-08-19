@@ -15,6 +15,7 @@ from typing import Final
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
+from email_validator import EmailNotValidError, validate_email
 
 # Paramètres Argon2id. Volontairement au-dessus des minimas OWASP (19 Mio / 2 passes) :
 # cette application ne connaît qu'une poignée de connexions par jour, le coût CPU est
@@ -37,6 +38,10 @@ _OCTETS_JETON: Final = 32  # 256 bits
 
 class MotDePasseTropCourt(ValueError):
     """Mot de passe en dessous de la longueur minimale."""
+
+
+class CourrielInvalide(ValueError):
+    """Adresse électronique inexploitable."""
 
 
 def hacher_mot_de_passe(mot_de_passe: str) -> str:
@@ -89,12 +94,22 @@ def jetons_equivalents(attendu: str, fourni: str) -> bool:
 
 
 def normaliser_courriel(courriel: str) -> str:
-    """Forme canonique d'une adresse : sans espaces, en minuscules.
+    """Valide et met une adresse sous forme canonique : sans espaces, en minuscules.
 
-    Sans cette normalisation, « A@b.fr » et « a@b.fr » créeraient deux comptes que la
-    contrainte d'unicité SQL ne verrait pas comme un doublon.
+    Auteur **unique** de la règle : l'API comme les scripts passent par ici. Une première
+    version laissait le script accepter des adresses que l'API refusait ensuite — on
+    pouvait donc créer un compte impossible à utiliser. Voir ERREURS.md #009.
+
+    Sans normalisation, « A@b.fr » et « a@b.fr » créeraient deux comptes que la contrainte
+    d'unicité SQL ne verrait pas comme un doublon.
     """
-    return courriel.strip().lower()
+    try:
+        # `check_deliverability=False` : aucune requête DNS. Une machine hors ligne ou
+        # une CI sans résolution ne doit pas rendre une adresse valide « invalide ».
+        resultat = validate_email(courriel.strip(), check_deliverability=False)
+    except EmailNotValidError as erreur:
+        raise CourrielInvalide(str(erreur)) from erreur
+    return resultat.normalized.lower()
 
 
 def maintenant() -> dt.datetime:

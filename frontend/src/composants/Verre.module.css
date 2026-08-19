@@ -1,0 +1,38 @@
+/* Liquid Glass, recette iOS 27 : flou + saturation, bord assombri, reflet spéculaire.
+   Réservé aux couches FLOTTANTES. Aucun montant n'est jamais posé sur du verre — un
+   chiffre lu sur fond variable perd son contraste selon ce qui défile dessous.
+
+   Cette classe n'impose NI `position` NI `z-index` : elle est faite pour être combinée
+   à la classe de mise en page du consommateur. Une première version déclarait
+   `position: relative` (pour ancrer un ::before) et écrasait silencieusement le
+   `position: fixed` de la tab bar — même spécificité, feuille chargée après. La barre
+   se retrouvait dans le flux, 41 px sous le bord de la fenêtre. Voir ERREURS.md #008.
+
+   Le reflet spéculaire est donc obtenu par un second calque de `background`, qui ne
+   demande aucun contexte de positionnement. */
+
+.verre {
+  background:
+    /* arête supérieure : le reflet spéculaire renforcé d'iOS 27 */
+    linear-gradient(90deg, transparent, var(--couleur-verre-speculaire), transparent)
+      no-repeat top / 100% 1px,
+    color-mix(
+      in srgb,
+      var(--couleur-verre-teinte) calc(var(--verre-opacite) * 100%),
+      var(--couleur-verre-opaque)
+    );
+  backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  /* Bord assombri : ajout d'iOS 27, il détache la couche du contenu qu'elle survole. */
+  box-shadow:
+    inset 0 0 0 1px var(--couleur-verre-bord-sombre),
+    0 8px 32px var(--couleur-verre-bord-sombre);
+}
+
+/* Repli lorsque le navigateur ne sait pas flouter l'arrière-plan : on passe en opaque
+   plutôt que d'afficher une couche translucide illisible. */
+@supports not (backdrop-filter: blur(1px)) {
+  .verre {
+    background: var(--couleur-verre-opaque);
+  }
+}

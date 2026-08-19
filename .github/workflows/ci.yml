@@ -48,3 +48,14 @@ jobs:
 
       - name: Tests d'intégration (PostgreSQL réel)
         run: make tests-integration
+
+      - name: Installer le frontend
+        run: make front-installer
+
+      - name: Types du frontend
+        run: make front-lint
+
+      # Mise en page sur 390 / 820 / 1280 px dans un vrai navigateur. Playwright démarre
+      # lui-même uvicorn et Vite : aucun processus n'est lancé à la main.
+      - name: Tests de bout en bout (navigateur réel)
+        run: make tests-e2e

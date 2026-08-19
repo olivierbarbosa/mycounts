@@ -1,0 +1,65 @@
+/* Styles globaux. Aucune valeur de couleur ici : uniquement des var(--…) issues de
+   tokens.ts, seul auteur de la palette (garde-fou n°9). */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#racine {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  font-family: var(--typo-famille-texte);
+  font-weight: var(--typo-gras-normal);
+  -webkit-font-smoothing: antialiased;
+  /* Le corps ne défile jamais horizontalement — vérifié par le garde-fou n°10. */
+  overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Toute cible tactile atteint la taille minimale des Human Interface Guidelines.
+   Sur mobile, un bouton plus petit se rate une fois sur trois. */
+button,
+a[role='button'],
+input[type='submit'] {
+  min-height: var(--cible-tactile);
+  min-width: var(--cible-tactile);
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--couleur-accent);
+  outline-offset: 2px;
+}
+
+/* Accessibilité : ces deux préférences ne sont pas facultatives. L'application doit
+   rester entièrement utilisable verre désactivé et animations coupées. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --verre-opacite: var(--verre-opacite-opaque);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

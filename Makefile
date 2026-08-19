@@ -3,13 +3,14 @@
 
 PY := .venv/bin/python
 
-.PHONY: aide installer lint types garde-fous tests tests-integration verifier migrer db-haut db-bas
+.PHONY: aide installer lint types garde-fous tests tests-integration tests-e2e verifier migrer db-haut db-bas front-installer front-lint
 
 aide:
 	@echo "make installer          Crée le venv et installe les dépendances"
 	@echo "make verifier           Tout : lint, types, garde-fous, tests"
 	@echo "make db-haut            Démarre PostgreSQL et applique les migrations"
 	@echo "make tests-integration  Tests contre le vrai PostgreSQL"
+	@echo "make tests-e2e          Mise en page sur 390 / 820 / 1280 px, dans un vrai navigateur"
 
 installer:
 	python3 -m venv .venv
@@ -29,12 +30,33 @@ garde-fous:
 	$(PY) -m scripts.verifier_tete_alembic
 	$(PY) -m scripts.verifier_pas_de_float
 	$(PY) -m scripts.verifier_scope_repository
+	$(PY) -m scripts.verifier_couleurs
 
 tests:
 	$(PY) -m pytest tests/unit -q
 
 tests-integration:
 	$(PY) -m pytest tests/integration -q
+
+# Compte de démonstration des tests de bout en bout. Ce n'est PAS un compte de
+# production : il n'existe que dans la base locale ou celle de la CI.
+# Domaine ordinaire et non enregistré : « .test » est un TLD réservé que la validation
+# d'adresse refuse — c'est justement ce qui a révélé l'incohérence d'ERREURS.md #009.
+COURRIEL_E2E := essai@mycounts-demo.fr
+MOT_DE_PASSE_E2E := correct cheval batterie agrafe
+
+front-installer:
+	cd frontend && npm ci --silent
+	cd frontend && npx playwright install --with-deps chromium
+
+front-lint:
+	cd frontend && npx tsc --noEmit
+
+tests-e2e: migrer
+	MYCOUNTS_MOT_DE_PASSE_INITIAL="$(MOT_DE_PASSE_E2E)" $(PY) -m scripts.creer_premier_compte \
+		"Foyer d'essai" "$(COURRIEL_E2E)" "Essai" --ignorer-si-existe
+	cd frontend && MYCOUNTS_COURRIEL_TEST="$(COURRIEL_E2E)" \
+		MYCOUNTS_MOT_DE_PASSE_TEST="$(MOT_DE_PASSE_E2E)" npx playwright test
 
 # Idempotent : rejouable sans effet si la base est déjà à jour.
 migrer:

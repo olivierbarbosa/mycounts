@@ -1,0 +1,94 @@
+/* Navigation principale.
+   - Mobile et tablette : pilule flottante en bas, dans la zone du pouce.
+   - Bureau (≥ 1024 px) : rail vertical à gauche. Une tab bar basse sur un écran large
+     est un mobile étiré : le pointeur ne « remonte » pas, et 1400 px de vide au centre
+     ne servent personne. */
+
+.barre {
+  position: fixed;
+  left: var(--espace-l);
+  right: var(--espace-l);
+  /* env() est obligatoire : sans lui, la barre passe sous l'indicateur d'accueil iOS. */
+  bottom: calc(var(--espace-l) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: var(--espace-xs);
+  padding: var(--espace-xs);
+  border-radius: var(--rayon-pilule);
+  z-index: 10;
+}
+
+.onglet {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--espace-s) var(--espace-xs);
+  /* Rayon concentrique : déduit du parent (pilule), il ne se choisit pas. */
+  border-radius: var(--rayon-pilule);
+  border: none;
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 11px;
+  font-weight: var(--typo-gras-moyen);
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.onglet:hover {
+  color: var(--couleur-texte);
+}
+
+.onglet[aria-current='page'] {
+  color: var(--couleur-accent-contraste);
+  background: var(--couleur-accent);
+}
+
+.icone {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Tablette : la pilule se recentre et cesse de s'étirer sur toute la largeur. */
+@media (min-width: 600px) {
+  .barre {
+    left: 50%;
+    right: auto;
+    /* Largeur explicite : avec « right: auto » et aucune largeur, un élément fixe se
+       dimensionne sur son contenu — les onglets en flex:1 l'étalaient sur 1440 px. */
+    width: 420px;
+    transform: translateX(-50%);
+  }
+}
+
+/* Bureau : rail vertical à gauche, pleine hauteur. */
+@media (min-width: 1024px) {
+  .barre {
+    top: var(--espace-l);
+    bottom: var(--espace-l);
+    left: var(--espace-l);
+    right: auto;
+    width: 216px;
+    transform: none;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: var(--espace-xs);
+    padding: var(--espace-m);
+    border-radius: var(--rayon-grand);
+  }
+
+  .onglet {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--espace-m);
+    padding: var(--espace-m) var(--espace-l);
+    border-radius: var(--rayon-moyen);
+    font-size: 15px;
+    width: 100%;
+  }
+
+  .icone {
+    font-size: 20px;
+  }
+}

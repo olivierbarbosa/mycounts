@@ -23,7 +23,6 @@ from mycounts.domain.securite import (
     expiration_session,
     hacher_mot_de_passe,
     maintenant,
-    normaliser_courriel,
     verifier_mot_de_passe,
 )
 from mycounts.repository import auth as depot
@@ -63,7 +62,9 @@ def connexion(
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Identifiants incorrects."
     )
 
-    utilisateur = depot.utilisateur_par_courriel(session, normaliser_courriel(demande.courriel))
+    # `demande.courriel` est déjà validé ET normalisé par le schéma, qui délègue au
+    # domaine. Re-normaliser ici donnerait l'impression d'un second auteur de la règle.
+    utilisateur = depot.utilisateur_par_courriel(session, demande.courriel)
     empreinte = utilisateur.empreinte_mot_de_passe if utilisateur else _EMPREINTE_LEURRE
     mot_de_passe_correct = verifier_mot_de_passe(empreinte, demande.mot_de_passe)
 
@@ -146,7 +147,7 @@ def rejoindre(
             detail="Invitation inconnue, expirée ou déjà utilisée.",
         )
 
-    courriel = normaliser_courriel(demande.courriel)
+    courriel = demande.courriel
     if depot.utilisateur_par_courriel(session, courriel) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Cette adresse a déjà un compte."

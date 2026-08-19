@@ -42,6 +42,8 @@ contient souvent l'information qu'une reformulation perd.
 > Non on peut set le nombre de fois où on est payé dans 1 mois et tu peux commit ça je te
 > laisse gérer en automatique
 
+> Attention il faut une version pc aussi
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -56,6 +58,7 @@ contient souvent l'information qu'une reformulation perd.
 | « Fin quand une nouvelle paie est rentré mais on peut calculer approximativement » | La période se clôt à la paie suivante ; tant qu'elle n'est pas saisie, la fin est **estimée** (paie précédente + 1 mois) et l'écran l'étiquette comme telle. |
 | « la date de la paie fait foi » | La période s'ouvre à la `date_operation` de la paie, jamais au jour de saisie. Le résultat ne dépend pas de la ponctualité de l'utilisateur. |
 | « on peut set le nombre de fois où on est payé dans 1 mois » | Réglage `paies_par_cycle` (1, 2, 4…). La période s'ouvre à la **première** paie du cycle ; les suivantes sont des revenus à l'intérieur et ne rouvrent pas de période. Les plafonds restent donc par cycle. Interprétation à confirmer : l'autre lecture (chaque paie ouvre une période) donnerait 2 périodes par mois. |
+| « il faut une version pc aussi » | Mobile-first **reste la base**, mais le bureau doit avoir sa propre mise en page, pas un mobile étiré. À partir de 1024 px : navigation en **rail latéral** (plus de tab bar basse), contenu élargi. Le garde-fou n°10 vérifie qu'à 1280 px la navigation n'est plus en bas de l'écran. |
 | « surtout prévu pour mobile & tablette » | Mobile-first strict : `min-width` uniquement, tab bar basse, safe areas, cibles ≥ 44 px. |
 
 ## État du chantier

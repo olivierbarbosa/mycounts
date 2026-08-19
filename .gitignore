@@ -22,3 +22,6 @@ dist/
 .DS_Store
 playwright-report/
 test-results/
+
+# Schéma OpenAPI régénéré à la demande (make front-installer / exporter_openapi)
+frontend/openapi.json

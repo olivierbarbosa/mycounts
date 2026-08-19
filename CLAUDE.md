@@ -8,16 +8,18 @@ fichier se corrige dans le même commit. Toute ligne ici doit pointer vers un fi
 existant : une ligne sans fichier est une intention, sa place est dans le plan ou dans
 `BOUCLE.md`.
 
-## État : lot 1 en cours — backend d'authentification terminé, aucun écran
+## État : lot 1 terminé
 
-Existe : primitives de domaine, garde-fous, outillage, et l'authentification complète
-(foyer, utilisateur, invitation, session). **Aucun frontend, aucune table métier**
-(compte bancaire, opération, catégorie, plafond) : ils arrivent au lot 2.
+Existe : primitives de domaine, garde-fous, authentification complète (foyer, utilisateur,
+invitation, session), et le frontend — écran de connexion, accueil, shell mobile-first et
+version bureau. **Aucune table métier** (compte bancaire, opération, catégorie, plafond) :
+elles arrivent au lot 2, et aucun écran n'affiche de montant d'ici là.
 
 ## Stack
 
-Python 3.12 · FastAPI · PostgreSQL 16 · SQLAlchemy 2 · Alembic. Frontend React à venir
-(lot 1). Tout est en français : noms de fonctions, de variables et de tests.
+Python 3.12 · FastAPI · PostgreSQL 16 · SQLAlchemy 2 · Alembic · React + Vite +
+TypeScript · CSS Modules · Playwright. Tout est en français : noms de fonctions, de
+variables, de composants et de tests.
 
 ## Commandes
 
@@ -26,6 +28,7 @@ make installer          # venv + dépendances
 make db-haut            # PostgreSQL sur le port 5434 + migrations (5433 est pris ailleurs)
 make verifier           # lint + types + garde-fous + tests unitaires
 make tests-integration  # tests contre le vrai PostgreSQL
+make tests-e2e          # mise en page sur 390/820/1280 px dans un vrai navigateur
 ```
 
 La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'appelle.
@@ -44,16 +47,26 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   de données de foyer prend un `Principal` : le périmètre n'est jamais implicite.
 - **Aucune inscription publique.** Premier compte par `scripts/creer_premier_compte.py`,
   les autres par code d'invitation (haché, usage unique, 7 jours).
+- **Une adresse électronique est validée par `normaliser_courriel()`**, dans le domaine.
+  Le schéma d'API l'appelle via `AfterValidator` — pas d'`EmailStr`, qui ferait un second
+  auteur de la règle.
+- **Frontend : `design/tokens.ts` est l'auteur unique de la palette.** Les composants
+  n'écrivent que `var(--…)`. Le Liquid Glass est réservé aux couches flottantes ; un
+  montant n'est jamais posé sur du verre.
+- **Mobile d'abord, bureau à part entière.** Media queries `min-width` uniquement. À
+  partir de 1024 px la navigation devient un rail latéral — pas une tab bar centrée dans
+  le vide.
 - **Session en cookie `httponly` + `samesite=lax`**, jamais en `localStorage`. Une adresse
   inconnue et un mot de passe faux produisent la même réponse ET le même temps de réponse
   (empreinte-leurre Argon2 — sans elle, l'écart mesuré est de 12,5×).
 
 ## Garde-fous actifs
 
-Six, tous bloquants, tous prouvés par un témoin dans `tests/unit/test_garde_fous.py` :
-données bancaires (IBAN mod-97, PAN Luhn), secrets, dépendances LLM, tête Alembic unique,
-flottants dans le domaine, requêtes hors repository. Chaque script documente en tête **ce
-qu'il ne détecte pas** — lire cette section avant de lui faire confiance.
+Huit, tous bloquants, tous prouvés en les faisant échouer devant la faute qu'ils
+prétendent détecter : données bancaires (IBAN mod-97, PAN Luhn), secrets, dépendances LLM,
+tête Alembic unique, flottants dans le domaine, requêtes hors repository, couleurs en dur
+hors `tokens.ts`, et mise en page sur trois tailles d'écran. Chaque script documente en
+tête **ce qu'il ne détecte pas** — lire cette section avant de lui faire confiance.
 
 ## Habitudes
 
