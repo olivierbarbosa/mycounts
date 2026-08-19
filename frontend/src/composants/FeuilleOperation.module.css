@@ -104,22 +104,23 @@
    largeur — d'où un champ coupé par le bord de l'écran, visible sur un vrai iPhone et sur
    aucun navigateur de bureau, émulation iPhone comprise.
 
-   Les empiler sous 400 px supprime la contrainte au lieu de la border : plus rien à
-   partager, donc plus rien à tronquer. `minmax(0, 1fr)` au-delà, pour qu'une colonne
-   puisse passer sous sa largeur intrinsèque au lieu de déborder de la grille. */
+   Les empiler supprime la contrainte au lieu de la border : plus rien à partager, donc
+   plus rien à tronquer. Le seuil est à 600 px — tablette et au-delà — et non aux 400 px
+   d'un premier essai : le champ débordait encore sur un iPhone de 430 px de large, que ce
+   seuil laissait en deux colonnes. Aucune largeur de téléphone ne partage plus cette
+   ligne, parce qu'aucun moteur local ne sait me dire ce que la suivante fera.
+
+   `minmax(0, 1fr)` au-delà du seuil, pour qu'une colonne puisse passer sous sa largeur
+   intrinsèque au lieu de déborder de la grille. */
 .duo {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--espace-m);
 }
 
-@media (min-width: 400px) {
+@media (min-width: 600px) {
   .duo {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .feuille {
-    gap: var(--espace-m);
   }
 }
 

@@ -778,3 +778,30 @@ Vérifier que le fichier contient la mutation ne prouve rien : j'avais bien vér
 compté une occurrence. Le fichier la contenait ; la page, non. Reposée en fin de règle,
 la mutation a fait rougir le test sur-le-champ, en nommant « Supprimer » et
 « Enregistrer » comme hors écran.
+
+## #024 — J'ai conclu « réglé » depuis une seule largeur d'écran
+
+**Ce que je croyais.** Qu'empiler montant et date sous 400 px réglait le champ de date
+coupé par le bord de l'écran sur iPhone. Mon garde-fou passait au vert et je l'ai annoncé.
+
+**Ce que j'ai mesuré.** Une seule largeur : 390 px. L'appareil d'Olivier en fait **430**.
+Au-dessus de mon seuil, donc en deux colonnes, donc le défaut intact — sa seconde capture
+était identique à la première.
+
+**Pourquoi ma mesure ne prouvait rien.** Une mise en page qui tient à une largeur ne dit
+rien de la suivante, et c'est précisément à la largeur non testée que vivait le défaut.
+J'avais choisi 390 px comme « le téléphone », alors que c'est une famille de tailles. La
+même faute que #016 et #007 sous un autre déguisement : la mesure portait sur un sujet
+voisin de celui qui m'intéressait.
+
+**Ce que je n'ai toujours pas.** Aucun moteur local ne rend le widget de date d'iOS —
+Chromium, WebKit de bureau et l'émulation iPhone de Playwright le déclaraient tous les
+trois conforme. Je ne peux donc pas *observer* ce défaut, seulement supprimer la condition
+qui le rend possible. D'où le choix d'empiler sur toute largeur de téléphone plutôt que de
+chercher la valeur qui ferait tenir deux colonnes : je n'ai aucun moyen de vérifier une
+telle valeur.
+
+**Le contrôle qui aurait tranché.** Le garde-fou tourne désormais sur deux largeurs, 390
+et 430. Il ne détecterait toujours pas ce défaut-ci — il est propre à un moteur absent de
+ma machine — mais il détecte la classe de fautes que je viens de commettre : conclure
+d'une largeur à toutes les autres.
