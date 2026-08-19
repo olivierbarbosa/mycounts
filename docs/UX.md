@@ -86,10 +86,33 @@ concurrence aucune information.
 
 ---
 
+## Apports des skills installées
+
+Trois skills de design engineering sont installées et vérifiées (texte de guidance
+uniquement, aucun exécutable, aucun appel réseau) : `anthropics/frontend-design`,
+`jakubkrehel/better-ui`, `addyosmani/frontend-ui-engineering`.
+
+Ce qu'elles ont fait changer concrètement :
+
+- **échelle au press exactement `0.96`** — en dessous de 0.95 le geste paraît exagéré,
+  au-dessus il ne se perçoit plus. J'avais mis 0.97 au jugé ;
+- **suspension des transitions au changement de thème** — sans elle, toutes les
+  propriétés de couleur transitionnent ensemble et la page « fond » pendant une
+  demi-seconde ;
+- confirmation que les rayons concentriques, l'ombre pour l'élévation et le liseré pour
+  la structure sont bien la bonne grille de lecture — ce que le projet appliquait déjà.
+
+Une skill demandée n'a pas pu être récupérée : `antfu/web-design-guidelines` renvoie 404
+sur le catalogue.
+
 ## Ce qui reste à faire
 
 - **Animations d'entrée échelonnées au premier chargement** (~100 ms), mais pas sur les
   interactions répétées : animer un changement d'onglet à chaque fois devient pénible.
 - **Fondu des bords des listes défilantes** pour montrer qu'elles continuent.
 - **Icônes** : le projet utilise des caractères Unicode faute de jeu d'icônes. Un jeu
-  cohérent (trait 2 px à côté du texte semi-gras) améliorerait nettement la finition.
+  cohérent (trait 2 px à côté du texte semi-gras, contour par défaut et plein pour l'état
+  actif) améliorerait nettement la finition. C'est le plus gros écart restant.
+- **Rayons concentriques calculés** plutôt que choisis dans une échelle fixe : la règle
+  exacte est « rayon extérieur = rayon intérieur + espacement ». Le projet approxime avec
+  trois tailles, ce qui se voit sur les éléments profondément imbriqués.

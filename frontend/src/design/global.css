@@ -62,7 +62,9 @@ input[type='submit'] {
 button:active,
 a[role='button']:active,
 input[type='submit']:active {
-  transform: scale(0.97);
+  /* 0.96 exactement : en dessous de 0.95 le geste paraît exagéré, au-dessus il ne se
+     perçoit plus. Valeur reprise de la skill « better-ui ». */
+  transform: scale(0.96);
 }
 
 /* Interligne resserré sur les grands titres : à 30 px et plus, l'interligne par défaut
@@ -89,6 +91,15 @@ p {
   :root {
     --verre-opacite: var(--verre-opacite-opaque);
   }
+}
+
+/* Au changement de thème, toutes les propriétés de couleur transitionnent d'un coup et
+   la page « fond » pendant une demi-seconde. Cette classe, posée le temps du basculement,
+   supprime les transitions — le thème change alors instantanément, comme attendu. */
+:root.bascule-de-theme *,
+:root.bascule-de-theme *::before,
+:root.bascule-de-theme *::after {
+  transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
