@@ -52,7 +52,28 @@ test('supprimer une catégorie inutilisée', async ({ page }) => {
   const ligne = page.locator('li', { has: page.getByLabel(`Nom de la catégorie ${nom}`) })
   await ligne.getByRole('button', { name: 'Supprimer' }).click()
 
+  // Une suppression ne part jamais d'un seul geste : la confirmation doit apparaître,
+  // et la catégorie doit encore être là tant qu'elle n'est pas validée.
+  await expect(page.getByRole('alertdialog')).toBeVisible()
+  await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
+
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toHaveCount(0)
+})
+
+test('annuler une suppression laisse la catégorie en place', async ({ page }) => {
+  const nom = `Annulee ${Date.now()}`
+  await ouvrirReglages(page)
+  await page.getByLabel('Nom de la nouvelle catégorie').fill(nom)
+  await page.getByRole('button', { name: 'Ajouter' }).click()
+  await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
+
+  const ligne = page.locator('li', { has: page.getByLabel(`Nom de la catégorie ${nom}`) })
+  await ligne.getByRole('button', { name: 'Supprimer' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Annuler' }).click()
+
+  await expect(page.getByRole('alertdialog')).toHaveCount(0)
+  await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
 })
 
 test('supprimer une catégorie utilisée est refusé avec une explication', async ({ page }) => {
@@ -75,6 +96,7 @@ test('supprimer une catégorie utilisée est refusé avec une explication', asyn
   await page.getByRole('button', { name: 'Réglages' }).click()
   const ligne = page.locator('li', { has: page.getByLabel(`Nom de la catégorie ${nom}`) })
   await ligne.getByRole('button', { name: 'Supprimer' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
 
   await expect(page.getByRole('alert')).toContainText('archiver')
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()

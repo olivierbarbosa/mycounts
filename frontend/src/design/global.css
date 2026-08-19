@@ -54,6 +54,28 @@ input[type='submit'] {
   min-height: var(--cible-tactile);
   min-width: var(--cible-tactile);
   cursor: pointer;
+  transition: transform 90ms ease-out;
+}
+
+/* Retour visuel à l'appui. Sur mobile, sans lui, on ne sait pas si le geste a été pris
+   avant que le réseau réponde — et on appuie deux fois. */
+button:active,
+a[role='button']:active,
+input[type='submit']:active {
+  transform: scale(0.97);
+}
+
+/* Interligne resserré sur les grands titres : à 30 px et plus, l'interligne par défaut
+   fait flotter le texte. */
+h1,
+h2 {
+  line-height: 1.15;
+}
+
+/* Une ligne de texte au-delà de ~75 caractères devient pénible : l'œil perd le début de
+   la ligne suivante. Sur bureau, les paragraphes explicatifs s'étalaient sur 1200 px. */
+p {
+  max-width: 70ch;
 }
 
 :focus-visible {

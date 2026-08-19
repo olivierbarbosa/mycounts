@@ -31,18 +31,22 @@ test('saisie : les montants affichés sont exacts', async ({ page }) => {
   // Solde avant saisie, lu À L'ÉCRAN.
   const avant = await page.locator('main header').innerText()
 
+  // Libellé unique par exécution : un libellé fixe finit par exister en plusieurs
+  // exemplaires et le locator devient ambigu — la suite partage sa base avec les autres
+  // fichiers de test.
+  const libelle = `Courses e2e ${Date.now()}`
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await page.getByLabel('Montant').fill('45,90')
-  await page.getByLabel('Libellé').fill('Courses e2e')
+  await page.getByLabel('Libellé').fill(libelle)
   await page.getByRole('button', { name: 'Enregistrer' }).click()
 
-  await expect(page.getByText('Courses e2e')).toBeVisible()
+  await expect(page.getByText(libelle)).toBeVisible()
 
   const apres = await page.locator('main header').innerText()
   expect(apres, 'le solde affiché doit avoir changé après la saisie').not.toBe(avant)
 
   // La dépense apparaît avec le signe « moins » typographique, pas un tiret.
-  const ligne = page.locator('li', { hasText: 'Courses e2e' })
+  const ligne = page.locator('li', { hasText: libelle })
   await expect(ligne).toContainText('−45')
 })
 
@@ -56,10 +60,11 @@ test('une dépense saisie sans signe est enregistrée en négatif', async ({ pag
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await page.getByRole('button', { name: 'Dépense' }).click()
   await page.getByLabel('Montant').fill('12,34')
-  await page.getByLabel('Libellé').fill('Sens e2e')
+  const libelle = `Sens e2e ${Date.now()}`
+  await page.getByLabel('Libellé').fill(libelle)
   await page.getByRole('button', { name: 'Enregistrer' }).click()
 
-  const ligne = page.locator('li', { hasText: 'Sens e2e' })
+  const ligne = page.locator('li', { hasText: libelle })
   await expect(ligne).toContainText('−12')
   await expect(ligne).not.toContainText('+12')
 })

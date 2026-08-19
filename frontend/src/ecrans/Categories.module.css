@@ -141,3 +141,36 @@
   font-size: 13px;
   color: var(--couleur-debit);
 }
+
+/* Demande de confirmation avant une suppression définitive. */
+.confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface-haute);
+  border: 1px solid var(--couleur-debit);
+}
+
+.questionConfirmation {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.actionsConfirmation {
+  display: flex;
+  gap: var(--espace-s);
+}
+
+.supprimer {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-debit);
+  color: var(--couleur-accent-contraste);
+  font-size: 14px;
+  font-weight: var(--typo-gras-fort);
+}

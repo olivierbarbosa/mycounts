@@ -108,9 +108,14 @@ export function Accueil({ surSaisie, comptes, categories, rafraichissement }: Pr
       </section>
 
       {operations.length === 0 ? (
-        <p className={styles.vide}>
-          Aucune opération sur cette période. Le bouton « + » en bas à droite en ajoute une.
-        </p>
+        <div className={styles.vide}>
+          <p>Aucune opération sur cette période.</p>
+          {/* Un état vide doit proposer l'action, pas seulement la décrire : « le bouton
+              en bas à droite » oblige à chercher. */}
+          <button type="button" className={styles.actionVide} onClick={surSaisie}>
+            Saisir une dépense
+          </button>
+        </div>
       ) : (
         <ul className={styles.liste}>
           {operations.map((operation) => {

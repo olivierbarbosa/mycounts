@@ -1,8 +1,8 @@
 """Remet le foyer de démonstration dans un état connu avant la suite de bout en bout.
 
-État garanti à la sortie : **un compte, aucune opération**. Sans cela, chaque exécution
-laisse ses opérations derrière elle et les tests mesurent un état cumulé — un locator qui
-attend une ligne en trouve trois.
+État garanti à la sortie : **un compte, aucune opération, aucune récurrence**. Sans cela,
+chaque exécution laisse ses données derrière elle et les tests mesurent un état cumulé —
+un locator qui attend une ligne en trouve trois.
 
 Le compte est conservé (ou recréé) et non supprimé : sinon toute la suite retomberait sur
 l'écran d'amorçage, qui n'a pas de barre de navigation. Conséquence assumée et écrite
@@ -21,7 +21,7 @@ import os
 import sys
 
 from mycounts.domain.securite import normaliser_courriel
-from mycounts.models.budget import Compte, Operation
+from mycounts.models.budget import Compte, Operation, Recurrence
 from mycounts.repository import auth as depot
 from mycounts.repository import budget as depot_budget
 from mycounts.repository.base import Principal, fabrique_de_sessions
@@ -61,11 +61,15 @@ def main() -> int:
             ).scalars()
         )
         if comptes:
+            # Les opérations d'abord : elles référencent les récurrences. Sans les
+            # récurrences, une exécution suivante les rematérialiserait aussitôt et les
+            # tests repartiraient d'un état différent du précédent.
             session.execute(delete(Operation).where(Operation.compte_id.in_(comptes)))
+            session.execute(delete(Recurrence).where(Recurrence.compte_id.in_(comptes)))
         if not comptes:
             depot_budget.creer_compte(session, principal, nom="Compte courant")
         session.commit()
-        print("Foyer de démonstration prêt : un compte, aucune opération.")
+        print("Foyer de démonstration prêt : un compte, aucune opération, aucune récurrence.")
     finally:
         session.close()
     return 0

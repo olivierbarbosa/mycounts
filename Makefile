@@ -75,29 +75,34 @@ migrer:
 
 verifier: lint types garde-fous tests
 
-# Base DISTINCTE pour la démonstration. Les tests d'intégration vident la base de
-# développement à chaque exécution : la démo y perdait ses données et son compte à
-# chaque tour. Une base séparée est le seul moyen que les deux usages cohabitent.
+# Base ET PORTS distincts pour la démonstration.
+#
+# La base séparée ne suffisait pas : Playwright est configuré avec
+# « reuseExistingServer », donc les tests de bout en bout se branchaient sur le serveur
+# de démonstration déjà lancé — et écrivaient dans SA base. Les ports doivent donc
+# différer aussi, sans quoi les deux usages se retrouvent malgré tout.
 URL_DEMO := postgresql+psycopg://mycounts:mycounts@localhost:5434/mycounts_demo
+PORT_API_DEMO := 8011
+PORT_WEB_DEMO := 5190
 
 # Lance l'application pour un essai depuis un autre appareil.
 #
 # ATTENTION : pas de HTTPS. Sur Tailscale le tunnel est chiffré par WireGuard, donc le
 # mot de passe ne circule pas en clair. Sur un Wi-Fi ordinaire, si.
-demo: demo-migrer
-	@pkill -f "uvicorn mycounts" 2>/dev/null || true
-	@pkill -f "mycounts/frontend/node_modules/.bin/vite" 2>/dev/null || true
+demo: demo-migrer demo-arret
 	@sleep 1
 	@(MYCOUNTS_DATABASE_URL="$(URL_DEMO)" $(PY) -m uvicorn mycounts.api.app:app \
-		--app-dir backend --port 8010 --host 127.0.0.1 > /tmp/mycounts-api.log 2>&1 &)
-	@(cd frontend && npm run dev > /tmp/mycounts-web.log 2>&1 &)
+		--app-dir backend --port $(PORT_API_DEMO) --host 127.0.0.1 \
+		> /tmp/mycounts-api.log 2>&1 &)
+	@(cd frontend && MYCOUNTS_PORT_WEB=$(PORT_WEB_DEMO) MYCOUNTS_PORT_API=$(PORT_API_DEMO) \
+		npm run dev > /tmp/mycounts-web.log 2>&1 &)
 	@sleep 4
 	@echo ""
-	@echo "  Sur cette machine   http://127.0.0.1:5189"
-	@echo "  Depuis un appareil  http://$$(tailscale ip -4 2>/dev/null || ipconfig getifaddr en0):5189"
+	@echo "  Sur cette machine   http://127.0.0.1:$(PORT_WEB_DEMO)"
+	@echo "  Depuis un appareil  http://$$(tailscale ip -4 2>/dev/null || ipconfig getifaddr en0):$(PORT_WEB_DEMO)"
 	@echo ""
 	@echo "  Le backend n'écoute que sur 127.0.0.1 : seul le proxy l'atteint."
-	@echo "  Base dédiée « mycounts_demo » : les tests ne l'effacent pas."
+	@echo "  Base ET ports dédiés : les tests ne touchent pas à ces données."
 	@echo "  Journaux : /tmp/mycounts-api.log et /tmp/mycounts-web.log"
 
 # Applique les migrations sur la base de démonstration et s'assure qu'un compte existe.
@@ -109,8 +114,10 @@ demo-migrer:
 		--ignorer-si-existe
 
 demo-arret:
-	@pkill -f "uvicorn mycounts" 2>/dev/null || true
-	@pkill -f "mycounts/frontend/node_modules/.bin/vite" 2>/dev/null || true
+	@pkill -f "port $(PORT_API_DEMO)" 2>/dev/null || true
+	@pkill -f "MYCOUNTS_PORT_WEB=$(PORT_WEB_DEMO)" 2>/dev/null || true
+	@lsof -ti tcp:$(PORT_API_DEMO) 2>/dev/null | xargs kill 2>/dev/null || true
+	@lsof -ti tcp:$(PORT_WEB_DEMO) 2>/dev/null | xargs kill 2>/dev/null || true
 	@echo "Serveurs de démonstration arrêtés."
 
 db-haut:

@@ -29,6 +29,7 @@ const CLASSE_TEINTE: Record<string, string> = {
  * se retourne pas.
  */
 export function Categories({ categories, surChangement }: Props) {
+  const [aSupprimer, setASupprimer] = useState<CategoriePublique | null>(null)
   const [nouveauNom, setNouveauNom] = useState('')
   const [nouvelleNature, setNouvelleNature] = useState<NatureCategorie>('depense')
   const [nouvelleTeinte, setNouvelleTeinte] = useState<TeinteCategorie>('violet')
@@ -94,7 +95,7 @@ export function Categories({ categories, surChangement }: Props) {
           type="button"
           className={styles.action}
           disabled={enCours}
-          onClick={() => void agir(() => api.supprimerCategorie(categorie.id))}
+          onClick={() => setASupprimer(categorie)}
         >
           Supprimer
         </button>
@@ -104,6 +105,43 @@ export function Categories({ categories, surChangement }: Props) {
 
   return (
     <section className={styles.section}>
+      {/* Une suppression ne se déclenche jamais d'un seul geste. Ici elle est refusée si
+          la catégorie sert à des opérations, mais l'utilisateur ne le sait qu'après :
+          la confirmation évite le sursaut. */}
+      {aSupprimer !== null && (
+        <div className={styles.confirmation} role="alertdialog" aria-modal="true">
+          <p className={styles.questionConfirmation}>
+            Supprimer la catégorie « {aSupprimer.nom} » ?
+          </p>
+          <p className={styles.message}>
+            Cette action est définitive. Elle sera refusée si des opérations y sont
+            rattachées.
+          </p>
+          <div className={styles.actionsConfirmation}>
+            <button
+              type="button"
+              className={styles.action}
+              onClick={() => setASupprimer(null)}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              className={styles.supprimer}
+              disabled={enCours}
+              onClick={() =>
+                void agir(async () => {
+                  await api.supprimerCategorie(aSupprimer.id)
+                  setASupprimer(null)
+                })
+              }
+            >
+              Supprimer
+            </button>
+          </div>
+        </div>
+      )}
+
       {(['depense', 'revenu'] as const).map((nature) => (
         <div key={nature} className={styles.groupe}>
           <span className={styles.titreGroupe}>

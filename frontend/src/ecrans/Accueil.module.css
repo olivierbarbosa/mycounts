@@ -160,15 +160,33 @@
 }
 
 .vide {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-l);
   color: var(--couleur-texte-attenue);
   font-size: 14px;
   line-height: 1.5;
-  padding: var(--espace-xl);
+  padding: var(--espace-xxl) var(--espace-xl);
   border-radius: var(--rayon-grand);
   background: var(--couleur-surface);
   border: 1px solid var(--couleur-bordure);
   text-align: center;
+}
+
+.vide p {
+  margin: 0;
+}
+
+.actionVide {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-contraste);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
 }
 
 /* Bouton d'action flottant, au-dessus de la tab bar. */

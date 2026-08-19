@@ -8,6 +8,12 @@ import { defineConfig } from 'vite'
  *  « samesite=lax » reste pleinement efficace. */
 const CHEMINS_API = ['/api', '/health']
 
+/** Ports paramétrables : la démonstration tourne sur d'autres ports que les tests, sinon
+ *  Playwright (« reuseExistingServer ») se branche sur le serveur de démonstration et
+ *  écrit dans sa base. */
+const PORT_WEB = Number(process.env.MYCOUNTS_PORT_WEB ?? 5189)
+const PORT_API = Number(process.env.MYCOUNTS_PORT_API ?? 8010)
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -23,7 +29,7 @@ export default defineConfig({
     // Vite refuse par défaut les hôtes qu'il ne connaît pas (protection anti-rebinding
     // DNS). On autorise les adresses du réseau Tailscale et le nom de la machine.
     allowedHosts: ['.ts.net', 'localhost', '127.0.0.1'],
-    port: 5189,
+    port: PORT_WEB,
     // Sans « strictPort », Vite bascule EN SILENCE sur le port suivant quand le sien est
     // pris. Un autre projet occupait 5175 et j'ai validé contre SON application sans
     // m'en apercevoir : le navigateur affichait un back-office qui n'est pas le nôtre.
@@ -32,7 +38,7 @@ export default defineConfig({
     proxy: Object.fromEntries(
       CHEMINS_API.map((chemin) => [
         chemin,
-        { target: 'http://127.0.0.1:8010', changeOrigin: false },
+        { target: `http://127.0.0.1:${PORT_API}`, changeOrigin: false },
       ]),
     ),
   },
