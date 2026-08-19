@@ -805,3 +805,26 @@ telle valeur.
 et 430. Il ne détecterait toujours pas ce défaut-ci — il est propre à un moteur absent de
 ma machine — mais il détecte la classe de fautes que je viens de commettre : conclure
 d'une largeur à toutes les autres.
+
+## #025 — J'ai corrigé deux fois avant d'avoir diagnostiqué
+
+**Ce que je croyais.** Que le champ de date coupé par le bord de l'écran était un problème
+de partage de largeur. J'ai empilé les champs sous 400 px. Échec. J'ai monté le seuil à
+600 px. Échec encore. Trois allers-retours avec Olivier pour un seul défaut.
+
+**Ce que j'ai mesuré — trop tard.** Les positions dans sa capture. La feuille laisse 398 px
+utiles, le champ Libellé en occupe 398, le champ de date 432. Soit exactement
+`398 + 2 × 16 de padding + 2 × 1 de bordure` : iOS ignore `box-sizing: border-box` sur
+`input[type="date"]`. Le calcul tombait juste au pixel près, et **la première capture
+contenait déjà tout ce qu'il fallait pour le faire**.
+
+**Pourquoi mes deux premières corrections ne prouvaient rien.** Elles traitaient une cause
+supposée. Le défaut ne dépendait ni de la largeur partagée ni du seuil : il était constant,
+18 px, à toute largeur. Aucune de mes deux tentatives ne pouvait le déplacer — j'aurais pu
+le savoir avant de les livrer.
+
+**Le contrôle qui aurait tranché.** Mesurer avant de corriger, y compris quand la seule
+donnée disponible est une image. Les bords visibles d'une capture sont des nombres : le
+champ Libellé s'y arrêtait net à la bonne largeur, le champ de date non — deux quantités
+qui devaient être égales et ne l'étaient pas. C'était la mesure à faire, et elle ne
+demandait aucun appareil.
