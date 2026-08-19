@@ -55,6 +55,22 @@ class Agregat(StrEnum):
     """Base des plafonds par catégorie (lot 4)."""
 
 
+class Signe(StrEnum):
+    """Quels mouvements un agrégat retient.
+
+    Deuxième dimension de la table, oubliée dans la première version : `depenses_de_periode`
+    additionnait aussi les revenus et renvoyait un solde positif. Sur un plafond, il
+    n'aurait jamais alerté — l'exact contraire de sa raison d'être. Voir ERREURS.md #013.
+    """
+
+    TOUS = "tous"
+    SORTIES = "sorties"
+    """Montants strictement négatifs."""
+
+    ENTREES = "entrees"
+    """Montants strictement positifs."""
+
+
 class Borne(StrEnum):
     """Jusqu'où un agrégat regarde dans le temps."""
 
@@ -103,6 +119,18 @@ CONTRIBUTIONS: Final[dict[Agregat, dict[EtatOperation, Borne | None]]] = {
 }
 
 
+# Signe retenu par agrégat. Exhaustive comme CONTRIBUTIONS, et vérifiée par un test :
+# un agrégat ajouté sans ligne ici lèverait un KeyError plutôt que de sommer n'importe quoi.
+SIGNE_RETENU: Final[dict[Agregat, Signe]] = {
+    Agregat.SOLDE_REEL: Signe.TOUS,
+    Agregat.SOLDE_A_CONFIRMER: Signe.TOUS,
+    Agregat.SOLDE_PROJETE: Signe.TOUS,
+    # « Dépenses » veut dire dépenses : une paie encaissée dans la période ne réduit pas
+    # la consommation d'un plafond de courses.
+    Agregat.DEPENSES_DE_PERIODE: Signe.SORTIES,
+}
+
+
 @dataclass(frozen=True)
 class OperationCalcul:
     """Vue minimale d'une opération pour les calculs.
@@ -140,10 +168,15 @@ def calculer(
     if fin_de_fenetre < aujourd_hui:
         raise ValueError("La fin de fenêtre ne peut pas précéder le jour courant.")
 
+    signe = SIGNE_RETENU[agregat]
     total = 0
     for operation in operations:
         borne = contribue(agregat, operation.etat)
         if borne is None:
+            continue
+        if signe is Signe.SORTIES and operation.montant >= 0:
+            continue
+        if signe is Signe.ENTREES and operation.montant <= 0:
             continue
         limite = aujourd_hui if borne is Borne.AUJOURD_HUI else fin_de_fenetre
         if operation.date_operation <= limite:

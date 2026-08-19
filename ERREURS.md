@@ -417,3 +417,43 @@ Jamais « la dernière ».
 **Généralisation.** Troisième variante du même piège après #006 et #007 : la mesure porte
 sur le mauvais sujet. Machine, port, et maintenant commit. La question à se poser n'est
 pas « est-ce vert ? » mais « **vert pour quoi, exactement ?** ».
+
+---
+
+## 013 — Un agrégat nommé « dépenses » qui comptait les salaires
+
+**Zone** : `backend/mycounts/domain/agregats.py`.
+**Date** : 2026-08-19.
+
+**Ce que j'ai cru.** Que la table état × agrégat suffisait à définir chaque total. Elle
+répondait à « quels états contribuent, et jusqu'à quelle date ». J'avais soigné son
+exhaustivité, avec un test qui parcourt le produit cartésien.
+
+**Ce que j'ai mesuré.** Sur une période contenant un salaire de 2 500 €, deux dépenses de
+45,90 € et 120 €, `depenses_de_periode` renvoyait **+233 410 centimes** au lieu de
+−16 590. Il sommait la paie avec les dépenses : ce n'était pas un total de dépenses, mais
+un solde portant un autre nom.
+
+**Pourquoi l'exhaustivité de la table ne prouvait rien.** Elle garantissait qu'aucune
+combinaison état × agrégat n'était oubliée — et c'était vrai. Mais il manquait une
+**dimension entière** : le signe des montants retenus. Un test d'exhaustivité ne peut
+vérifier que les axes qu'on lui a donnés ; il est muet sur ceux qu'on n'a pas pensé à
+déclarer. C'est le mode d'erreur propre aux contrôles de complétude.
+
+**La conséquence si ça avait tenu.** Les plafonds du lot 4 se seraient alimentés de ce
+chiffre. Un plafond « Courses 400 € » aurait affiché une consommation positive et n'aurait
+**jamais** alerté — l'exact contraire de sa raison d'être, et une erreur qu'on ne
+découvre qu'en constatant qu'aucune alerte n'est jamais arrivée.
+
+**Le contrôle qui a tranché.** Un test qui écrit les quatre grandeurs attendues à la main,
+sur un jeu contenant à la fois un revenu et des dépenses. Les trois soldes étaient justes ;
+seul le quatrième chiffre a détonné. Sans revenu dans le jeu d'essai, l'erreur restait
+invisible.
+
+**Correction.** Une seconde table, `SIGNE_RETENU`, exhaustive et testée comme la première.
+Plus un volet inverse : sur des données sans revenu, dépenses et solde doivent coïncider —
+sinon un filtre qui exclurait tout passerait le test.
+
+**Généralisation.** Vérifier qu'une table est complète ne dit rien de savoir si elle a les
+bonnes colonnes. Et un jeu d'essai qui ne contient qu'un type de donnée ne peut pas
+révéler une confusion entre les types.

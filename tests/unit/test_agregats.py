@@ -14,6 +14,7 @@ import itertools
 import pytest
 from mycounts.domain.agregats import (
     CONTRIBUTIONS,
+    SIGNE_RETENU,
     Agregat,
     Borne,
     EtatOperation,
@@ -53,6 +54,29 @@ def test_la_table_est_exhaustive() -> None:
 
 def test_aucun_agregat_ne_manque_dans_la_table() -> None:
     assert set(CONTRIBUTIONS) == set(Agregat)
+    assert set(SIGNE_RETENU) == set(Agregat), "un agrégat sans signe retenu sommerait tout"
+
+
+def test_les_depenses_ignorent_les_revenus() -> None:
+    """Un agrégat nommé « dépenses » ne doit pas additionner les paies.
+
+    Première version : il renvoyait +233 410 au lieu de −16 590 sur une période contenant
+    un salaire. Un plafond alimenté par ce chiffre n'aurait jamais alerté.
+    """
+    operations = [operation(250000), operation(-4590), operation(-12000)]
+    assert somme(Agregat.DEPENSES_DE_PERIODE, operations) == -16590
+    assert somme(Agregat.SOLDE_REEL, operations) == 233410
+
+
+def test_temoin_le_filtre_de_signe_est_actif() -> None:
+    """Contrôle inverse : sur des données sans revenu, dépenses et solde coïncident.
+
+    Sans lui, un filtre qui exclurait TOUT passerait le test précédent.
+    """
+    sorties_seules = [operation(-4590), operation(-12000)]
+    assert somme(Agregat.DEPENSES_DE_PERIODE, sorties_seules) == somme(
+        Agregat.SOLDE_REEL, sorties_seules
+    )
 
 
 def test_une_combinaison_inconnue_leve() -> None:
