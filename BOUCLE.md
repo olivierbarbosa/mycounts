@@ -200,6 +200,12 @@ ERREURS.md #024 et #025)*
 > Il faut également pour le solde affiché tout en haut de l'accueil soit affiche en rouge
 > ou vert selon si négatif ou positif avec une petit dégradé de couleur.
 
+> J'ai un collègue qui a développer un peu une app similaire mais j'aimerais reprendre ce
+> qui nous intéresse.
+
+*(document joint, recopié dans `docs/reference-enveloppes-collegue.md`. Périmètre tranché
+en choix multiples : **tout, préparation mensuelle comprise**.)*
+
 > Note toi dans la loop les idées que je rajoute :
 >
 > * Le solde d'ouverture ne dois pas être dans l'accueil on veut juste les dépenses des
@@ -264,19 +270,45 @@ mouvement des écrans mesuré à 60 images/s.
 **Reste à faire**, dans cet ordre :
 
 1. ~~Détail d'un compte d'épargne~~ — **fait le 2026-08-20**.
-2. **Nouvelle barre d'onglets**, demandée le 2026-08-20 :
+2. **Enveloppes** — chantier découpé en quatre lots, tranché le 2026-08-20 d'après
+   `docs/reference-enveloppes-collegue.md`. La règle qui commande tout le reste :
+
+   > Une allocation vers une enveloppe ne crée JAMAIS de mouvement bancaire.
+
+   Compte ≠ enveloppe ≠ budget. Le compte dit où l'argent EST, l'enveloppe à quoi il est
+   PROMIS, le budget ce qu'on prévoit d'y mettre.
+
+   - **E1 — noyau.** Table `enveloppe` (nom, catégorie, compte préféré, cible, date cible)
+     et **journal de mouvements** : aucun solde stocké, il se recalcule — c'est déjà la
+     règle du projet pour les comptes. Une enveloppe peut passer en négatif, et le total
+     réservé ne compte que les soldes POSITIFS : une enveloppe dans le rouge ne doit pas
+     rogner ce que les autres promettent. Onglet Enveloppe.
+   - **E2 — couverture par compte.** Solde théorique attendu d'un compte = somme des
+     enveloppes qui le désignent. Comparé au solde réel : correct, excédent, insuffisant.
+     Répond à « mes promesses sont-elles couvertes », sans import bancaire.
+   - **E3 — préparation mensuelle.** À chaque paie, proposition de répartition :
+     `place = max(0, cible − actuel)`, `recommandé = min(budget mensuel, place)`,
+     `libéré = budget − recommandé`. Le libéré n'est JAMAIS déplacé tout seul : il est
+     présenté comme disponible. Validation → mouvements d'allocation.
+   - **E4 — déclaration de virement.** « J'ai fait ce virement » est une DÉCLARATION, pas
+     une transaction. Elle reste en attente jusqu'à confirmation. Sans import bancaire,
+     la seule confirmation possible est la correction manuelle du solde, déjà en place —
+     **à écrire noir sur blanc dans l'écran** plutôt que de laisser croire à un
+     rapprochement automatique.
+
+3. **Nouvelle barre d'onglets**, demandée le 2026-08-20 :
    `Accueil | Budget | + | Enveloppe | Épargne`. Le **+ est centré** dans la barre — c'est
    le geste le plus fréquent, il tombe sous le pouce. Le **Calendrier** quitte la barre
    pour une bulle en haut à droite, au format de celle du profil. Budget devient un
    onglet à part entière au lieu d'un écran poussé depuis l'accueil.
    *(« Enveloppe » reste à définir, voir Points ouverts.)*
-3. **Retouches de la saisie et de l'accueil**, demandées le 2026-08-20 :
+4. **Retouches de la saisie et de l'accueil**, demandées le 2026-08-20 :
    - le **solde d'ouverture** ne doit pas figurer dans la liste de l'accueil : on y veut
      les dépenses des comptes chèques et le solde, pas la ligne d'amorçage ;
    - la case **« c'est ma paie » disparaît du mode Virement**, où elle n'a aucun sens ;
    - en mode **Revenu**, c'est la catégorie **Salaire** qui dit que c'est la paie ;
    - plus d'**écart** entre le sélecteur de compte et les deux boutons, en mode Dépense.
-4. **Onglet Foyer** — membres, codes d'invitation (aujourd'hui enfouis dans un sous-menu),
+5. **Onglet Foyer** — membres, codes d'invitation (aujourd'hui enfouis dans un sous-menu),
    comptes joints, plafonds partagés. C'est le lot 5 du séquencement d'origine.
 3. **Logos des prélèvements**, sur le modèle KeePassXC : bouton explicite, requête faite
    par le serveur, mise en cache, repli sur la pastille.
