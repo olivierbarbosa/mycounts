@@ -45,6 +45,10 @@ export const couleursSombres = {
   /** Primaire de la palette. Mesuré à 4,53:1 avec du blanc : il passe AA de justesse et
    *  constitue la limite basse — l'éclaircir casserait le contraste. */
   accent: '#8C56D4',
+  /** Mauve clair. Pour les BORDURES, les lueurs et les pastilles — jamais pour du texte.
+   *  La convention était implicite jusqu'à ce que je pose un lien « Gérer » de cette
+   *  couleur : mesuré à 4,00:1 en thème clair, sous le seuil. Les liens portent l'encre
+   *  du texte et se signalent par un chevron. */
   accentClair: '#DC95FF',
   accentContraste: '#FFFFFF',
   /** Rose de la palette. Trop lumineux pour porter du texte : lueurs et liserés. */

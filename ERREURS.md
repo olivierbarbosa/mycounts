@@ -924,3 +924,29 @@ débits porte une dérogation BORNÉE dans `e2e/contraste.spec.ts` : son seuil e
 la valeur mesurée (3,2 au lieu de 4,5), pas supprimé. Vérifié par mutation — halo poussé
 à 0,42, les trois tests du thème sombre rougissent. La dérogation couvre une décision
 prise, elle ne couvre pas une dégradation future.
+
+## #030 — Une alerte documentée qui ne pouvait pas se déclencher
+
+**Ce que je croyais.** Que `depasse_avec_les_echeances` fonctionnait : le domaine le
+calcule, `docs/PLAN.md` le décrit comme « le vrai signal », et onze tests d'intégration
+passaient sur les plafonds.
+
+**Ce que j'ai mesuré.** En construisant l'écran, l'alerte ne s'affichait jamais. `a_venir`
+ne compte que les opérations à l'état `prevue` — et **rien, nulle part, n'en crée**. La
+matérialisation n'écrit une ligne qu'une fois l'échéance échue : le futur n'est dans
+aucune table, c'est une projection calculée à la volée par l'agenda. `a_venir` valait donc
+zéro depuis toujours, et `depasse_avec_les_echeances` n'était qu'un synonyme de `depasse`.
+
+**Pourquoi les tests ne l'ont pas vu.** Ceux du domaine fabriquaient les opérations
+`prevue` à la main. Ils prouvaient que la FONCTION calcule juste — ce qui était vrai — et
+non que le système lui fournit jamais cette entrée. Un test unitaire qui construit son
+entrée ne peut pas révéler qu'aucun producteur ne l'écrit.
+
+**Le contrôle qui aurait tranché.** Un test d'intégration qui part d'une RÉCURRENCE, comme
+l'utilisateur : créer un prélèvement dans une catégorie plafonnée, puis lire l'API. Il
+existe maintenant, et il vérifie deux grandeurs qui ne bougent pas ensemble — l'à-venir
+monte pendant que le consommé reste ce qui est réellement sorti. Vérifié par mutation :
+projection débranchée, il rougit.
+
+**Corrigé** en extrayant la projection des échéances dans le dépôt, partagée par l'agenda
+et les plafonds. Deux copies auraient fini par diverger.

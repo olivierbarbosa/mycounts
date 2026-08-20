@@ -212,3 +212,57 @@
     padding-bottom: var(--espace-xxl);
   }
 }
+
+/* Coquille de page poussée, identique à celle des paramètres : les deux écrans arrivent
+   de la droite et repartent par là. Les images clés viennent de global.css, seul auteur
+   de ce mouvement. */
+.panneau {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: var(--couleur-fond);
+  background-image: var(--fond-degrade-page);
+  animation: entree-par-la-droite 260ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.sortant {
+  animation: sortie-vers-la-droite 260ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.entete {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+}
+
+.rond {
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  transition: scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.rond:active {
+  scale: 0.96;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panneau,
+  .sortant {
+    animation: none;
+  }
+  .rond {
+    transition: none;
+  }
+  .rond:active {
+    scale: 1;
+  }
+}

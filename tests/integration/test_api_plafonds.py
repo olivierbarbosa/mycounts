@@ -192,3 +192,62 @@ def test_supprimer_un_plafond(client: TestClient, session_bd: Session) -> None:
 
     assert client.delete(f"/api/plafonds/{plafond['id']}").status_code == 204
     assert client.get("/api/plafonds").json() == []
+
+
+def test_une_echeance_future_alimente_a_venir_et_declenche_lalerte(
+    client: TestClient, session_bd: Session
+) -> None:
+    """L'alerte qui prévient AVANT le dépassement doit pouvoir se déclencher.
+
+    Elle ne le pouvait pas : `a_venir` ne comptait que les opérations à l'état `prevue`,
+    et rien dans le code n'en crée jamais. La matérialisation n'écrit une opération qu'une
+    fois l'échéance échue — le futur n'est dans aucune table, c'est une projection.
+
+    Le témoin oppose deux grandeurs qui ne bougent pas ensemble : `consomme` doit rester
+    ce qui est réellement sorti pendant que `a_venir` monte. Les additionner annoncerait
+    110 € dépensés alors que 50 sont encore à venir.
+    """
+    session_ouverte(client, session_bd)
+    compte = creer_compte_api(client)
+    categorie = creer_categorie(client, "Abonnements")
+
+    client.put(
+        "/api/plafonds",
+        json={"categorie_id": categorie, "montant_centimes": 10_000},
+    )
+    client.post(
+        "/api/operations",
+        json={
+            "compte_id": compte,
+            "libelle": "Achat",
+            "montant_centimes": -6_000,
+            "date_operation": dt.date.today().isoformat(),
+            "categorie_id": categorie,
+        },
+    )
+
+    avant = client.get("/api/plafonds").json()[0]
+    assert avant["consomme_centimes"] == 6_000
+    assert avant["a_venir_centimes"] == 0
+    assert avant["depasse_avec_les_echeances"] is False
+
+    # Une échéance de 50 € demain, dans la même catégorie. Elle n'existe dans aucune
+    # table : seule la projection des récurrences la connaît.
+    reponse = client.post(
+        "/api/recurrences",
+        json={
+            "compte_id": compte,
+            "libelle": "Abonnement",
+            "montant_centimes": -5_000,
+            "ancre": (dt.date.today() + dt.timedelta(days=1)).isoformat(),
+            "unite": "mois",
+            "categorie_id": categorie,
+        },
+    )
+    assert reponse.status_code == 201, reponse.text
+
+    apres = client.get("/api/plafonds").json()[0]
+    assert apres["a_venir_centimes"] == 5_000, "l'échéance projetée doit alimenter l'à-venir"
+    assert apres["consomme_centimes"] == 6_000, "le consommé ne doit pas absorber l'à-venir"
+    assert apres["depasse"] is False, "rien n'est encore dépassé"
+    assert apres["depasse_avec_les_echeances"] is True, "6 000 + 5 000 dépasse 10 000"

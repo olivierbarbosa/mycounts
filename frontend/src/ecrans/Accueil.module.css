@@ -1,7 +1,9 @@
 .page {
   min-height: 100dvh;
   padding: var(--espace-xl);
-  padding-top: calc(var(--disposition-reserve-bulle) + var(--espace-xl) + env(safe-area-inset-top, 0px));
+  padding-top: calc(
+    var(--disposition-reserve-bulle) + var(--espace-xl) + env(safe-area-inset-top, 0px)
+  );
   /* Réserve la hauteur de la tab bar ET du bouton flottant : sans elle, la dernière
      opération de la liste passe définitivement sous le verre. */
   padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
@@ -270,4 +272,90 @@
     bottom: var(--espace-xxl);
     right: var(--espace-xxl);
   }
+}
+
+/* Bloc des budgets sur l'accueil. */
+.budgets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+}
+
+.enteteBudgets {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-m);
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+/* Encre de texte et non la teinte d'accent : celle-ci est réservée aux bordures et aux
+   lueurs, et mesurée à 4,00:1 en thème clair — sous le seuil. L'affordance passe par le
+   chevron, qui n'a pas ce problème. */
+.lien {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-xs);
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+.jauges {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+}
+
+.ligneJauge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.enteteJauge {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-m);
+}
+
+.nomJauge {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+/* Encre neutre pour les quantités : la couleur est réservée à l'état, et un chiffre
+   teinté se lirait comme une alerte alors qu'il ne dit qu'une somme. */
+.chiffreJauge {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--couleur-texte-attenue);
+}
+
+/* L'état s'écrit en toutes lettres : la couleur de la barre ne le porte jamais seule. */
+.etatAlerte {
+  font-size: 13px;
+  color: var(--couleur-alerte);
+}
+
+.etatDepasse {
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+  color: var(--couleur-debit);
 }

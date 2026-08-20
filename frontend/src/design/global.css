@@ -108,6 +108,33 @@ body::before {
   }
 }
 
+/* Mouvement des pages poussées, défini une seule fois.
+   Les paramètres et les budgets entrent tous deux par la droite : deux jeux d'images clés
+   auraient fini par diverger, et deux écrans qui glissent différemment se lisent comme
+   deux applications. Les `@keyframes` d'un module CSS sont renommés à la compilation,
+   d'où leur place ici plutôt que dans l'un des deux. */
+@keyframes entree-par-la-droite {
+  from {
+    transform: translateX(100%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes sortie-vers-la-droite {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0.4;
+  }
+}
+
 /* Grain du fond.
    Bruit achromatique généré par le filtre SVG ci-dessous : aucune couleur n'y figure,
    donc le garde-fou nº 9 tient toujours. tokens.ts reste seul auteur de la palette et ne

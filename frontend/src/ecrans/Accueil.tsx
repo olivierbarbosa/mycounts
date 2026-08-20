@@ -1,18 +1,21 @@
-import { Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
   CategoriePublique,
   ComptePublic,
   OperationPublique,
+  PlafondPublic,
   ResumePublic,
 } from '../api/client'
 import { api } from '../api/client'
+import { Jauge } from '../composants/Jauge'
 import { Montant } from '../composants/Montant'
 import styles from './Accueil.module.css'
 
 type Props = {
   readonly surSaisie: () => void
+  readonly surBudgets: () => void
   readonly surOperationChoisie: (operation: OperationPublique) => void
   readonly comptes: readonly ComptePublic[]
   readonly categories: readonly CategoriePublique[]
@@ -48,6 +51,7 @@ function dateCivile(iso: string): Date {
 
 export function Accueil({
   surSaisie,
+  surBudgets,
   surOperationChoisie,
   comptes,
   categories,
@@ -55,11 +59,13 @@ export function Accueil({
 }: Props) {
   const [resume, setResume] = useState<ResumePublic | null>(null)
   const [operations, setOperations] = useState<readonly OperationPublique[]>([])
+  const [plafonds, setPlafonds] = useState<readonly PlafondPublic[]>([])
 
   const charger = useCallback(async () => {
-    const [r, o] = await Promise.all([api.resume(), api.operations()])
+    const [r, o, p] = await Promise.all([api.resume(), api.operations(), api.plafonds()])
     setResume(r)
     setOperations(o)
+    setPlafonds(p)
   }, [])
 
   useEffect(() => {
@@ -108,6 +114,54 @@ export function Accueil({
           </div>
         </div>
       </header>
+
+      {/* Les budgets avant la liste des opérations : ce qu'on vient vérifier en ouvrant
+          l'application, c'est « est-ce que ça tient », pas « qu'ai-je acheté ». Le bloc
+          n'apparaît que si des plafonds existent — une section vide n'apprend rien et
+          repousse la liste vers le bas. */}
+      {plafonds.length > 0 && (
+        <section className={styles.budgets}>
+          <button type="button" className={styles.enteteBudgets} onClick={surBudgets}>
+            <h2 className={styles.titreListe}>Budgets</h2>
+            <span className={styles.lien}>
+              Gérer
+              <ChevronRight size={16} strokeWidth={2} aria-hidden />
+            </span>
+          </button>
+          <ul className={styles.jauges}>
+            {plafonds.map((plafond) => (
+              <li key={plafond.id} className={styles.ligneJauge}>
+                <span className={styles.enteteJauge}>
+                  <span className={styles.nomJauge}>{plafond.categorie_nom}</span>
+                  {/* Encre neutre, jamais la couleur de la barre : un chiffre teinté se
+                      lit comme un état alors qu'il n'est qu'une quantité. */}
+                  <span className={styles.chiffreJauge}>
+                    <Montant
+                      centimes={-plafond.consomme_centimes}
+                      taille="ligne"
+                      neutre
+                      signeExplicitePositif={false}
+                    />{' '}
+                    sur{' '}
+                    <Montant
+                      centimes={plafond.limite_centimes}
+                      taille="ligne"
+                      neutre
+                      signeExplicitePositif={false}
+                    />
+                  </span>
+                </span>
+                <Jauge plafond={plafond} />
+                {plafond.depasse ? (
+                  <span className={styles.etatDepasse}>Plafond dépassé</span>
+                ) : plafond.depasse_avec_les_echeances ? (
+                  <span className={styles.etatAlerte}>Sera dépassé avec les prélèvements</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section>
         <h2 className={styles.titreListe}>

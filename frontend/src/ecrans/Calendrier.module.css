@@ -1,7 +1,9 @@
 .page {
   min-height: 100dvh;
   padding: var(--espace-xl);
-  padding-top: calc(var(--disposition-reserve-bulle) + var(--espace-xl) + env(safe-area-inset-top, 0px));
+  padding-top: calc(
+    var(--disposition-reserve-bulle) + var(--espace-xl) + env(safe-area-inset-top, 0px)
+  );
   padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;

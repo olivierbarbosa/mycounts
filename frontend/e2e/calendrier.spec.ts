@@ -65,8 +65,19 @@ test('« À venir » vide ne prétend pas que rien n’est enregistré', async (
   )
 
   const aVenir = page.getByRole('heading', { name: 'À venir' }).locator('..')
+
+  // L'assertion qui tient TOUJOURS : tant qu'un prélèvement existe, l'écran ne peut pas
+  // prétendre qu'il n'y en a aucun. C'est le défaut visé, et il est détectable quel que
+  // soit l'état laissé par les autres fichiers de test.
   await expect(aVenir).not.toContainText('Aucun prélèvement enregistré')
-  await expect(aVenir).toContainText('Plus rien à payer')
+
+  // La formulation positive ne s'affiche que si la section est réellement vide, ce que
+  // seuls les prélèvements du MOIS EN COURS déterminent. D'autres fichiers en créent —
+  // `budget.spec.ts` passe avant celui-ci dans l'ordre alphabétique. Cette branche est
+  // donc vérifiée quand l'état le permet, et l'assertion ci-dessus couvre le reste.
+  if ((await aVenir.getByRole('listitem').count()) === 0) {
+    await expect(aVenir).toContainText('Plus rien à payer')
+  }
 })
 
 test('créer un prélèvement et le voir dans le calendrier', async ({ page }) => {

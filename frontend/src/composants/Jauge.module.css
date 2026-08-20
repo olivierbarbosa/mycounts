@@ -1,0 +1,52 @@
+/* La piste et ses segments.
+   Deux remplissages voisins sont séparés de 2 px de fond : collés, ils se liraient comme
+   une seule barre, et c'est précisément la lecture que le domaine refuse. */
+.piste {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-haute);
+  overflow: hidden;
+}
+
+.segment {
+  height: 100%;
+  border-radius: var(--rayon-pilule);
+  /* Seule la largeur est animée, et depuis la base : un remplissage qui grandirait
+     depuis son centre ne représenterait plus une progression. */
+  transition: width 260ms ease-out;
+}
+
+.normal {
+  background: var(--couleur-accent-clair);
+}
+
+.alerte {
+  background: var(--couleur-alerte);
+}
+
+.depasse {
+  background: var(--couleur-debit);
+}
+
+/* L'à-venir est hachuré plutôt que teinté : la différence tient alors sans la couleur,
+   ce qui la rend lisible en impression comme pour un œil qui confond les teintes. */
+.aVenir {
+  height: 100%;
+  border-radius: var(--rayon-pilule);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--couleur-alerte) 0 3px,
+    transparent 3px 6px
+  );
+  background-color: var(--couleur-surface);
+  transition: width 260ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment,
+  .aVenir {
+    transition: none;
+  }
+}

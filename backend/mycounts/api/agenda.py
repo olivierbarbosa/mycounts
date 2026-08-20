@@ -18,7 +18,6 @@ from mycounts.api.budget_schemas import (
 from mycounts.api.dependances import PrincipalCourant, SessionBase
 from mycounts.domain.calendrier import aujourd_hui, bornes_du_mois
 from mycounts.domain.montants import Cents
-from mycounts.domain.recurrence import Cadence, echeances
 from mycounts.jobs.materialisation import materialiser
 from mycounts.repository import budget as depot_budget
 from mycounts.repository import recurrences as depot
@@ -182,27 +181,18 @@ def agenda(
     debut = aujourd_hui()
     fin = debut + dt.timedelta(days=jours)
 
-    resultat: list[EcheanceAgenda] = []
-    for recurrence in depot.recurrences_visibles(session, principal):
-        cadence = Cadence(unite=recurrence.unite, intervalle=recurrence.intervalle)
-        deja = depot.dates_deja_materialisees(session, recurrence_id=recurrence.id)
-        for jour in echeances(
-            recurrence.ancre, cadence, depuis=debut, jusqu_a=fin, fin=recurrence.fin
-        ):
-            # Une échéance déjà matérialisée est devenue une opération : l'afficher aussi
-            # dans l'agenda la ferait compter deux fois à l'œil du lecteur.
-            if jour in deja:
-                continue
-            resultat.append(
-                EcheanceAgenda(
-                    recurrence_id=recurrence.id,
-                    libelle=recurrence.libelle,
-                    montant_centimes=recurrence.montant_centimes,
-                    date_echeance=jour,
-                    categorie_id=recurrence.categorie_id,
-                )
-            )
-
+    resultat = [
+        EcheanceAgenda(
+            recurrence_id=recurrence.id,
+            libelle=recurrence.libelle,
+            montant_centimes=recurrence.montant_centimes,
+            date_echeance=jour,
+            categorie_id=recurrence.categorie_id,
+        )
+        for recurrence, jour in depot.echeances_projetees(
+            session, principal, depuis=debut, jusqu_a=fin
+        )
+    ]
     resultat.sort(key=lambda e: (e.date_echeance, e.libelle))
     return resultat
 

@@ -8,14 +8,16 @@ from fastapi import APIRouter, HTTPException, status
 
 from mycounts.api.budget_schemas import DemandePlafond, PlafondPublic
 from mycounts.api.dependances import PrincipalCourant, SessionBase
+from mycounts.domain.agregats import EtatOperation
 from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.montants import Cents
 from mycounts.domain.periode import periode_courante
-from mycounts.domain.plafonds import etat_du_plafond
+from mycounts.domain.plafonds import OperationCategorisee, etat_du_plafond
 from mycounts.jobs.materialisation import materialiser
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot_budget
 from mycounts.repository import plafonds as depot
+from mycounts.repository import recurrences as depot_recurrences
 
 routeur = APIRouter(prefix="/plafonds", tags=["plafonds"])
 
@@ -31,7 +33,25 @@ def _etats(session: SessionBase, principal: PrincipalCourant) -> list[PlafondPub
         aujourd_hui=aujourd_hui(),
         paies_par_cycle=utilisateur.paies_par_cycle if utilisateur else 1,
     )
-    operations = depot.operations_categorisees(session, principal)
+    # Les échéances futures ne sont dans AUCUNE table : la matérialisation ne crée une
+    # opération qu'une fois l'échéance échue. Sans cette projection, `a_venir` restait
+    # nul quoi qu'il arrive, et l'alerte « il reste 100 € mais 150 € arrivent » — la seule
+    # qui prévient avant qu'il soit trop tard — ne pouvait jamais se déclencher.
+    #
+    # Elles arrivent à l'état `prevue`, que le domaine sait déjà tenir à l'écart des
+    # dépenses consommées. Rien à changer de ce côté : ce qui manquait, c'était l'entrée.
+    projetees = [
+        OperationCategorisee(
+            montant=Cents(recurrence.montant_centimes),
+            date_operation=jour,
+            etat=EtatOperation.PREVUE,
+            categorie_id=recurrence.categorie_id,
+        )
+        for recurrence, jour in depot_recurrences.echeances_projetees(
+            session, principal, depuis=aujourd_hui(), jusqu_a=periode.fin
+        )
+    ]
+    operations = [*depot.operations_categorisees(session, principal), *projetees]
 
     resultat: list[PlafondPublic] = []
     for plafond in depot.plafonds_de(session, principal):

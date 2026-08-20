@@ -15,6 +15,7 @@ import { FeuilleOperation } from './composants/FeuilleOperation'
 import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
 import { FeuilleSaisie } from './composants/FeuilleSaisie'
 import { Accueil } from './ecrans/Accueil'
+import { Budget } from './ecrans/Budget'
 import { Calendrier } from './ecrans/Calendrier'
 import { Connexion } from './ecrans/Connexion'
 import { Epargne } from './ecrans/Epargne'
@@ -44,6 +45,7 @@ export function App() {
   // Compteur d'invalidation : incrémenté après chaque écriture, il force les écrans à
   // relire le serveur. Recalculer un solde côté client dupliquerait la règle métier.
   const [parametresOuverts, setParametresOuverts] = useState(false)
+  const [budgetsOuverts, setBudgetsOuverts] = useState(false)
   const [rafraichissement, setRafraichissement] = useState(0)
 
   const chargerReferentiels = useCallback(async () => {
@@ -95,6 +97,7 @@ export function App() {
           categories={categories}
           rafraichissement={rafraichissement}
           surSaisie={() => setSaisieOuverte(true)}
+          surBudgets={() => setBudgetsOuverts(true)}
           surOperationChoisie={setOperationChoisie}
         />
       )}
@@ -133,6 +136,14 @@ export function App() {
       />
 
       <BarreOnglets onglets={ONGLETS} actif={onglet} surChangement={setOnglet} />
+
+      {budgetsOuverts && (
+        <Budget
+          categories={categories}
+          rafraichissement={rafraichissement}
+          surFermeture={() => setBudgetsOuverts(false)}
+        />
+      )}
 
       {parametresOuverts && (
         <Parametres

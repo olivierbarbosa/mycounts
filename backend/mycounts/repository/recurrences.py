@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from mycounts.domain.agregats import EtatOperation
 from mycounts.domain.montants import Cents
-from mycounts.domain.recurrence import UniteRecurrence
+from mycounts.domain.recurrence import Cadence, UniteRecurrence, echeances
 from mycounts.models.budget import Compte, Operation, Recurrence
 from mycounts.repository.base import Principal
 from mycounts.repository.budget import _comptes_autorises
@@ -144,6 +144,38 @@ def dates_deja_materialisees(session: Session, *, recurrence_id: uuid.UUID) -> s
             select(Operation.date_operation).where(Operation.recurrence_id == recurrence_id)
         ).scalars()
     )
+
+
+def echeances_projetees(
+    session: Session,
+    principal: Principal,
+    *,
+    depuis: dt.date,
+    jusqu_a: dt.date,
+) -> list[tuple[Recurrence, dt.date]]:
+    """Échéances futures des récurrences visibles, non encore matérialisées.
+
+    C'est une PROJECTION : rien n'est stocké. Et c'est la seule source des échéances à
+    venir — la table `operation` s'arrête à aujourd'hui, puisque la matérialisation ne
+    crée une ligne qu'une fois l'échéance échue.
+
+    Un appelant qui chercherait le futur dans les opérations n'y trouverait donc jamais
+    rien. C'est précisément ce qui rendait `a_venir` toujours nul dans les plafonds :
+    le calcul cherchait des opérations à l'état `prevue`, que personne n'écrit.
+    """
+    projetees: list[tuple[Recurrence, dt.date]] = []
+    for recurrence in recurrences_visibles(session, principal):
+        cadence = Cadence(unite=recurrence.unite, intervalle=recurrence.intervalle)
+        deja = dates_deja_materialisees(session, recurrence_id=recurrence.id)
+        for jour in echeances(
+            recurrence.ancre, cadence, depuis=depuis, jusqu_a=jusqu_a, fin=recurrence.fin
+        ):
+            # Déjà matérialisée : elle est devenue une opération et sera comptée comme
+            # telle. La reprendre ici la ferait compter deux fois.
+            if jour in deja:
+                continue
+            projetees.append((recurrence, jour))
+    return projetees
 
 
 def materialiser_echeance(
