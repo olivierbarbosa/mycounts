@@ -270,3 +270,10 @@
     padding: var(--espace-xl);
   }
 }
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--couleur-texte-attenue);
+}

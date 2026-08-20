@@ -14,6 +14,7 @@ import type { CategoriePublique, ComptePublic, UtilisateurPublic } from '../api/
 import { api } from '../api/client'
 import { initiales } from '../composants/BulleAvatar'
 import { ComptesBancaires } from '../composants/ComptesBancaires'
+import { ReglageTheme } from '../composants/ReglageTheme'
 import { ReglageTransparence } from '../composants/ReglageTransparence'
 import { Categories } from './Categories'
 import styles from './Parametres.module.css'
@@ -113,10 +114,20 @@ export function Parametres({
     apparence: {
       titre: 'Apparence',
       contenu: (
-        <div className={styles.carte}>
-          <span className={styles.libelleCarte}>Transparence de l’interface</span>
-          <ReglageTransparence />
-        </div>
+        <>
+          <div className={styles.carte}>
+            <span className={styles.libelleCarte}>Thème</span>
+            <ReglageTheme />
+            <p className={styles.note}>
+              « Système » suit l’apparence du téléphone : elle bascule en clair au lever du jour si
+              votre iPhone est réglé sur automatique.
+            </p>
+          </div>
+          <div className={styles.carte}>
+            <span className={styles.libelleCarte}>Transparence de l’interface</span>
+            <ReglageTransparence />
+          </div>
+        </>
       ),
     },
     foyer: {
