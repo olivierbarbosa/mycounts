@@ -53,12 +53,24 @@
   color: var(--couleur-texte);
 }
 
-.teinteViolet { --teinte: var(--couleur-accent-clair); }
-.teinteCyan { --teinte: var(--couleur-neon); }
-.teinteVert { --teinte: var(--couleur-credit); }
-.teinteAmbre { --teinte: var(--couleur-alerte); }
-.teinteRose { --teinte: var(--couleur-debit); }
-.teinteArdoise { --teinte: var(--couleur-texte-attenue); }
+.teinteViolet {
+  --teinte: var(--couleur-accent-clair);
+}
+.teinteCyan {
+  --teinte: var(--couleur-neon);
+}
+.teinteVert {
+  --teinte: var(--couleur-credit);
+}
+.teinteAmbre {
+  --teinte: var(--couleur-alerte);
+}
+.teinteRose {
+  --teinte: var(--couleur-debit);
+}
+.teinteArdoise {
+  --teinte: var(--couleur-texte-attenue);
+}
 
 .nom {
   flex: 1;

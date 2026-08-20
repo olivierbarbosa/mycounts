@@ -19,7 +19,7 @@ test('créer une catégorie puis la retrouver dans la saisie', async ({ page }) 
   await ouvrirReglages(page)
 
   await page.getByLabel('Nom de la nouvelle catégorie').fill(nom)
-  await page.getByRole('button', { name: 'Ajouter' }).click()
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toHaveValue(nom)
 
   // La catégorie doit être proposée à la saisie : une catégorie invisible du formulaire
@@ -33,7 +33,7 @@ test('renommer une catégorie', async ({ page }) => {
   const nom = `Renommer ${Date.now()}`
   await ouvrirReglages(page)
   await page.getByLabel('Nom de la nouvelle catégorie').fill(nom)
-  await page.getByRole('button', { name: 'Ajouter' }).click()
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
 
   const champ = page.getByLabel(`Nom de la catégorie ${nom}`)
   await champ.fill(`${nom} modifié`)
@@ -46,7 +46,7 @@ test('supprimer une catégorie inutilisée', async ({ page }) => {
   const nom = `Jetable ${Date.now()}`
   await ouvrirReglages(page)
   await page.getByLabel('Nom de la nouvelle catégorie').fill(nom)
-  await page.getByRole('button', { name: 'Ajouter' }).click()
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
 
   const ligne = page.locator('li', { has: page.getByLabel(`Nom de la catégorie ${nom}`) })
@@ -65,7 +65,7 @@ test('annuler une suppression laisse la catégorie en place', async ({ page }) =
   const nom = `Annulee ${Date.now()}`
   await ouvrirReglages(page)
   await page.getByLabel('Nom de la nouvelle catégorie').fill(nom)
-  await page.getByRole('button', { name: 'Ajouter' }).click()
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
 
   const ligne = page.locator('li', { has: page.getByLabel(`Nom de la catégorie ${nom}`) })
@@ -82,7 +82,7 @@ test('supprimer une catégorie utilisée est refusé avec une explication', asyn
   const nom = `Utilisee ${Date.now()}`
   await ouvrirReglages(page)
   await page.getByLabel('Nom de la nouvelle catégorie').fill(nom)
-  await page.getByRole('button', { name: 'Ajouter' }).click()
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
 
   await page.getByRole('button', { name: 'Accueil' }).click()

@@ -37,7 +37,14 @@ export function PremierCompte({ surCreation }: Props) {
 
     setEnCours(true)
     try {
-      await api.creerCompte(nom.trim(), centimes)
+      await api.creerCompte({
+        nom: nom.trim(),
+        prive: true,
+        // Le tout premier compte est celui du quotidien : c'est là que tombent la paie
+        // et les prélèvements. Un livret se crée ensuite, dans les Réglages.
+        type_compte: 'courant',
+        solde_ouverture_centimes: centimes,
+      })
       surCreation()
     } catch (cause) {
       setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
@@ -101,8 +108,8 @@ export function PremierCompte({ surCreation }: Props) {
       </form>
 
       <p className={styles.note}>
-        Ce solde est enregistré comme une opération d'ouverture : vous la verrez dans la
-        liste. Votre solde reste ainsi la somme de vos opérations, jamais un chiffre à part.
+        Ce solde est enregistré comme une opération d'ouverture : vous la verrez dans la liste.
+        Votre solde reste ainsi la somme de vos opérations, jamais un chiffre à part.
       </p>
     </main>
   )

@@ -16,6 +16,11 @@ export type ResumePublic = components['schemas']['ResumePublic']
 export type RecurrencePublique = components['schemas']['RecurrencePublique']
 export type EcheanceAgenda = components['schemas']['EcheanceAgenda']
 export type BornesDuMois = components['schemas']['BornesDuMois']
+export type DemandeVirement = components['schemas']['DemandeVirement']
+export type VirementCree = components['schemas']['VirementCree']
+export type EpargnePublique = components['schemas']['EpargnePublique']
+export type CompteEpargne = components['schemas']['CompteEpargne']
+export type DemandeCompte = components['schemas']['DemandeCompte']
 export type UniteRecurrence = components['schemas']['UniteRecurrence']
 export type PlafondPublic = components['schemas']['PlafondPublic']
 
@@ -95,15 +100,10 @@ export const api = {
 
   comptes: () => appeler<ComptePublic[]>('/comptes'),
 
-  creerCompte: (nom: string, soldeOuvertureCentimes: number) =>
-    appeler<ComptePublic>('/comptes', {
-      method: 'POST',
-      body: JSON.stringify({
-        nom,
-        prive: true,
-        solde_ouverture_centimes: soldeOuvertureCentimes,
-      }),
-    }),
+  /** Le corps entier est passé : la signature positionnelle précédente obligeait à
+   *  ajouter un paramètre à chaque champ nouveau, et un appelant sur deux l'oubliait. */
+  creerCompte: (demande: DemandeCompte) =>
+    appeler<ComptePublic>('/comptes', { method: 'POST', body: JSON.stringify(demande) }),
 
   categories: () => appeler<CategoriePublique[]>('/categories'),
 
@@ -153,6 +153,13 @@ export const api = {
   supprimerOperation: (id: string) => appeler<void>(`/operations/${id}`, { method: 'DELETE' }),
 
   resume: () => appeler<ResumePublic>('/resume'),
+
+  /** Ce que le foyer a mis de côté. Distinct du résumé : les deux totaux répondent à des
+   *  questions différentes, et les additionner ferait croire à une aisance qui n'existe pas. */
+  epargne: () => appeler<EpargnePublique>('/epargne'),
+
+  creerVirement: (demande: DemandeVirement) =>
+    appeler<VirementCree>('/virements', { method: 'POST', body: JSON.stringify(demande) }),
 
   agenda: (jours = 60) => appeler<EcheanceAgenda[]>(`/agenda?jours=${jours}`),
 

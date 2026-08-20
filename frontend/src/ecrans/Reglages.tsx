@@ -1,7 +1,8 @@
 import { useState } from 'react'
 
-import type { CategoriePublique, UtilisateurPublic } from '../api/client'
+import type { CategoriePublique, ComptePublic, UtilisateurPublic } from '../api/client'
 import { api } from '../api/client'
+import { ComptesBancaires } from '../composants/ComptesBancaires'
 import { ReglageTransparence } from '../composants/ReglageTransparence'
 import { Categories } from './Categories'
 import styles from './Reglages.module.css'
@@ -9,11 +10,18 @@ import styles from './Reglages.module.css'
 type Props = {
   readonly utilisateur: UtilisateurPublic
   readonly categories: readonly CategoriePublique[]
+  readonly comptes: readonly ComptePublic[]
   readonly surChangement: () => void
   readonly surDeconnexion: () => void
 }
 
-export function Reglages({ utilisateur, categories, surChangement, surDeconnexion }: Props) {
+export function Reglages({
+  utilisateur,
+  categories,
+  comptes,
+  surChangement,
+  surDeconnexion,
+}: Props) {
   const [code, setCode] = useState<string | null>(null)
 
   async function inviter() {
@@ -33,6 +41,11 @@ export function Reglages({ utilisateur, categories, surChangement, surDeconnexio
         <span className={styles.libelleCarte}>Compte</span>
         <span>{utilisateur.nom_affichage}</span>
         <span className={styles.libelleCarte}>{utilisateur.courriel}</span>
+      </section>
+
+      <section className={styles.carte}>
+        <span className={styles.libelleCarte}>Comptes bancaires ({comptes.length})</span>
+        <ComptesBancaires comptes={comptes} surChangement={surChangement} />
       </section>
 
       <section className={styles.carte}>

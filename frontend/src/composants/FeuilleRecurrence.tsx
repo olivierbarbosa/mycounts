@@ -103,9 +103,7 @@ export function FeuilleRecurrence({
 
     const choisi = RYTHMES.find((r) => r.cle === rythme) ?? RYTHMES[0]
     const unite = rythmeLibre ? uniteLibre : choisi.unite
-    const intervalle = rythmeLibre
-      ? Math.max(1, Number(intervalleLibre) || 1)
-      : choisi.intervalle
+    const intervalle = rythmeLibre ? Math.max(1, Number(intervalleLibre) || 1) : choisi.intervalle
 
     // Toujours négatif : c'est un prélèvement. L'utilisateur tape un montant positif et
     // n'a pas à penser au signe.
@@ -188,8 +186,7 @@ export function FeuilleRecurrence({
             required
           />
           <p className={styles.note}>
-            Les suivantes se calculent à partir de cette date. Un prélèvement au 31 tombera
-            au 28 en février, puis reviendra au 31 le mois d’après.
+            Au 31, l’échéance tombe au 28 en février puis revient au 31.
           </p>
         </div>
 

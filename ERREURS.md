@@ -876,3 +876,27 @@ distinguer : 500 € d'ouverture, 200 € virés, deux comptes. Un test à un se
 n'aurait pas vu le facteur deux ; un test à montants égaux n'aurait pas vu lequel des
 deux était compté. C'est le choix des nombres qui a fait parler la mesure, pas sa
 présence.
+
+## #028 — Un script promettait un état qu'il ne produisait pas
+
+**Ce que je croyais.** Que la remise à zéro du foyer d'essai laissait « un compte, aucune
+opération, aucune récurrence » — c'est ce qu'annonce la première ligne du fichier.
+
+**Ce que j'ai mesuré.** La page Épargne affichait quatre livrets là où le test venait d'en
+créer un. Deux d'entre eux dataient de l'exécution PRÉCÉDENTE : le script supprimait les
+opérations et les récurrences, jamais les comptes.
+
+**Pourquoi l'écart est resté invisible si longtemps.** Aucun test ne créait de second
+compte. L'en-tête était donc vrai par accident, et le premier test à en créer un l'a mis
+en défaut. Un état « garanti » que rien ne vérifie n'est pas garanti, c'est une intention
+— exactement ce que `CLAUDE.md` dit d'une ligne sans fichier derrière elle.
+
+**Un effet de bord instructif.** Les comptes accumulés ont fait apparaître un sélecteur de
+compte dans la feuille des prélèvements, qui ne s'affiche qu'au-delà d'un compte — et
+cette feuille a cessé de tenir dans l'écran. Le garde-fou des modales a rougi pour une
+cause située à trois fichiers de là. Ce n'était pas un faux positif : dès qu'un foyer
+ouvre une épargne, il a deux comptes, et la feuille débordait pour de bon.
+
+**Le contrôle qui aurait tranché.** `tests/integration/test_reinitialisation.py` crée
+trois comptes, lance le script, et compte ce qui reste. Le témoin part de trois pour que
+« il en reste un » ne puisse pas être vrai par hasard.

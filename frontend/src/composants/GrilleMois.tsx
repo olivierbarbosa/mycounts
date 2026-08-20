@@ -89,11 +89,7 @@ export function GrilleMois({ echeances }: Props) {
           >
             <ChevronLeft size={18} strokeWidth={2} aria-hidden />
           </button>
-          <button
-            type="button"
-            className={styles.fleche}
-            onClick={() => setReference(new Date())}
-          >
+          <button type="button" className={styles.fleche} onClick={() => setReference(new Date())}>
             Aujourd’hui
           </button>
           <button
@@ -142,14 +138,9 @@ export function GrilleMois({ echeances }: Props) {
                   point neutre qui signale qu'il y en a d'autres. */}
               <span className={styles.points} aria-hidden="true">
                 {duJour.slice(0, 3).map((e) => (
-                  <span
-                    key={`${e.recurrence_id}-${e.date_echeance}`}
-                    className={styles.point}
-                  />
+                  <span key={`${e.recurrence_id}-${e.date_echeance}`} className={styles.point} />
                 ))}
-                {duJour.length > 3 && (
-                  <span className={`${styles.point} ${styles.pointSurplus}`} />
-                )}
+                {duJour.length > 3 && <span className={`${styles.point} ${styles.pointSurplus}`} />}
               </span>
 
               <div className={styles.echeances}>
@@ -176,9 +167,7 @@ export function GrilleMois({ echeances }: Props) {
 
       {jourChoisi !== null && (
         <div className={styles.detailJour}>
-          <h4 className={styles.titreDetail}>
-            {JOUR_ENTIER.format(dateCivile(jourChoisi))}
-          </h4>
+          <h4 className={styles.titreDetail}>{JOUR_ENTIER.format(dateCivile(jourChoisi))}</h4>
           {(parJour.get(jourChoisi) ?? []).length === 0 ? (
             <p className={styles.titreDetail}>Aucun prélèvement ce jour-là.</p>
           ) : (

@@ -1,6 +1,8 @@
 """Remet le foyer de démonstration dans un état connu avant la suite de bout en bout.
 
-État garanti à la sortie : **un compte, aucune opération, aucune récurrence**. Sans cela,
+État garanti à la sortie : **un seul compte courant, aucune opération, aucune
+récurrence** — et « un seul » est vérifié par `tests/integration/test_reinitialisation.py`,
+parce que la version précédente de ce fichier promettait déjà cet état sans le tenir. Sans cela,
 chaque exécution laisse ses données derrière elle et les tests mesurent un état cumulé —
 un locator qui attend une ligne en trouve trois.
 
@@ -66,8 +68,12 @@ def main() -> int:
             # tests repartiraient d'un état différent du précédent.
             session.execute(delete(Operation).where(Operation.compte_id.in_(comptes)))
             session.execute(delete(Recurrence).where(Recurrence.compte_id.in_(comptes)))
-        if not comptes:
-            depot_budget.creer_compte(session, principal, nom="Compte courant")
+            # Puis les comptes eux-mêmes. Cette ligne manquait : le script annonçait « un
+            # compte » et en laissait autant que les exécutions précédentes en avaient
+            # créé. Tant qu'aucun test n'en créait, l'écart ne se voyait pas — les tests
+            # d'épargne, eux, en créent un par cas, et la page en affichait quatre.
+            session.execute(delete(Compte).where(Compte.id.in_(comptes)))
+        depot_budget.creer_compte(session, principal, nom="Compte courant")
         session.commit()
         print("Foyer de démonstration prêt : un compte, aucune opération, aucune récurrence.")
     finally:

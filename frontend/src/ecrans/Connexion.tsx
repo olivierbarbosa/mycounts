@@ -22,9 +22,7 @@ export function Connexion({ surConnexion }: Props) {
     } catch (cause) {
       // Le serveur renvoie déjà un message identique pour « adresse inconnue » et
       // « mot de passe faux » : le client ne doit surtout pas les distinguer non plus.
-      setErreur(
-        cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.',
-      )
+      setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
     } finally {
       setEnCours(false)
     }

@@ -1,4 +1,4 @@
-import { CalendarDays, House, Settings } from 'lucide-react'
+import { CalendarDays, House, PiggyBank, Settings } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
@@ -16,12 +16,14 @@ import { FeuilleSaisie } from './composants/FeuilleSaisie'
 import { Accueil } from './ecrans/Accueil'
 import { Calendrier } from './ecrans/Calendrier'
 import { Connexion } from './ecrans/Connexion'
+import { Epargne } from './ecrans/Epargne'
 import { PremierCompte } from './ecrans/PremierCompte'
 import { Reglages } from './ecrans/Reglages'
 
 const ONGLETS: readonly Onglet[] = [
   { cle: 'accueil', libelle: 'Accueil', Icone: House },
   { cle: 'calendrier', libelle: 'Calendrier', Icone: CalendarDays },
+  { cle: 'epargne', libelle: 'Épargne', Icone: PiggyBank },
   { cle: 'reglages', libelle: 'Réglages', Icone: Settings },
 ]
 
@@ -100,7 +102,7 @@ export function App() {
           surChangement={() => setRafraichissement((n) => n + 1)}
           surNouvelleRecurrence={() => {
             setRecurrenceAModifier(undefined)
-    setOperationChoisie(undefined)
+            setOperationChoisie(undefined)
             setRecurrenceOuverte(true)
           }}
           surModificationRecurrence={(recurrence) => {
@@ -110,10 +112,21 @@ export function App() {
         />
       )}
 
+      {onglet === 'epargne' && (
+        <Epargne
+          rafraichissement={rafraichissement}
+          surVirement={() => {
+            setOperationChoisie(undefined)
+            setSaisieOuverte(true)
+          }}
+        />
+      )}
+
       {onglet === 'reglages' && (
         <Reglages
           utilisateur={utilisateur}
           categories={categories}
+          comptes={comptes}
           surChangement={apresEcriture}
           surDeconnexion={() => {
             setUtilisateur(null)
@@ -153,7 +166,7 @@ export function App() {
           surFermeture={() => {
             setRecurrenceOuverte(false)
             setRecurrenceAModifier(undefined)
-    setOperationChoisie(undefined)
+            setOperationChoisie(undefined)
           }}
           surEnregistrement={apresEcriture}
         />

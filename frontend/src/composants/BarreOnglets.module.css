@@ -19,8 +19,8 @@
   right: var(--espace-l);
   /* Liquid Glass, uniquement sur les formats où la barre flotte au-dessus du contenu. */
   background:
-    linear-gradient(90deg, transparent, var(--couleur-verre-speculaire), transparent)
-      no-repeat top / 100% 1px,
+    linear-gradient(90deg, transparent, var(--couleur-verre-speculaire), transparent) no-repeat
+      top / 100% 1px,
     color-mix(
       in srgb,
       var(--couleur-verre-teinte) calc(var(--verre-opacite) * 100%),
@@ -54,7 +54,9 @@
   color: var(--couleur-texte-attenue);
   font-size: 11px;
   font-weight: var(--typo-gras-moyen);
-  transition: color 160ms ease-out, background-color 160ms ease-out;
+  transition:
+    color 160ms ease-out,
+    background-color 160ms ease-out;
 }
 
 .onglet:hover {

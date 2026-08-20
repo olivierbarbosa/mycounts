@@ -18,7 +18,7 @@
   /* Serré d'abord : sur un téléphone, la hauteur est la ressource rare, et une feuille
      qui déborde cache ses propres actions. L'air revient dès que l'écran peut le payer.
      Cette feuille de style sert aussi aux prélèvements, qui ont deux champs de plus. */
-  gap: var(--espace-m);
+  gap: var(--espace-s);
   padding: var(--espace-l);
   padding-bottom: calc(var(--espace-l) + env(safe-area-inset-bottom, 0px));
   border-radius: var(--rayon-grand) var(--rayon-grand) 0 0;
@@ -163,4 +163,29 @@
     padding: var(--espace-xl);
     padding-bottom: calc(var(--espace-xl) + env(safe-area-inset-bottom, 0px));
   }
+}
+
+/* Inverser le sens d'un virement. Volontairement discret : c'est une correction, pas
+   l'action principale de la feuille. Aligné à droite pour tomber sous le pouce. */
+.inverser {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-m);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+.inverser:hover {
+  color: var(--couleur-texte);
+  border-color: var(--couleur-accent-clair);
+}
+
+.sens:disabled {
+  opacity: 0.45;
 }

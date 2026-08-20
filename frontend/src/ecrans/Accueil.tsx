@@ -139,23 +139,23 @@ export function Accueil({
                   onClick={() => surOperationChoisie(operation)}
                   aria-label={`Détail de ${operation.libelle}`}
                 >
-                <span
-                  className={`${styles.pastille} ${
-                    TEINTES[categorie?.teinte ?? 'ardoise'] ?? styles.teinteArdoise
-                  }`}
-                  aria-hidden="true"
-                >
-                  {(categorie?.nom ?? operation.libelle).slice(0, 1).toUpperCase()}
-                </span>
-                <span className={styles.corps}>
-                  <span className={styles.libelle}>{operation.libelle}</span>
-                  <span className={styles.meta}>
-                    {jourEtMois(dateCivile(operation.date_operation), moisCourt)}
-                    {categorie ? ` · ${categorie.nom}` : ''}
-                    {compte ? ` · ${compte.nom}` : ''}
-                    {operation.est_ouverture ? ' · ouverture' : ''}
+                  <span
+                    className={`${styles.pastille} ${
+                      TEINTES[categorie?.teinte ?? 'ardoise'] ?? styles.teinteArdoise
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {(categorie?.nom ?? operation.libelle).slice(0, 1).toUpperCase()}
                   </span>
-                </span>
+                  <span className={styles.corps}>
+                    <span className={styles.libelle}>{operation.libelle}</span>
+                    <span className={styles.meta}>
+                      {jourEtMois(dateCivile(operation.date_operation), moisCourt)}
+                      {categorie ? ` · ${categorie.nom}` : ''}
+                      {compte ? ` · ${compte.nom}` : ''}
+                      {operation.est_ouverture ? ' · ouverture' : ''}
+                    </span>
+                  </span>
                   <Montant centimes={operation.montant_centimes} taille="ligne" />
                 </button>
               </li>

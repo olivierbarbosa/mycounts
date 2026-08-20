@@ -4,1797 +4,2001 @@
  */
 
 export interface paths {
-    "/api/agenda": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Agenda
-         * @description Échéances à venir, calculées à la volée.
-         *
-         *     Rien n'est stocké : l'agenda est une **projection**, et le recalculer à chaque appel
-         *     garantit qu'il suit toute modification d'une récurrence sans travail de mise à jour.
-         */
-        get: operations["agenda_api_agenda_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/agenda/mois-en-cours": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Mois En Cours
-         * @description Premier et dernier jour du mois CIVIL courant, bornes incluses.
-         *
-         *     Le client ne recalcule pas ces bornes : « aujourd'hui » se lit dans le fuseau
-         *     Europe/Paris, dont le domaine est l'auteur unique. Un navigateur réglé sur un autre
-         *     fuseau afficherait sinon le mauvais mois le 1er et le dernier jour — et l'écran du
-         *     calendrier annoncerait un total que le serveur ne calculerait pas pareil.
-         *
-         *     Ce n'est PAS la période budgétaire du foyer, qui va de paie à paie.
-         */
-        get: operations["mois_en_cours_api_agenda_mois_en_cours_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/connexion": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Connexion
-         * @description Ouvre une session.
-         *
-         *     La réponse est identique que l'adresse soit inconnue ou le mot de passe faux :
-         *     distinguer les deux permettrait d'énumérer les comptes existants.
-         */
-        post: operations["connexion_api_auth_connexion_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/deconnexion": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Deconnexion
-         * @description Ferme la session courante côté serveur ET côté navigateur.
-         *
-         *     Effacer le seul cookie ne suffirait pas : le jeton resterait valable pour quiconque
-         *     l'aurait intercepté.
-         */
-        post: operations["deconnexion_api_auth_deconnexion_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/invitations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Creer Invitation
-         * @description Engendre un code d'invitation pour le foyer de l'appelant.
-         *
-         *     Le code en clair n'est renvoyé qu'ici. Seule son empreinte est stockée.
-         */
-        post: operations["creer_invitation_api_auth_invitations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/moi": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Moi */
-        get: operations["moi_api_auth_moi_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/rejoindre": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Rejoindre
-         * @description Crée un compte dans le foyer désigné par un code d'invitation valide.
-         */
-        post: operations["rejoindre_api_auth_rejoindre_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/categories": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lister Categories */
-        get: operations["lister_categories_api_categories_get"];
-        put?: never;
-        /** Creer Categorie */
-        post: operations["creer_categorie_api_categories_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/categories/{categorie_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Supprimer Categorie
-         * @description Suppression définitive, refusée si la catégorie sert à une opération.
-         *
-         *     Le message propose l'archivage : supprimer une catégorie utilisée changerait
-         *     rétroactivement les totaux d'un mois déjà clos.
-         */
-        delete: operations["supprimer_categorie_api_categories__categorie_id__delete"];
-        options?: never;
-        head?: never;
-        /** Modifier Categorie */
-        patch: operations["modifier_categorie_api_categories__categorie_id__patch"];
-        trace?: never;
-    };
-    "/api/comptes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lister Comptes */
-        get: operations["lister_comptes_api_comptes_get"];
-        put?: never;
-        /** Creer Compte */
-        post: operations["creer_compte_api_comptes_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/operations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lister Operations */
-        get: operations["lister_operations_api_operations_get"];
-        put?: never;
-        /**
-         * Creer Operation
-         * @description Saisit une opération.
-         *
-         *     Le compte et la catégorie sont revérifiés à travers le périmètre de l'appelant :
-         *     un identifiant valide chez quelqu'un d'autre doit être refusé exactement comme un
-         *     identifiant inexistant, sans distinction observable.
-         */
-        post: operations["creer_operation_api_operations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/operations/a-confirmer": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lister A Confirmer */
-        get: operations["lister_a_confirmer_api_operations_a_confirmer_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/operations/{operation_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Supprimer Operation
-         * @description Retire une opération.
-         *
-         *     Une saisie manuelle est supprimée ; une opération issue d'un prélèvement est annulée
-         *     et conservée, faute de quoi le job la recréerait au passage suivant. La distinction
-         *     est faite par le repository — l'appelant demande simplement le retrait.
-         */
-        delete: operations["supprimer_operation_api_operations__operation_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Modifier Operation
-         * @description Corrige une opération déjà saisie.
-         */
-        patch: operations["modifier_operation_api_operations__operation_id__patch"];
-        trace?: never;
-    };
-    "/api/operations/{operation_id}/confirmer": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Confirmer
-         * @description Confirme qu'une échéance matérialisée est bien passée.
-         *
-         *     Le montant n'est pas modifiable ici : confirmer, c'est dire « c'est passé ainsi ».
-         *     Le solde projeté ne doit pas bouger — seule la répartition entre réel et à-confirmer
-         *     change.
-         */
-        post: operations["confirmer_api_operations__operation_id__confirmer_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/plafonds": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lister */
-        get: operations["lister_api_plafonds_get"];
-        /**
-         * Definir
-         * @description Définit ou met à jour le plafond d'une catégorie.
-         *
-         *     `PUT` et non `POST` : l'opération est idempotente, un seul plafond existant par
-         *     personne et par catégorie. Rejouer la même demande donne le même état.
-         */
-        put: operations["definir_api_plafonds_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/plafonds/{plafond_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Supprimer */
-        delete: operations["supprimer_api_plafonds__plafond_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recurrences": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lister Recurrences */
-        get: operations["lister_recurrences_api_recurrences_get"];
-        put?: never;
-        /** Creer Recurrence */
-        post: operations["creer_recurrence_api_recurrences_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recurrences/{recurrence_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Arreter Recurrence
-         * @description Désactive la récurrence. Les opérations déjà matérialisées restent en place :
-         *     supprimer l'historique parce qu'un abonnement s'arrête réécrirait le passé.
-         */
-        delete: operations["arreter_recurrence_api_recurrences__recurrence_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Modifier Recurrence
-         * @description Modifie un prélèvement.
-         *
-         *     Les opérations déjà matérialisées ne changent pas : un abonnement dont le tarif
-         *     augmente n'a pas coûté davantage les mois précédents.
-         */
-        patch: operations["modifier_recurrence_api_recurrences__recurrence_id__patch"];
-        trace?: never;
-    };
-    "/api/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Resume */
-        get: operations["resume_api_resume_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health */
-        get: operations["health_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+  '/api/agenda': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Agenda
+     * @description Échéances à venir, calculées à la volée.
+     *
+     *     Rien n'est stocké : l'agenda est une **projection**, et le recalculer à chaque appel
+     *     garantit qu'il suit toute modification d'une récurrence sans travail de mise à jour.
+     */
+    get: operations['agenda_api_agenda_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/agenda/mois-en-cours': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Mois En Cours
+     * @description Premier et dernier jour du mois CIVIL courant, bornes incluses.
+     *
+     *     Le client ne recalcule pas ces bornes : « aujourd'hui » se lit dans le fuseau
+     *     Europe/Paris, dont le domaine est l'auteur unique. Un navigateur réglé sur un autre
+     *     fuseau afficherait sinon le mauvais mois le 1er et le dernier jour — et l'écran du
+     *     calendrier annoncerait un total que le serveur ne calculerait pas pareil.
+     *
+     *     Ce n'est PAS la période budgétaire du foyer, qui va de paie à paie.
+     */
+    get: operations['mois_en_cours_api_agenda_mois_en_cours_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/auth/connexion': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Connexion
+     * @description Ouvre une session.
+     *
+     *     La réponse est identique que l'adresse soit inconnue ou le mot de passe faux :
+     *     distinguer les deux permettrait d'énumérer les comptes existants.
+     */
+    post: operations['connexion_api_auth_connexion_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/auth/deconnexion': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Deconnexion
+     * @description Ferme la session courante côté serveur ET côté navigateur.
+     *
+     *     Effacer le seul cookie ne suffirait pas : le jeton resterait valable pour quiconque
+     *     l'aurait intercepté.
+     */
+    post: operations['deconnexion_api_auth_deconnexion_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/auth/invitations': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Creer Invitation
+     * @description Engendre un code d'invitation pour le foyer de l'appelant.
+     *
+     *     Le code en clair n'est renvoyé qu'ici. Seule son empreinte est stockée.
+     */
+    post: operations['creer_invitation_api_auth_invitations_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/auth/moi': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Moi */
+    get: operations['moi_api_auth_moi_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/auth/rejoindre': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Rejoindre
+     * @description Crée un compte dans le foyer désigné par un code d'invitation valide.
+     */
+    post: operations['rejoindre_api_auth_rejoindre_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/categories': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Lister Categories */
+    get: operations['lister_categories_api_categories_get']
+    put?: never
+    /** Creer Categorie */
+    post: operations['creer_categorie_api_categories_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/categories/{categorie_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Supprimer Categorie
+     * @description Suppression définitive, refusée si la catégorie sert à une opération.
+     *
+     *     Le message propose l'archivage : supprimer une catégorie utilisée changerait
+     *     rétroactivement les totaux d'un mois déjà clos.
+     */
+    delete: operations['supprimer_categorie_api_categories__categorie_id__delete']
+    options?: never
+    head?: never
+    /** Modifier Categorie */
+    patch: operations['modifier_categorie_api_categories__categorie_id__patch']
+    trace?: never
+  }
+  '/api/comptes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Lister Comptes */
+    get: operations['lister_comptes_api_comptes_get']
+    put?: never
+    /** Creer Compte */
+    post: operations['creer_compte_api_comptes_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/epargne': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Epargne
+     * @description Total épargné, solde de chaque livret, et ce qui y a été versé sur la période.
+     *
+     *     Le solde retenu est le solde RÉEL. Un livret n'a ni échéance à confirmer ni
+     *     prélèvement à venir : y projeter quoi que ce soit inventerait un argent qui n'arrive
+     *     de nulle part.
+     */
+    get: operations['epargne_api_epargne_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/operations': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Lister Operations */
+    get: operations['lister_operations_api_operations_get']
+    put?: never
+    /**
+     * Creer Operation
+     * @description Saisit une opération.
+     *
+     *     Le compte et la catégorie sont revérifiés à travers le périmètre de l'appelant :
+     *     un identifiant valide chez quelqu'un d'autre doit être refusé exactement comme un
+     *     identifiant inexistant, sans distinction observable.
+     */
+    post: operations['creer_operation_api_operations_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/operations/a-confirmer': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Lister A Confirmer */
+    get: operations['lister_a_confirmer_api_operations_a_confirmer_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/operations/{operation_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Supprimer Operation
+     * @description Retire une opération.
+     *
+     *     Une saisie manuelle est supprimée ; une opération issue d'un prélèvement est annulée
+     *     et conservée, faute de quoi le job la recréerait au passage suivant. La distinction
+     *     est faite par le repository — l'appelant demande simplement le retrait.
+     */
+    delete: operations['supprimer_operation_api_operations__operation_id__delete']
+    options?: never
+    head?: never
+    /**
+     * Modifier Operation
+     * @description Corrige une opération déjà saisie.
+     */
+    patch: operations['modifier_operation_api_operations__operation_id__patch']
+    trace?: never
+  }
+  '/api/operations/{operation_id}/confirmer': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Confirmer
+     * @description Confirme qu'une échéance matérialisée est bien passée.
+     *
+     *     Le montant n'est pas modifiable ici : confirmer, c'est dire « c'est passé ainsi ».
+     *     Le solde projeté ne doit pas bouger — seule la répartition entre réel et à-confirmer
+     *     change.
+     */
+    post: operations['confirmer_api_operations__operation_id__confirmer_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/plafonds': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Lister */
+    get: operations['lister_api_plafonds_get']
+    /**
+     * Definir
+     * @description Définit ou met à jour le plafond d'une catégorie.
+     *
+     *     `PUT` et non `POST` : l'opération est idempotente, un seul plafond existant par
+     *     personne et par catégorie. Rejouer la même demande donne le même état.
+     */
+    put: operations['definir_api_plafonds_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/plafonds/{plafond_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** Supprimer */
+    delete: operations['supprimer_api_plafonds__plafond_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/recurrences': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Lister Recurrences */
+    get: operations['lister_recurrences_api_recurrences_get']
+    put?: never
+    /** Creer Recurrence */
+    post: operations['creer_recurrence_api_recurrences_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/recurrences/{recurrence_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Arreter Recurrence
+     * @description Désactive la récurrence. Les opérations déjà matérialisées restent en place :
+     *     supprimer l'historique parce qu'un abonnement s'arrête réécrirait le passé.
+     */
+    delete: operations['arreter_recurrence_api_recurrences__recurrence_id__delete']
+    options?: never
+    head?: never
+    /**
+     * Modifier Recurrence
+     * @description Modifie un prélèvement.
+     *
+     *     Les opérations déjà matérialisées ne changent pas : un abonnement dont le tarif
+     *     augmente n'a pas coûté davantage les mois précédents.
+     */
+    patch: operations['modifier_recurrence_api_recurrences__recurrence_id__patch']
+    trace?: never
+  }
+  '/api/resume': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Resume */
+    get: operations['resume_api_resume_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/virements': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Creer Virement
+     * @description Déplace de l'argent d'un compte du foyer vers un autre.
+     *
+     *     Ce n'est ni une dépense ni un revenu : l'argent ne quitte pas le foyer. Les deux
+     *     lignes créées restent dans les soldes de leurs comptes et sortent des dépenses de
+     *     période — voir `INCLUT_VIREMENTS` dans `domain/agregats.py`.
+     *
+     *     Les deux comptes sont vérifiés séparément : sans quoi un identifiant appartenant à un
+     *     autre foyer permettrait d'y déposer de l'argent, ou d'en constater le solde par
+     *     l'échec ou le succès de l'appel.
+     */
+    post: operations['creer_virement_api_virements_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/health': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Health */
+    get: operations['health_health_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
-export type webhooks = Record<string, never>;
+export type webhooks = Record<string, never>
 export interface components {
-    schemas: {
-        /**
-         * BornesDuMois
-         * @description Premier et dernier jour du mois **civil** courant, bornes incluses.
-         *
-         *     Distinct de la période budgétaire, qui va de paie à paie : confondre les deux fait
-         *     afficher un mois à un écran pendant qu'un autre en calcule un différent.
-         */
-        BornesDuMois: {
-            /**
-             * Debut
-             * Format: date
-             */
-            debut: string;
-            /**
-             * Fin
-             * Format: date
-             */
-            fin: string;
-        };
-        /** CategoriePublique */
-        CategoriePublique: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            nature: components["schemas"]["NatureCategorie"];
-            /** Nom */
-            nom: string;
-            teinte: components["schemas"]["TeinteCategorie"];
-        };
-        /** ComptePublic */
-        ComptePublic: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Nom */
-            nom: string;
-            /** Prive */
-            prive: boolean;
-        };
-        /**
-         * DemandeAdhesion
-         * @description Rejoindre un foyer avec un code d'invitation.
-         */
-        DemandeAdhesion: {
-            /** Code */
-            code: string;
-            /** Courriel */
-            courriel: string;
-            /** Mot De Passe */
-            mot_de_passe: string;
-            /** Nom Affichage */
-            nom_affichage: string;
-        };
-        /** DemandeCategorie */
-        DemandeCategorie: {
-            nature: components["schemas"]["NatureCategorie"];
-            /** Nom */
-            nom: string;
-            teinte: components["schemas"]["TeinteCategorie"];
-        };
-        /** DemandeCompte */
-        DemandeCompte: {
-            /** Nom */
-            nom: string;
-            /**
-             * Prive
-             * @default true
-             */
-            prive: boolean;
-            /**
-             * Solde Ouverture Centimes
-             * @description Solde du compte au moment de sa création, en centimes. Enregistré comme une opération d'ouverture — un solde reste une somme d'opérations. Zéro n'en crée aucune.
-             * @default 0
-             */
-            solde_ouverture_centimes: number;
-        };
-        /** DemandeConnexion */
-        DemandeConnexion: {
-            /** Courriel */
-            courriel: string;
-            /** Mot De Passe */
-            mot_de_passe: string;
-        };
-        /** DemandeOperation */
-        DemandeOperation: {
-            /** Categorie Id */
-            categorie_id?: string | null;
-            /**
-             * Compte Id
-             * Format: uuid
-             */
-            compte_id: string;
-            /**
-             * Date Operation
-             * Format: date
-             */
-            date_operation: string;
-            /**
-             * Est Paie
-             * @default false
-             */
-            est_paie: boolean;
-            /** Libelle */
-            libelle: string;
-            /**
-             * Montant Centimes
-             * @description Entier signé. Négatif = sortie, positif = entrée. Zéro refusé.
-             */
-            montant_centimes: number;
-        };
-        /** DemandePlafond */
-        DemandePlafond: {
-            /**
-             * Categorie Id
-             * Format: uuid
-             */
-            categorie_id: string;
-            /**
-             * Montant Centimes
-             * @description Limite en centimes, toujours positive : c'est une limite, pas une dépense.
-             */
-            montant_centimes: number;
-        };
-        /** DemandeRecurrence */
-        DemandeRecurrence: {
-            /**
-             * Ancre
-             * Format: date
-             * @description Date de la PREMIÈRE échéance. Toutes les suivantes s'en déduisent — jamais de l'échéance précédente, sinon une récurrence au 31 resterait bloquée au 28 après son premier février.
-             */
-            ancre: string;
-            /** Categorie Id */
-            categorie_id?: string | null;
-            /**
-             * Compte Id
-             * Format: uuid
-             */
-            compte_id: string;
-            /** Fin */
-            fin?: string | null;
-            /**
-             * Intervalle
-             * @default 1
-             */
-            intervalle: number;
-            /** Libelle */
-            libelle: string;
-            /**
-             * Montant Centimes
-             * @description Entier signé. Négatif = prélèvement, positif = revenu régulier.
-             */
-            montant_centimes: number;
-            unite: components["schemas"]["UniteRecurrence"];
-        };
-        /**
-         * EcheanceAgenda
-         * @description Une échéance à venir, telle qu'affichée dans l'agenda.
-         *
-         *     Une échéance n'est PAS une opération : elle n'a pas d'identifiant propre tant qu'elle
-         *     n'a pas été matérialisée. Les confondre ferait croire qu'on peut la modifier
-         *     individuellement, alors qu'elle est recalculée à chaque affichage.
-         */
-        EcheanceAgenda: {
-            /** Categorie Id */
-            categorie_id: string | null;
-            /**
-             * Date Echeance
-             * Format: date
-             */
-            date_echeance: string;
-            /** Libelle */
-            libelle: string;
-            /** Montant Centimes */
-            montant_centimes: number;
-            /**
-             * Recurrence Id
-             * Format: uuid
-             */
-            recurrence_id: string;
-        };
-        /**
-         * EtatOperation
-         * @description Cycle de vie d'une opération.
-         *
-         *     `prevue` → `a_confirmer` → `confirmee`. Une saisie manuelle naît directement
-         *     `confirmee` : l'utilisateur vient de la constater.
-         * @enum {string}
-         */
-        EtatOperation: "prevue" | "a_confirmer" | "confirmee";
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /**
-         * InvitationCreee
-         * @description Le code n'est renvoyé qu'ici, une seule fois.
-         *
-         *     Seule son empreinte est conservée : ni la base ni les journaux ne permettent de le
-         *     retrouver ensuite.
-         */
-        InvitationCreee: {
-            /** Code */
-            code: string;
-            /**
-             * Expire Le
-             * Format: date-time
-             */
-            expire_le: string;
-        };
-        /**
-         * ModificationCategorie
-         * @description La `nature` est absente volontairement : la changer inverserait le signe attendu
-         *     de toutes les opérations déjà classées, et donc les totaux de mois déjà clos.
-         */
-        ModificationCategorie: {
-            /** Archivee */
-            archivee?: boolean | null;
-            /** Nom */
-            nom?: string | null;
-            teinte?: components["schemas"]["TeinteCategorie"] | null;
-        };
-        /**
-         * ModificationOperation
-         * @description Champs corrigeables d'une opération.
-         *
-         *     `compte_id` et `est_paie` sont absents à dessein. Déplacer une opération changerait
-         *     le solde de deux comptes ; basculer une opération en paie déplacerait les bornes de
-         *     toutes les périodes suivantes, donc des totaux déjà consultés. Ces deux corrections
-         *     passent par une suppression et une nouvelle saisie, où elles se voient.
-         */
-        ModificationOperation: {
-            /** Categorie Id */
-            categorie_id?: string | null;
-            /** Date Operation */
-            date_operation?: string | null;
-            /** Libelle */
-            libelle?: string | null;
-            /** Montant Centimes */
-            montant_centimes?: number | null;
-        };
-        /**
-         * ModificationRecurrence
-         * @description Champs modifiables d'un prélèvement.
-         *
-         *     Le `compte_id` est absent : déplacer un prélèvement d'un compte à l'autre changerait
-         *     le solde de deux comptes rétroactivement. On arrête et on recrée.
-         */
-        ModificationRecurrence: {
-            /** Ancre */
-            ancre?: string | null;
-            /** Categorie Id */
-            categorie_id?: string | null;
-            /** Fin */
-            fin?: string | null;
-            /** Intervalle */
-            intervalle?: number | null;
-            /** Libelle */
-            libelle?: string | null;
-            /** Montant Centimes */
-            montant_centimes?: number | null;
-            unite?: components["schemas"]["UniteRecurrence"] | null;
-        };
-        /**
-         * NatureCategorie
-         * @enum {string}
-         */
-        NatureCategorie: "depense" | "revenu";
-        /** OperationPublique */
-        OperationPublique: {
-            /** Categorie Id */
-            categorie_id: string | null;
-            /**
-             * Compte Id
-             * Format: uuid
-             */
-            compte_id: string;
-            /**
-             * Date Operation
-             * Format: date
-             */
-            date_operation: string;
-            /** Est Ouverture */
-            est_ouverture: boolean;
-            /** Est Paie */
-            est_paie: boolean;
-            etat: components["schemas"]["EtatOperation"];
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Libelle */
-            libelle: string;
-            /** Montant Centimes */
-            montant_centimes: number;
-            /** Recurrence Id */
-            recurrence_id?: string | null;
-        };
-        /** PeriodePublique */
-        PeriodePublique: {
-            /**
-             * Debut
-             * Format: date
-             */
-            debut: string;
-            /**
-             * Fin
-             * Format: date
-             */
-            fin: string;
-            /** Fin Estimee */
-            fin_estimee: boolean;
-        };
-        /**
-         * PlafondPublic
-         * @description État complet d'un plafond sur la période courante.
-         *
-         *     `consomme` et `a_venir` sont exposés séparément et ne doivent JAMAIS être additionnés
-         *     sous le nom de « dépensé » : annoncer 380 € dépensés alors que 150 € ne sont pas
-         *     encore partis est la confusion qui fait cesser de croire l'outil.
-         */
-        PlafondPublic: {
-            /** A Venir Centimes */
-            a_venir_centimes: number;
-            /**
-             * Categorie Id
-             * Format: uuid
-             */
-            categorie_id: string;
-            /** Categorie Nom */
-            categorie_nom: string;
-            /** Consomme Centimes */
-            consomme_centimes: number;
-            /** Depasse */
-            depasse: boolean;
-            /** Depasse Avec Les Echeances */
-            depasse_avec_les_echeances: boolean;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Limite Centimes */
-            limite_centimes: number;
-            /** Part Consommee */
-            part_consommee: number;
-            /** Restant Centimes */
-            restant_centimes: number;
-        };
-        /** RecurrencePublique */
-        RecurrencePublique: {
-            /** Active */
-            active: boolean;
-            /**
-             * Ancre
-             * Format: date
-             */
-            ancre: string;
-            /** Categorie Id */
-            categorie_id: string | null;
-            /**
-             * Compte Id
-             * Format: uuid
-             */
-            compte_id: string;
-            /** Fin */
-            fin: string | null;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Intervalle */
-            intervalle: number;
-            /** Libelle */
-            libelle: string;
-            /** Montant Centimes */
-            montant_centimes: number;
-            unite: components["schemas"]["UniteRecurrence"];
-        };
-        /**
-         * ResumePublic
-         * @description Les quatre grandeurs, toutes exposées.
-         *
-         *     Le solde réel est renvoyé même si l'interface met le projeté en avant : sans lui,
-         *     aucun écart avec la banque ne serait diagnosticable.
-         */
-        ResumePublic: {
-            /** Depenses De Periode */
-            depenses_de_periode: number;
-            periode: components["schemas"]["PeriodePublique"];
-            /** Solde A Confirmer */
-            solde_a_confirmer: number;
-            /** Solde Projete */
-            solde_projete: number;
-            /** Solde Reel */
-            solde_reel: number;
-        };
-        /**
-         * TeinteCategorie
-         * @description Teintes disponibles, résolues en couleur par `frontend/src/design/tokens.ts`.
-         * @enum {string}
-         */
-        TeinteCategorie: "violet" | "cyan" | "vert" | "ambre" | "rose" | "ardoise";
-        /**
-         * UniteRecurrence
-         * @enum {string}
-         */
-        UniteRecurrence: "jour" | "semaine" | "mois" | "an";
-        /** UtilisateurPublic */
-        UtilisateurPublic: {
-            /** Courriel */
-            courriel: string;
-            /**
-             * Foyer Id
-             * Format: uuid
-             */
-            foyer_id: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Nom Affichage */
-            nom_affichage: string;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
-    };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+  schemas: {
+    /**
+     * BornesDuMois
+     * @description Premier et dernier jour du mois **civil** courant, bornes incluses.
+     *
+     *     Distinct de la période budgétaire, qui va de paie à paie : confondre les deux fait
+     *     afficher un mois à un écran pendant qu'un autre en calcule un différent.
+     */
+    BornesDuMois: {
+      /**
+       * Debut
+       * Format: date
+       */
+      debut: string
+      /**
+       * Fin
+       * Format: date
+       */
+      fin: string
+    }
+    /** CategoriePublique */
+    CategoriePublique: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      nature: components['schemas']['NatureCategorie']
+      /** Nom */
+      nom: string
+      teinte: components['schemas']['TeinteCategorie']
+    }
+    /** CompteEpargne */
+    CompteEpargne: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Nom */
+      nom: string
+      /** Solde Centimes */
+      solde_centimes: number
+    }
+    /** ComptePublic */
+    ComptePublic: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Nom */
+      nom: string
+      /** Prive */
+      prive: boolean
+      type_compte: components['schemas']['TypeCompte']
+    }
+    /**
+     * DemandeAdhesion
+     * @description Rejoindre un foyer avec un code d'invitation.
+     */
+    DemandeAdhesion: {
+      /** Code */
+      code: string
+      /** Courriel */
+      courriel: string
+      /** Mot De Passe */
+      mot_de_passe: string
+      /** Nom Affichage */
+      nom_affichage: string
+    }
+    /** DemandeCategorie */
+    DemandeCategorie: {
+      nature: components['schemas']['NatureCategorie']
+      /** Nom */
+      nom: string
+      teinte: components['schemas']['TeinteCategorie']
+    }
+    /** DemandeCompte */
+    DemandeCompte: {
+      /** Nom */
+      nom: string
+      /**
+       * Prive
+       * @default true
+       */
+      prive: boolean
+      /**
+       * Solde Ouverture Centimes
+       * @description Solde du compte au moment de sa création, en centimes. Enregistré comme une opération d'ouverture — un solde reste une somme d'opérations. Zéro n'en crée aucune.
+       * @default 0
+       */
+      solde_ouverture_centimes: number
+      /** @default courant */
+      type_compte: components['schemas']['TypeCompte']
+    }
+    /** DemandeConnexion */
+    DemandeConnexion: {
+      /** Courriel */
+      courriel: string
+      /** Mot De Passe */
+      mot_de_passe: string
+    }
+    /** DemandeOperation */
+    DemandeOperation: {
+      /** Categorie Id */
+      categorie_id?: string | null
+      /**
+       * Compte Id
+       * Format: uuid
+       */
+      compte_id: string
+      /**
+       * Date Operation
+       * Format: date
+       */
+      date_operation: string
+      /**
+       * Est Paie
+       * @default false
+       */
+      est_paie: boolean
+      /** Libelle */
+      libelle: string
+      /**
+       * Montant Centimes
+       * @description Entier signé. Négatif = sortie, positif = entrée. Zéro refusé.
+       */
+      montant_centimes: number
+    }
+    /** DemandePlafond */
+    DemandePlafond: {
+      /**
+       * Categorie Id
+       * Format: uuid
+       */
+      categorie_id: string
+      /**
+       * Montant Centimes
+       * @description Limite en centimes, toujours positive : c'est une limite, pas une dépense.
+       */
+      montant_centimes: number
+    }
+    /** DemandeRecurrence */
+    DemandeRecurrence: {
+      /**
+       * Ancre
+       * Format: date
+       * @description Date de la PREMIÈRE échéance. Toutes les suivantes s'en déduisent — jamais de l'échéance précédente, sinon une récurrence au 31 resterait bloquée au 28 après son premier février.
+       */
+      ancre: string
+      /** Categorie Id */
+      categorie_id?: string | null
+      /**
+       * Compte Id
+       * Format: uuid
+       */
+      compte_id: string
+      /** Fin */
+      fin?: string | null
+      /**
+       * Intervalle
+       * @default 1
+       */
+      intervalle: number
+      /** Libelle */
+      libelle: string
+      /**
+       * Montant Centimes
+       * @description Entier signé. Négatif = prélèvement, positif = revenu régulier.
+       */
+      montant_centimes: number
+      unite: components['schemas']['UniteRecurrence']
+    }
+    /**
+     * DemandeVirement
+     * @description Déplacement d'argent entre deux comptes du foyer.
+     *
+     *     Le montant est POSITIF et unique : c'est la somme déplacée. Demander deux montants
+     *     signés permettrait d'en saisir deux différents, donc de créer ou de détruire de
+     *     l'argent d'une faute de frappe.
+     */
+    DemandeVirement: {
+      /**
+       * Compte Destination Id
+       * Format: uuid
+       */
+      compte_destination_id: string
+      /**
+       * Compte Source Id
+       * Format: uuid
+       */
+      compte_source_id: string
+      /**
+       * Date Operation
+       * Format: date
+       */
+      date_operation: string
+      /**
+       * Libelle
+       * @default Virement
+       */
+      libelle: string
+      /**
+       * Montant Centimes
+       * @description Somme déplacée, en centimes, positive.
+       */
+      montant_centimes: number
+    }
+    /**
+     * EcheanceAgenda
+     * @description Une échéance à venir, telle qu'affichée dans l'agenda.
+     *
+     *     Une échéance n'est PAS une opération : elle n'a pas d'identifiant propre tant qu'elle
+     *     n'a pas été matérialisée. Les confondre ferait croire qu'on peut la modifier
+     *     individuellement, alors qu'elle est recalculée à chaque affichage.
+     */
+    EcheanceAgenda: {
+      /** Categorie Id */
+      categorie_id: string | null
+      /**
+       * Date Echeance
+       * Format: date
+       */
+      date_echeance: string
+      /** Libelle */
+      libelle: string
+      /** Montant Centimes */
+      montant_centimes: number
+      /**
+       * Recurrence Id
+       * Format: uuid
+       */
+      recurrence_id: string
+    }
+    /**
+     * EpargnePublique
+     * @description Ce que le foyer a mis de côté, et ce qu'il y a versé sur la période.
+     *
+     *     Séparé du résumé de l'accueil à dessein : les deux totaux répondent à des questions
+     *     différentes, et les additionner ferait croire à une aisance qui n'existe pas.
+     */
+    EpargnePublique: {
+      /** Comptes */
+      comptes: components['schemas']['CompteEpargne'][]
+      periode: components['schemas']['PeriodePublique']
+      /** Total Centimes */
+      total_centimes: number
+      /** Verse Sur La Periode Centimes */
+      verse_sur_la_periode_centimes: number
+    }
+    /**
+     * EtatOperation
+     * @description Cycle de vie d'une opération.
+     *
+     *     `prevue` → `a_confirmer` → `confirmee`. Une saisie manuelle naît directement
+     *     `confirmee` : l'utilisateur vient de la constater.
+     * @enum {string}
+     */
+    EtatOperation: 'prevue' | 'a_confirmer' | 'confirmee'
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components['schemas']['ValidationError'][]
+    }
+    /**
+     * InvitationCreee
+     * @description Le code n'est renvoyé qu'ici, une seule fois.
+     *
+     *     Seule son empreinte est conservée : ni la base ni les journaux ne permettent de le
+     *     retrouver ensuite.
+     */
+    InvitationCreee: {
+      /** Code */
+      code: string
+      /**
+       * Expire Le
+       * Format: date-time
+       */
+      expire_le: string
+    }
+    /**
+     * ModificationCategorie
+     * @description La `nature` est absente volontairement : la changer inverserait le signe attendu
+     *     de toutes les opérations déjà classées, et donc les totaux de mois déjà clos.
+     */
+    ModificationCategorie: {
+      /** Archivee */
+      archivee?: boolean | null
+      /** Nom */
+      nom?: string | null
+      teinte?: components['schemas']['TeinteCategorie'] | null
+    }
+    /**
+     * ModificationOperation
+     * @description Champs corrigeables d'une opération.
+     *
+     *     `compte_id` et `est_paie` sont absents à dessein. Déplacer une opération changerait
+     *     le solde de deux comptes ; basculer une opération en paie déplacerait les bornes de
+     *     toutes les périodes suivantes, donc des totaux déjà consultés. Ces deux corrections
+     *     passent par une suppression et une nouvelle saisie, où elles se voient.
+     */
+    ModificationOperation: {
+      /** Categorie Id */
+      categorie_id?: string | null
+      /** Date Operation */
+      date_operation?: string | null
+      /** Libelle */
+      libelle?: string | null
+      /** Montant Centimes */
+      montant_centimes?: number | null
+    }
+    /**
+     * ModificationRecurrence
+     * @description Champs modifiables d'un prélèvement.
+     *
+     *     Le `compte_id` est absent : déplacer un prélèvement d'un compte à l'autre changerait
+     *     le solde de deux comptes rétroactivement. On arrête et on recrée.
+     */
+    ModificationRecurrence: {
+      /** Ancre */
+      ancre?: string | null
+      /** Categorie Id */
+      categorie_id?: string | null
+      /** Fin */
+      fin?: string | null
+      /** Intervalle */
+      intervalle?: number | null
+      /** Libelle */
+      libelle?: string | null
+      /** Montant Centimes */
+      montant_centimes?: number | null
+      unite?: components['schemas']['UniteRecurrence'] | null
+    }
+    /**
+     * NatureCategorie
+     * @enum {string}
+     */
+    NatureCategorie: 'depense' | 'revenu'
+    /** OperationPublique */
+    OperationPublique: {
+      /** Categorie Id */
+      categorie_id: string | null
+      /**
+       * Compte Id
+       * Format: uuid
+       */
+      compte_id: string
+      /**
+       * Date Operation
+       * Format: date
+       */
+      date_operation: string
+      /** Est Ouverture */
+      est_ouverture: boolean
+      /** Est Paie */
+      est_paie: boolean
+      etat: components['schemas']['EtatOperation']
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Libelle */
+      libelle: string
+      /** Montant Centimes */
+      montant_centimes: number
+      /** Recurrence Id */
+      recurrence_id?: string | null
+      /** Virement Id */
+      virement_id?: string | null
+    }
+    /** PeriodePublique */
+    PeriodePublique: {
+      /**
+       * Debut
+       * Format: date
+       */
+      debut: string
+      /**
+       * Fin
+       * Format: date
+       */
+      fin: string
+      /** Fin Estimee */
+      fin_estimee: boolean
+    }
+    /**
+     * PlafondPublic
+     * @description État complet d'un plafond sur la période courante.
+     *
+     *     `consomme` et `a_venir` sont exposés séparément et ne doivent JAMAIS être additionnés
+     *     sous le nom de « dépensé » : annoncer 380 € dépensés alors que 150 € ne sont pas
+     *     encore partis est la confusion qui fait cesser de croire l'outil.
+     */
+    PlafondPublic: {
+      /** A Venir Centimes */
+      a_venir_centimes: number
+      /**
+       * Categorie Id
+       * Format: uuid
+       */
+      categorie_id: string
+      /** Categorie Nom */
+      categorie_nom: string
+      /** Consomme Centimes */
+      consomme_centimes: number
+      /** Depasse */
+      depasse: boolean
+      /** Depasse Avec Les Echeances */
+      depasse_avec_les_echeances: boolean
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Limite Centimes */
+      limite_centimes: number
+      /** Part Consommee */
+      part_consommee: number
+      /** Restant Centimes */
+      restant_centimes: number
+    }
+    /** RecurrencePublique */
+    RecurrencePublique: {
+      /** Active */
+      active: boolean
+      /**
+       * Ancre
+       * Format: date
+       */
+      ancre: string
+      /** Categorie Id */
+      categorie_id: string | null
+      /**
+       * Compte Id
+       * Format: uuid
+       */
+      compte_id: string
+      /** Fin */
+      fin: string | null
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Intervalle */
+      intervalle: number
+      /** Libelle */
+      libelle: string
+      /** Montant Centimes */
+      montant_centimes: number
+      unite: components['schemas']['UniteRecurrence']
+    }
+    /**
+     * ResumePublic
+     * @description Les quatre grandeurs, toutes exposées.
+     *
+     *     Le solde réel est renvoyé même si l'interface met le projeté en avant : sans lui,
+     *     aucun écart avec la banque ne serait diagnosticable.
+     */
+    ResumePublic: {
+      /** Depenses De Periode */
+      depenses_de_periode: number
+      periode: components['schemas']['PeriodePublique']
+      /** Solde A Confirmer */
+      solde_a_confirmer: number
+      /** Solde Projete */
+      solde_projete: number
+      /** Solde Reel */
+      solde_reel: number
+    }
+    /**
+     * TeinteCategorie
+     * @description Teintes disponibles, résolues en couleur par `frontend/src/design/tokens.ts`.
+     * @enum {string}
+     */
+    TeinteCategorie: 'violet' | 'cyan' | 'vert' | 'ambre' | 'rose' | 'ardoise'
+    /**
+     * TypeCompte
+     * @enum {string}
+     */
+    TypeCompte: 'courant' | 'epargne'
+    /**
+     * UniteRecurrence
+     * @enum {string}
+     */
+    UniteRecurrence: 'jour' | 'semaine' | 'mois' | 'an'
+    /** UtilisateurPublic */
+    UtilisateurPublic: {
+      /** Courriel */
+      courriel: string
+      /**
+       * Foyer Id
+       * Format: uuid
+       */
+      foyer_id: string
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Nom Affichage */
+      nom_affichage: string
+    }
+    /** ValidationError */
+    ValidationError: {
+      /** Context */
+      ctx?: Record<string, never>
+      /** Input */
+      input?: unknown
+      /** Location */
+      loc: (string | number)[]
+      /** Message */
+      msg: string
+      /** Error Type */
+      type: string
+    }
+    /**
+     * VirementCree
+     * @description Les deux moitiés créées, pour que le client sache quoi rafraîchir.
+     */
+    VirementCree: {
+      entree: components['schemas']['OperationPublique']
+      sortie: components['schemas']['OperationPublique']
+      /**
+       * Virement Id
+       * Format: uuid
+       */
+      virement_id: string
+    }
+  }
+  responses: never
+  parameters: never
+  requestBodies: never
+  headers: never
+  pathItems: never
 }
-export type $defs = Record<string, never>;
+export type $defs = Record<string, never>
 export interface operations {
-    agenda_api_agenda_get: {
-        parameters: {
-            query?: {
-                jours?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EcheanceAgenda"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    mois_en_cours_api_agenda_mois_en_cours_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BornesDuMois"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    connexion_api_auth_connexion_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeConnexion"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UtilisateurPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    deconnexion_api_auth_deconnexion_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    creer_invitation_api_auth_invitations_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InvitationCreee"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    moi_api_auth_moi_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UtilisateurPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rejoindre_api_auth_rejoindre_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeAdhesion"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UtilisateurPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_categories_api_categories_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CategoriePublique"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    creer_categorie_api_categories_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeCategorie"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CategoriePublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supprimer_categorie_api_categories__categorie_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                categorie_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    modifier_categorie_api_categories__categorie_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                categorie_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ModificationCategorie"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CategoriePublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_comptes_api_comptes_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComptePublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    creer_compte_api_comptes_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeCompte"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComptePublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_operations_api_operations_get: {
-        parameters: {
-            query?: {
-                /** @description Restreindre à la période budgétaire en cours. */
-                periode_courante?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OperationPublique"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    creer_operation_api_operations_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeOperation"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OperationPublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_a_confirmer_api_operations_a_confirmer_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OperationPublique"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supprimer_operation_api_operations__operation_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operation_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    modifier_operation_api_operations__operation_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operation_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ModificationOperation"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OperationPublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    confirmer_api_operations__operation_id__confirmer_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operation_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OperationPublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_api_plafonds_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlafondPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    definir_api_plafonds_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandePlafond"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlafondPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supprimer_api_plafonds__plafond_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                plafond_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_recurrences_api_recurrences_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecurrencePublique"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    creer_recurrence_api_recurrences_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeRecurrence"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecurrencePublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    arreter_recurrence_api_recurrences__recurrence_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                recurrence_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    modifier_recurrence_api_recurrences__recurrence_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                recurrence_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ModificationRecurrence"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecurrencePublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resume_api_resume_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResumePublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    health_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-        };
-    };
+  agenda_api_agenda_get: {
+    parameters: {
+      query?: {
+        jours?: number
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['EcheanceAgenda'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  mois_en_cours_api_agenda_mois_en_cours_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BornesDuMois']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  connexion_api_auth_connexion_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeConnexion']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UtilisateurPublic']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  deconnexion_api_auth_deconnexion_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  creer_invitation_api_auth_invitations_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['InvitationCreee']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  moi_api_auth_moi_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UtilisateurPublic']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  rejoindre_api_auth_rejoindre_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeAdhesion']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UtilisateurPublic']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  lister_categories_api_categories_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CategoriePublique'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  creer_categorie_api_categories_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeCategorie']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CategoriePublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  supprimer_categorie_api_categories__categorie_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        categorie_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  modifier_categorie_api_categories__categorie_id__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        categorie_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ModificationCategorie']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CategoriePublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  lister_comptes_api_comptes_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ComptePublic'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  creer_compte_api_comptes_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeCompte']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ComptePublic']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  epargne_api_epargne_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['EpargnePublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  lister_operations_api_operations_get: {
+    parameters: {
+      query?: {
+        /** @description Restreindre à la période budgétaire en cours. */
+        periode_courante?: boolean
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OperationPublique'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  creer_operation_api_operations_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeOperation']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OperationPublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  lister_a_confirmer_api_operations_a_confirmer_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OperationPublique'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  supprimer_operation_api_operations__operation_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        operation_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  modifier_operation_api_operations__operation_id__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        operation_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ModificationOperation']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OperationPublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  confirmer_api_operations__operation_id__confirmer_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        operation_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OperationPublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  lister_api_plafonds_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PlafondPublic'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  definir_api_plafonds_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandePlafond']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PlafondPublic'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  supprimer_api_plafonds__plafond_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        plafond_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  lister_recurrences_api_recurrences_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RecurrencePublique'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  creer_recurrence_api_recurrences_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeRecurrence']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RecurrencePublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  arreter_recurrence_api_recurrences__recurrence_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        recurrence_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  modifier_recurrence_api_recurrences__recurrence_id__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        recurrence_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ModificationRecurrence']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RecurrencePublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  resume_api_resume_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ResumePublic']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  creer_virement_api_virements_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeVirement']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['VirementCree']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  health_health_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: string
+          }
+        }
+      }
+    }
+  }
 }

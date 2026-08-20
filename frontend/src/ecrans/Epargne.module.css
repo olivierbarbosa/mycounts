@@ -1,0 +1,121 @@
+.page {
+  min-height: 100dvh;
+  padding: var(--espace-l);
+  padding-top: calc(var(--espace-l) + env(safe-area-inset-top, 0px));
+  /* Réserve la hauteur de la tab bar : sans elle, la dernière ligne passe sous le verre. */
+  padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-l);
+}
+
+.entete {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+  align-items: center;
+  text-align: center;
+  padding-top: var(--espace-xl);
+}
+
+/* Même halo que l'accueil, sous le texte : il ne participe donc pas à son contraste. */
+.entete::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: min(420px, 90%);
+  height: 200px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--couleur-lueur-accent), transparent);
+  filter: blur(20px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.libelle {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+.borne {
+  margin: 0;
+  color: var(--couleur-texte-faible);
+  font-size: 13px;
+}
+
+.titreListe {
+  margin: 0;
+  font-size: 16px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+.ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-l);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.action {
+  min-height: var(--cible-tactile);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  font-size: 16px;
+  font-weight: var(--typo-gras-fort);
+  box-shadow:
+    inset 0 0 0 1px var(--couleur-contour-clair),
+    0 1px 2px var(--couleur-contour-sombre);
+}
+
+.vide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-m);
+  padding: var(--espace-xl);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  color: var(--couleur-texte-attenue);
+  text-align: center;
+}
+
+.vide p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (min-width: 600px) {
+  .page {
+    padding: var(--espace-xl);
+    padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+    gap: var(--espace-xl);
+  }
+}

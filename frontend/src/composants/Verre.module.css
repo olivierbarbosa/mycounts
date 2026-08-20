@@ -14,8 +14,8 @@
 .verre {
   background:
     /* arête supérieure : le reflet spéculaire renforcé d'iOS 27 */
-    linear-gradient(90deg, transparent, var(--couleur-verre-speculaire), transparent)
-      no-repeat top / 100% 1px,
+    linear-gradient(90deg, transparent, var(--couleur-verre-speculaire), transparent) no-repeat
+      top / 100% 1px,
     color-mix(
       in srgb,
       var(--couleur-verre-teinte) calc(var(--verre-opacite) * 100%),
@@ -28,8 +28,8 @@
     inset 0 0 0 1px var(--couleur-verre-bord-sombre),
     inset 0 1px 0 var(--couleur-lueur-bordure),
     0 8px 32px var(--couleur-verre-bord-sombre),
-    /* Halo néon porté : la couche flottante paraît éclairée par sa propre lumière. */
-    0 0 40px var(--couleur-lueur-accent);
+    /* Halo néon porté : la couche flottante paraît éclairée par sa propre lumière. */ 0 0 40px
+      var(--couleur-lueur-accent);
 }
 
 /* Repli lorsque le navigateur ne sait pas flouter l'arrière-plan : on passe en opaque

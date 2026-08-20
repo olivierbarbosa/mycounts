@@ -1,0 +1,96 @@
+import { expect, test, type Page } from '@playwright/test'
+
+/**
+ * Virements et page Épargne, validés à l'écran.
+ *
+ * Le test central est `virer vers l'épargne ne crée aucune dépense` : c'est la mesure qui
+ * peut rendre la réponse inverse. Deux grandeurs doivent bouger en sens OPPOSÉS — le
+ * solde du quotidien baisse, l'épargne monte — pendant qu'une troisième ne bouge pas du
+ * tout. Si « dépensé sur la période » suivait, mettre de l'argent de côté ferait sauter
+ * tous les plafonds du mois.
+ */
+
+async function connecter(page: Page) {
+  await page.goto('/')
+  await page.locator('nav, form').first().waitFor({ state: 'visible' })
+  if (await page.locator('nav').isVisible()) return
+  await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
+  await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
+  await page.getByRole('button', { name: 'Se connecter' }).click()
+  await expect(page.locator('nav')).toBeVisible()
+}
+
+/** Crée un compte d'épargne depuis les Réglages, comme le ferait l'utilisateur. */
+async function creerEpargne(page: Page, nom: string, ouverture: string) {
+  await page.getByRole('button', { name: 'Réglages' }).click()
+  await page.getByRole('button', { name: 'Ajouter un compte' }).click()
+  await page.getByLabel('Nom du compte').fill(nom)
+  await page.getByLabel('Nature', { exact: true }).selectOption('epargne')
+  await page.getByLabel('Solde actuel (facultatif)').fill(ouverture)
+  await page.getByRole('button', { name: 'Créer le compte' }).click()
+  await expect(page.getByRole('button', { name: 'Ajouter un compte' })).toBeVisible()
+}
+
+/** « Dépensé sur la période », lu à l'écran d'accueil. */
+async function depensesAffichees(page: Page): Promise<string> {
+  await page.getByRole('button', { name: 'Accueil' }).click()
+  const bloc = page.locator('main header').getByText('Dépensé sur la période').locator('..')
+  return (await bloc.innerText()).replace('Dépensé sur la période', '').trim()
+}
+
+test('la page Épargne dit quoi faire quand elle est vide', async ({ page }) => {
+  // Une page vide qui n'explique pas comment la remplir est une impasse. Ce test tourne
+  // avant les autres du fichier, tant qu'aucun livret n'existe.
+  await connecter(page)
+  await page.getByRole('button', { name: 'Épargne' }).click()
+  await expect(page.locator('main')).toContainText('Aucun compte d’épargne')
+})
+
+test('virer vers l’épargne ne crée aucune dépense', async ({ page }) => {
+  await connecter(page)
+  const livret = `Livret ${Date.now()}`
+  await creerEpargne(page, livret, '0')
+
+  const depensesAvant = await depensesAffichees(page)
+  const soldeAvant = await page.locator('main header').innerText()
+
+  await page.getByRole('button', { name: 'Saisir une opération' }).click()
+  await page.getByRole('button', { name: 'Virement' }).click()
+  await page.getByLabel('Montant', { exact: true }).fill('200,00')
+  await page.getByLabel('Libellé', { exact: true }).fill('Mise de côté')
+  // La destination se choisit par SON NOM. Un index supposait l'ordre et le nombre des
+  // comptes, deux choses que les autres tests font varier — le virement partait alors
+  // vers un compte au hasard et le livret restait à zéro.
+  await page.getByLabel('Vers le compte').selectOption({ label: livret })
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  // Celle qui ne doit PAS bouger. C'est tout l'enjeu.
+  expect(
+    await depensesAffichees(page),
+    'un virement compté en dépense ferait sauter les plafonds',
+  ).toBe(depensesAvant)
+
+  // Celles qui bougent, en sens contraires.
+  expect(await page.locator('main header').innerText()).not.toBe(soldeAvant)
+  await page.getByRole('button', { name: 'Épargne' }).click()
+  // L'assertion porte sur la LIGNE du livret et non sur le total : la suite partage sa
+  // base, et un total absolu dépendrait des livrets créés par les autres tests.
+  await expect(page.locator('li', { hasText: livret })).toContainText('200')
+})
+
+test('l’épargne ne gonfle pas le solde du quotidien', async ({ page }) => {
+  // Créer un livret avec de l'argent dessus ne doit rien changer à l'accueil : sinon
+  // l'écran annoncerait une aisance qui n'existe pas.
+  await connecter(page)
+  const avant = await page.locator('main header').innerText()
+
+  const livret = `Livret bis ${Date.now()}`
+  await creerEpargne(page, livret, '500,00')
+
+  await page.getByRole('button', { name: 'Accueil' }).click()
+  expect(await page.locator('main header').innerText()).toBe(avant)
+
+  await page.getByRole('button', { name: 'Épargne' }).click()
+  await expect(page.locator('li', { hasText: livret })).toContainText('500')
+})

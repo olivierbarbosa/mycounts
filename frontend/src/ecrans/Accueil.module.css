@@ -105,7 +105,9 @@
   /* Liseré lumineux sur l'arête supérieure : c'est lui qui donne l'impression de verre
      éclairé par le dessus. Purement décoratif — aucune information ne repose dessus. */
   box-shadow: inset 0 1px 0 var(--couleur-lueur-bordure);
-  transition: box-shadow 200ms ease, border-color 200ms ease;
+  transition:
+    box-shadow 200ms ease,
+    border-color 200ms ease;
 }
 
 .operation:hover {
@@ -136,12 +138,24 @@
   color: var(--couleur-texte);
 }
 
-.teinteViolet { --teinte: var(--couleur-accent-clair); }
-.teinteCyan { --teinte: var(--couleur-neon); }
-.teinteVert { --teinte: var(--couleur-credit); }
-.teinteAmbre { --teinte: var(--couleur-alerte); }
-.teinteRose { --teinte: var(--couleur-debit); }
-.teinteArdoise { --teinte: var(--couleur-texte-attenue); }
+.teinteViolet {
+  --teinte: var(--couleur-accent-clair);
+}
+.teinteCyan {
+  --teinte: var(--couleur-neon);
+}
+.teinteVert {
+  --teinte: var(--couleur-credit);
+}
+.teinteAmbre {
+  --teinte: var(--couleur-alerte);
+}
+.teinteRose {
+  --teinte: var(--couleur-debit);
+}
+.teinteArdoise {
+  --teinte: var(--couleur-texte-attenue);
+}
 
 .corps {
   flex: 1;

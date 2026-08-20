@@ -32,8 +32,7 @@ const MOINS = '−'
  *  lignes au milieu. */
 const ESPACES_INSECABLES = /[\u202f\u00a0]/
 
-export const contientEspaceInsecable = (texte: string): boolean =>
-  ESPACES_INSECABLES.test(texte)
+export const contientEspaceInsecable = (texte: string): boolean => ESPACES_INSECABLES.test(texte)
 
 /** Découpe des centimes en parties affichables, sans jamais passer par un flottant. */
 export function decouper(centimes: number): {

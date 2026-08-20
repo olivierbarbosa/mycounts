@@ -114,15 +114,10 @@ export function Categories({ categories, surChangement }: Props) {
             Supprimer la catégorie « {aSupprimer.nom} » ?
           </p>
           <p className={styles.message}>
-            Cette action est définitive. Elle sera refusée si des opérations y sont
-            rattachées.
+            Cette action est définitive. Elle sera refusée si des opérations y sont rattachées.
           </p>
           <div className={styles.actionsConfirmation}>
-            <button
-              type="button"
-              className={styles.action}
-              onClick={() => setASupprimer(null)}
-            >
+            <button type="button" className={styles.action} onClick={() => setASupprimer(null)}>
               Annuler
             </button>
             <button
@@ -202,8 +197,8 @@ export function Categories({ categories, surChangement }: Props) {
         </p>
       )}
       <p className={styles.message}>
-        Une catégorie déjà utilisée ne peut pas être supprimée : ses opérations passées
-        perdraient leur classement et les totaux d’un mois clos changeraient.
+        Une catégorie déjà utilisée ne peut pas être supprimée : ses opérations passées perdraient
+        leur classement et les totaux d’un mois clos changeraient.
       </p>
     </section>
   )
