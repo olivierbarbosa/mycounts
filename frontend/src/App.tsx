@@ -141,7 +141,11 @@ export function App() {
         )}
 
         {onglet === 'enveloppes' && (
-          <Enveloppes categories={categories} rafraichissement={rafraichissement} />
+          <Enveloppes
+            categories={categories}
+            rafraichissement={rafraichissement}
+            surReferentielsChanges={chargerReferentiels}
+          />
         )}
 
         {onglet === 'epargne' && (

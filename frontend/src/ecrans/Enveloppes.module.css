@@ -69,21 +69,207 @@
   gap: var(--espace-m);
 }
 
-.carte {
+/* Une ligne et non une carte, exactement comme sur l'écran des budgets. Chaque enveloppe
+   occupait une plaque de verre de 16 px de marge intérieure portant cinq lignes — nom,
+   montant, barre, détails, et un bouton « Supprimer » toujours visible. Trois enveloppes
+   remplissaient l'écran. Le retrait a rejoint l'édition : c'est l'action la plus rare et
+   la seule irréversible, elle n'a pas à rester sous les yeux. */
+.enveloppe {
   display: flex;
   flex-direction: column;
   gap: var(--espace-s);
-  padding: var(--espace-l);
-  border-radius: var(--rayon-moyen);
-  background: var(--couleur-surface);
-  border: 1px solid var(--couleur-bordure);
+  padding: var(--espace-s) 0;
 }
 
-.enteteCarte {
+.resume {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  gap: var(--espace-m);
+  width: 100%;
+  min-height: var(--cible-tactile);
+}
+
+.resume .nom {
+  flex: 1;
+}
+
+/* Encre neutre pour les quantités : la couleur est réservée à l'état. */
+.chiffres {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--couleur-texte-attenue);
+  white-space: nowrap;
+}
+
+/* Le crayon, au bout de chaque ligne. Cible pleine de 44 px pour un dessin de 16 : c'est
+   la cible qu'on vise, pas le trait. */
+.crayon {
+  flex: 0 0 auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--couleur-texte-faible);
+  transition:
+    color 160ms ease-out,
+    background-color 160ms ease-out;
+}
+
+.crayon:hover {
+  color: var(--couleur-texte);
+  background: color-mix(in srgb, var(--couleur-texte) 8%, transparent);
+}
+
+/* Ajustement en place et création partagent leur géométrie : ce sont le même geste, à
+   ceci près que l'un connaît déjà son enveloppe. */
+.ligneSaisie {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+}
+
+.creation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+.saisieNom,
+.saisieMontant {
+  min-height: var(--cible-tactile);
+  padding: var(--espace-s) var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  /* 16 px au moins : en dessous, iOS agrandit la page à la mise au point du champ et ne
+     la réduit jamais ensuite. */
+  font-size: 16px;
+}
+
+/* Le nom prend la place restante, le montant reste étroit : c'est le nom qui est long,
+   jamais la somme. */
+.saisieNom {
+  flex: 1;
+  min-width: 0;
+}
+
+.saisieMontant {
+  flex: 0 1 110px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.valider {
+  flex: 0 0 auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+}
+
+.abandonner {
+  flex: 0 0 auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+}
+
+/* Le repli des champs secondaires, au même dessin que celui de la feuille de saisie :
+   bordure tiretée, il annonce qu'il y a autre chose dessous sans se donner le poids d'un
+   champ à remplir. Il n'affiche pas ses valeurs, contrairement à celui de la saisie —
+   ici les deux champs sont vides par défaut, il n'y a rien à y vérifier. */
+.repli {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: var(--espace-m);
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: 1px dashed var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  text-align: left;
+}
+
+.repli:hover {
+  border-color: var(--couleur-accent-clair);
+  color: var(--couleur-texte);
+}
+
+.chevron,
+.chevronOuvert {
+  flex: 0 0 auto;
+  transition: rotate 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.chevronOuvert {
+  rotate: 180deg;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+/* Bouton d'ajout NOMMÉ, sous la liste. Il ne reprend pas le dégradé d'accent : l'action
+   principale de l'application est le `+` de la barre, et deux boutons pleins également
+   accentués sur le même écran se disputeraient le regard. */
+.ajouter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-s);
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte);
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+  transition:
+    border-color 160ms ease-out,
+    scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.ajouter:hover {
+  border-color: var(--couleur-accent-clair);
+}
+
+.ajouter:active {
+  scale: 0.98;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .chevronOuvert,
+  .ajouter {
+    transition: none;
+  }
+  .ajouter:active {
+    scale: 1;
+  }
 }
 
 .nom {
@@ -143,34 +329,6 @@
   font-size: 15px;
 }
 
-.formulaire {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-s);
-  padding: var(--espace-l);
-  border-radius: var(--rayon-moyen);
-  background: var(--couleur-surface);
-  border: 1px solid var(--couleur-bordure);
-}
-
-.etiquette {
-  font-size: 13px;
-  font-weight: var(--typo-gras-moyen);
-  color: var(--couleur-texte-attenue);
-}
-
-.saisie {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--cible-tactile);
-  padding: var(--espace-m) var(--espace-l);
-  border-radius: var(--rayon-pilule);
-  border: 1px solid var(--couleur-bordure);
-  background: var(--couleur-surface-haute);
-  color: var(--couleur-texte);
-  font-size: 16px;
-}
-
 .note {
   margin: 0;
   font-size: 13px;
@@ -182,41 +340,6 @@
   margin: 0;
   color: var(--couleur-debit);
   font-size: 14px;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--espace-s);
-}
-
-.principal {
-  flex: 1;
-  min-width: 140px;
-  min-height: var(--cible-tactile);
-  border: none;
-  border-radius: var(--rayon-pilule);
-  background: var(--couleur-degrade-accent);
-  color: var(--couleur-accent-contraste);
-  font-size: 15px;
-  font-weight: var(--typo-gras-fort);
-  box-shadow:
-    inset 0 0 0 1px var(--couleur-contour-clair),
-    0 1px 2px var(--couleur-contour-sombre);
-}
-
-.secondaire {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--espace-s);
-  min-height: var(--cible-tactile);
-  padding: 0 var(--espace-l);
-  border-radius: var(--rayon-pilule);
-  border: 1px solid var(--couleur-bordure);
-  background: transparent;
-  color: var(--couleur-texte);
-  font-size: 15px;
 }
 
 .vide {

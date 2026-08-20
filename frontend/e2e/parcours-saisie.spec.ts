@@ -18,6 +18,13 @@ async function connecter(page: import('@playwright/test').Page) {
     await courriel.fill(process.env.MYCOUNTS_COURRIEL_TEST!)
     await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
     await page.getByRole('button', { name: 'Se connecter' }).click()
+    // Attendre que la session soit RÉELLEMENT établie. Sans cette ligne, ce helper rendait
+    // la main pendant que la requête de connexion était encore en vol : les tests qui
+    // enchaînaient sur un élément d'interface s'en tiraient — l'attente de l'élément leur
+    // laissait le temps — mais tout appel direct à `page.request` partait sans cookie et
+    // recevait un 401 silencieux, dont le seul symptôme visible était une condition qui ne
+    // se déclenchait jamais.
+    await expect(page.locator('nav')).toBeVisible()
   }
 }
 
@@ -123,4 +130,86 @@ test('changer la date se voit sur le repli une fois refermé', async ({ page }) 
   const repli = feuille.getByRole('button', { expanded: true })
   await expect(repli).toContainText('14 mars')
   await expect(repli).not.toContainText('Aujourd’hui')
+})
+
+test('la coche « c’est ma paie » n’existe plus, dans aucun des trois modes', async ({ page }) => {
+  // Une paie est un revenu de catégorie Salaire, rien d'autre. La case demandait de
+  // confirmer ce que la catégorie venait d'énoncer — et elle s'affichait en Virement, où
+  // elle n'a aucun sens : sa condition était `!sortie`, vraie pour le revenu ET pour le
+  // virement. Une négation qui décrivait deux cas là où elle en visait un.
+  await connecter(page)
+  // Le mode Virement est désactivé tant qu'il n'y a qu'un compte, et le foyer d'essai est
+  // réinitialisé avec un seul. Le test le GARANTIT lui-même plutôt que d'espérer qu'un
+  // autre fichier ait laissé le second derrière lui.
+  const comptes = (await (await page.request.get('/api/comptes')).json()) as unknown[]
+  if (comptes.length < 2) {
+    await page.request.post('/api/comptes', {
+      data: { nom: `Second ${Date.now()}`, produit: 'livret_a', prive: true },
+    })
+    await page.reload()
+    await expect(page.locator('nav')).toBeVisible()
+  }
+
+  await page.getByRole('button', { name: 'Saisir une opération' }).click()
+  const feuille = page.getByRole('dialog', { name: 'Saisir une opération' })
+
+  for (const mode of ['Dépense', 'Revenu', 'Virement']) {
+    await feuille.getByRole('button', { name: mode, exact: true }).click()
+    await expect(
+      feuille.getByLabel(/c’est ma paie/i),
+      `la coche subsiste en mode ${mode}`,
+    ).toHaveCount(0)
+  }
+})
+
+test('une catégorie Salaire marque l’opération comme paie', async ({ page }) => {
+  /* Le témoin qui distingue « la case a été retirée » de « la RÈGLE a été retirée ».
+   *
+   * Une première version se contentait de vérifier la mention affichée à l'écran. Elle ne
+   * valait rien : remplacer l'envoi par `est_paie: false` la laissait verte, puisque la
+   * mention, elle, continuait de s'afficher. Ce qui compte est ce qui part au serveur —
+   * c'est lui qui décide où commence la période budgétaire. */
+  const libelle = `Paie ${Date.now()}`
+  await connecter(page)
+  await page.getByRole('button', { name: 'Saisir une opération' }).click()
+  const feuille = page.getByRole('dialog', { name: 'Saisir une opération' })
+
+  await feuille.getByRole('button', { name: 'Revenu', exact: true }).click()
+  await expect(feuille.getByText(/ouvrira une nouvelle période/)).toHaveCount(0)
+
+  await feuille.getByLabel('Catégorie').selectOption({ label: 'Salaire' })
+  await expect(feuille.getByText(/ouvrira une nouvelle période/)).toBeVisible()
+
+  await feuille.getByLabel('Montant').fill('1500,00')
+  await feuille.getByLabel('Libellé').fill(libelle)
+  await feuille.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+  await expect(page.getByText(libelle)).toBeVisible()
+
+  const operations = (await (await page.request.get('/api/operations')).json()) as {
+    libelle: string
+    est_paie: boolean
+  }[]
+  const enregistree = operations.find((operation) => operation.libelle === libelle)
+  expect(enregistree, 'l’opération n’a pas été enregistrée').toBeDefined()
+  expect(enregistree!.est_paie, 'la catégorie Salaire n’a pas marqué la paie').toBe(true)
+})
+
+test('un revenu d’une AUTRE catégorie n’est pas une paie', async ({ page }) => {
+  // L'autre sens, sans lequel un `est_paie: true` posé en dur passerait le test précédent.
+  const libelle = `Prime ${Date.now()}`
+  await connecter(page)
+  await page.getByRole('button', { name: 'Saisir une opération' }).click()
+  const feuille = page.getByRole('dialog', { name: 'Saisir une opération' })
+
+  await feuille.getByRole('button', { name: 'Revenu', exact: true }).click()
+  await feuille.getByLabel('Montant').fill('300,00')
+  await feuille.getByLabel('Libellé').fill(libelle)
+  await feuille.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+  await expect(page.getByText(libelle)).toBeVisible()
+
+  const operations = (await (await page.request.get('/api/operations')).json()) as {
+    libelle: string
+    est_paie: boolean
+  }[]
+  expect(operations.find((operation) => operation.libelle === libelle)!.est_paie).toBe(false)
 })

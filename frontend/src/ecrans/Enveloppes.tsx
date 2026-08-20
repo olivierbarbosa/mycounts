@@ -1,8 +1,9 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 
 import type { CategoriePublique, RepartitionEnveloppes } from '../api/client'
 import { ErreurApi, api } from '../api/client'
+import { ChoixCategorie } from '../composants/ChoixCategorie'
 import { Montant } from '../composants/Montant'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import styles from './Enveloppes.module.css'
@@ -10,13 +11,15 @@ import styles from './Enveloppes.module.css'
 type Props = {
   readonly categories: readonly CategoriePublique[]
   readonly rafraichissement: number
+  readonly surReferentielsChanges: () => void | Promise<void>
 }
 
 /**
  * Enveloppes : découper l'épargne pour savoir combien est disponible, et pour quoi.
  *
  * **Ce que cet écran fait.** Il montre comment l'argent DÉJÀ mis de côté est promis :
- * chaque enveloppe, sa part, et surtout ce qui reste non affecté.
+ * chaque enveloppe, sa part, et surtout ce qui reste non affecté. On y ajuste le montant
+ * réservé d'une enveloppe en trois gestes — toucher le crayon, taper le montant, valider.
  *
  * **Ce qu'il ne fait pas, et c'est le plus important.** Il ne déplace aucun argent.
  * Réserver 200 € pour les vacances ne vire pas 200 € : cela dit que 200 € des livrets sont
@@ -24,17 +27,28 @@ type Props = {
  * Cette phrase est écrite à l'écran, pas seulement ici — un utilisateur qui croirait avoir
  * viré de l'argent se retrouverait à découvert sans comprendre.
  *
- * Il ne montre pas non plus de camembert : au-delà de six parts les secteurs deviennent
- * indistinguables, et une part « non affectée » y disparaîtrait au milieu des autres alors
- * qu'elle est la grandeur qu'on vient lire.
+ * **Ce qu'il ne fait pas non plus :**
+ *  - pas de camembert. Au-delà de six parts les secteurs deviennent indistinguables, et la
+ *    part « non affectée » y disparaîtrait au milieu des autres alors qu'elle est la
+ *    grandeur qu'on vient lire ;
+ *  - pas de renommage ni de changement d'objectif. L'API ne l'expose pas encore, et
+ *    prétendre le contraire à l'écran serait pire que de ne rien proposer ;
+ *  - aucun formulaire affiché en permanence. La création se déplie à la place de son
+ *    bouton, en bas de la liste, comme sur l'écran des budgets.
  */
-export function Enveloppes({ categories, rafraichissement }: Props) {
+export function Enveloppes({ categories, rafraichissement, surReferentielsChanges }: Props) {
   const [etat, setEtat] = useState<RepartitionEnveloppes | null>(null)
   const [ajout, setAjout] = useState(false)
+  /** Enveloppe dont le montant réservé est en cours d'ajustement. Une seule à la fois :
+   *  deux champs ouverts côte à côte laisseraient croire qu'ils se valident ensemble. */
+  const [enEdition, setEnEdition] = useState<string | null>(null)
   const [nom, setNom] = useState('')
   const [categorieId, setCategorieId] = useState('')
   const [montant, setMontant] = useState('')
   const [cible, setCible] = useState('')
+  /** Catégorie et objectif sont repliés à la création : une enveloppe se crée avec un nom
+   *  et une somme, le reste se précise après. Même parti pris que la feuille de saisie. */
+  const [optionsOuvertes, setOptionsOuvertes] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
 
   const charger = useCallback(async () => {
@@ -45,14 +59,23 @@ export function Enveloppes({ categories, rafraichissement }: Props) {
     void charger()
   }, [charger, rafraichissement])
 
+  function abandonner() {
+    setAjout(false)
+    setEnEdition(null)
+    setOptionsOuvertes(false)
+    setNom('')
+    setCategorieId('')
+    setMontant('')
+    setCible('')
+    setErreur(null)
+  }
+
+  /** Lit un montant facultatif : vide vaut « non renseigné », pas zéro. */
+  const lire = (saisie: string): number | null => (saisie.trim() === '' ? null : enCentimes(saisie))
+
   async function creer(evenement: FormEvent) {
     evenement.preventDefault()
     setErreur(null)
-
-    const lire = (saisie: string): number | null => {
-      if (saisie.trim() === '') return null
-      return enCentimes(saisie)
-    }
 
     let allocation: number | null
     let objectif: number | null
@@ -77,11 +100,56 @@ export function Enveloppes({ categories, rafraichissement }: Props) {
           type_allocation_initiale: 'allocation',
         }),
       )
-      setNom('')
-      setCategorieId('')
-      setMontant('')
-      setCible('')
-      setAjout(false)
+      abandonner()
+    } catch (cause) {
+      setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
+    }
+  }
+
+  /**
+   * Ajuste le montant réservé d'une enveloppe vers la valeur SAISIE.
+   *
+   * Le champ demande le montant visé, pas un écart : c'est le chiffre qu'on a sous les
+   * yeux, et exiger de calculer soi-même « je veux 50 € de plus » à partir de « il y en a
+   * 200 » est une soustraction mentale de plus à chaque ajustement. Le même parti pris que
+   * la correction du solde réel, ailleurs dans l'application.
+   *
+   * L'écart devient un mouvement dont le TYPE porte le sens, jamais le signe — un montant
+   * signé rendrait possible une reprise déguisée en allocation négative.
+   */
+  async function ajuster(evenement: FormEvent, enveloppeId: string, actuel: number) {
+    evenement.preventDefault()
+    setErreur(null)
+
+    let vise: number | null
+    try {
+      vise = lire(montant)
+    } catch (cause) {
+      setErreur(cause instanceof SaisieInvalide ? cause.message : 'Montant illisible.')
+      return
+    }
+    if (vise === null) {
+      setErreur('Indiquez le montant à réserver.')
+      return
+    }
+
+    const ecart = vise - actuel
+    // Viser ce qui est déjà réservé n'est pas une erreur : c'est simplement un
+    // renoncement. Écrire un mouvement de zéro salirait le journal sans rien dire.
+    if (ecart === 0) {
+      abandonner()
+      return
+    }
+
+    try {
+      setEtat(
+        await api.mouvementEnveloppe(enveloppeId, {
+          type: ecart > 0 ? 'allocation' : 'reprise',
+          montant_centimes: Math.abs(ecart),
+          libelle: ecart > 0 ? 'Ajustement' : 'Reprise',
+        }),
+      )
+      abandonner()
     } catch (cause) {
       setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
     }
@@ -89,12 +157,93 @@ export function Enveloppes({ categories, rafraichissement }: Props) {
 
   async function supprimer(id: string) {
     await api.supprimerEnveloppe(id)
+    abandonner()
     await charger()
   }
 
   if (etat === null) return null
 
-  const depenses = categories.filter((c) => c.nature === 'depense')
+  const formulaireDeCreation = (
+    <form className={styles.creation} onSubmit={creer} noValidate>
+      <div className={styles.ligneSaisie}>
+        <input
+          className={styles.saisieNom}
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+          maxLength={80}
+          placeholder="Vacances"
+          aria-label="Nom de l’enveloppe"
+          autoFocus
+          required
+        />
+        <input
+          className={styles.saisieMontant}
+          value={montant}
+          onChange={(e) => setMontant(e.target.value)}
+          inputMode="decimal"
+          placeholder="200,00"
+          autoComplete="off"
+          aria-label="À réserver maintenant"
+        />
+        <button type="submit" className={styles.valider} aria-label="Créer l’enveloppe">
+          <Check size={18} strokeWidth={2.4} aria-hidden />
+        </button>
+        <button
+          type="button"
+          className={styles.abandonner}
+          onClick={abandonner}
+          aria-label="Abandonner"
+        >
+          <X size={18} strokeWidth={2} aria-hidden />
+        </button>
+      </div>
+
+      {/* Catégorie et objectif se replient : une enveloppe se crée avec un nom et une
+          somme. Les deux autres champs se remplissent une fois sur trois et allongeaient
+          le formulaire de deux lignes à chaque création. */}
+      <button
+        type="button"
+        className={styles.repli}
+        onClick={() => setOptionsOuvertes((ouvert) => !ouvert)}
+        aria-expanded={optionsOuvertes}
+      >
+        <span>Catégorie et objectif</span>
+        <ChevronDown
+          size={16}
+          strokeWidth={2}
+          aria-hidden
+          className={optionsOuvertes ? styles.chevronOuvert : styles.chevron}
+        />
+      </button>
+
+      {optionsOuvertes && (
+        <div className={styles.options}>
+          <ChoixCategorie
+            categories={categories}
+            nature="depense"
+            valeur={categorieId}
+            surChangement={setCategorieId}
+            surCreation={surReferentielsChanges}
+            libelle="Catégorie de l’enveloppe"
+          />
+          <input
+            className={styles.saisieMontant}
+            value={cible}
+            onChange={(e) => setCible(e.target.value)}
+            inputMode="decimal"
+            placeholder="1 500,00"
+            autoComplete="off"
+            aria-label="Objectif"
+          />
+        </div>
+      )}
+
+      <p className={styles.note}>
+        Réserver ne déplace aucun argent : l’enveloppe nomme une part de ce qui est déjà sur vos
+        livrets.
+      </p>
+    </form>
+  )
 
   return (
     <main className={styles.page}>
@@ -135,7 +284,7 @@ export function Enveloppes({ categories, rafraichissement }: Props) {
         </p>
       )}
 
-      {etat.enveloppes.length === 0 ? (
+      {etat.enveloppes.length === 0 && !ajout ? (
         <div className={styles.vide}>
           <p>
             Aucune enveloppe. En créer une réserve une part de votre épargne pour un usage précis —
@@ -145,16 +294,80 @@ export function Enveloppes({ categories, rafraichissement }: Props) {
       ) : (
         <ul className={styles.liste}>
           {etat.enveloppes.map((enveloppe) => (
-            <li key={enveloppe.id} className={styles.carte}>
-              <div className={styles.enteteCarte}>
-                <span className={styles.nom}>{enveloppe.nom}</span>
-                <Montant
-                  centimes={enveloppe.solde_centimes}
-                  taille="titre"
-                  signeExplicitePositif={false}
-                  neutre={enveloppe.solde_centimes >= 0}
-                />
-              </div>
+            <li key={enveloppe.id} className={styles.enveloppe}>
+              {enEdition === enveloppe.id ? (
+                <form
+                  className={styles.ligneSaisie}
+                  onSubmit={(evenement) =>
+                    void ajuster(evenement, enveloppe.id, enveloppe.solde_centimes)
+                  }
+                  noValidate
+                >
+                  <span className={styles.nom}>{enveloppe.nom}</span>
+                  <input
+                    className={styles.saisieMontant}
+                    value={montant}
+                    onChange={(e) => setMontant(e.target.value)}
+                    inputMode="decimal"
+                    autoFocus
+                    aria-label={`Montant réservé pour ${enveloppe.nom}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') abandonner()
+                    }}
+                  />
+                  <button type="submit" className={styles.valider} aria-label="Enregistrer">
+                    <Check size={18} strokeWidth={2.4} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.retirer}
+                    onClick={() => void supprimer(enveloppe.id)}
+                    aria-label={`Supprimer l’enveloppe ${enveloppe.nom}`}
+                  >
+                    <Trash2 size={16} strokeWidth={2} aria-hidden />
+                  </button>
+                </form>
+              ) : (
+                <div className={styles.resume}>
+                  <span className={styles.nom}>{enveloppe.nom}</span>
+                  <span className={styles.chiffres}>
+                    <Montant
+                      centimes={enveloppe.solde_centimes}
+                      taille="ligne"
+                      neutre={enveloppe.solde_centimes >= 0}
+                      signeExplicitePositif={false}
+                    />
+                    {enveloppe.cible_centimes !== null && (
+                      <>
+                        {' / '}
+                        <Montant
+                          centimes={enveloppe.cible_centimes}
+                          taille="ligne"
+                          neutre
+                          signeExplicitePositif={false}
+                        />
+                      </>
+                    )}
+                  </span>
+                  {/* Un crayon, et non la ligne entière rendue cliquable : elle porte deux
+                      chiffres qu'on vient souvent simplement lire. */}
+                  <button
+                    type="button"
+                    className={styles.crayon}
+                    onClick={() => {
+                      setAjout(false)
+                      setErreur(null)
+                      // Pré-rempli au montant réservé : on vient l'ajuster, pas le
+                      // ressaisir de zéro.
+                      setMontant((enveloppe.solde_centimes / 100).toFixed(2).replace('.', ','))
+                      setEnEdition(enveloppe.id)
+                    }}
+                    aria-label={`Ajuster l’enveloppe ${enveloppe.nom}`}
+                  >
+                    <Pencil size={16} strokeWidth={2} aria-hidden />
+                  </button>
+                </div>
+              )}
 
               <span className={styles.piste}>
                 <span
@@ -165,134 +378,39 @@ export function Enveloppes({ categories, rafraichissement }: Props) {
                 />
               </span>
 
-              <span className={styles.details}>
-                {enveloppe.categorie_nom ?? 'Sans catégorie'}
-                {enveloppe.cible_centimes !== null && (
-                  <>
-                    {' · objectif '}
-                    <Montant
-                      centimes={enveloppe.cible_centimes}
-                      taille="ligne"
-                      neutre
-                      signeExplicitePositif={false}
-                    />
-                    {enveloppe.place_centimes !== null && enveloppe.place_centimes > 0 && (
-                      <>
-                        {', manque '}
-                        <Montant
-                          centimes={enveloppe.place_centimes}
-                          taille="ligne"
-                          neutre
-                          signeExplicitePositif={false}
-                        />
-                      </>
-                    )}
-                  </>
-                )}
-              </span>
-
-              {/* L'état ne tient jamais à la seule couleur de la barre. */}
-              {enveloppe.solde_centimes < 0 && (
+              {/* L'état ne tient jamais à la seule couleur de la barre, et n'occupe une
+                  ligne que lorsqu'il a quelque chose à dire. */}
+              {enveloppe.solde_centimes < 0 ? (
                 <span className={styles.marque}>Dépensé plus que réservé</span>
-              )}
-
-              <button
-                type="button"
-                className={styles.retirer}
-                onClick={() => void supprimer(enveloppe.id)}
-                aria-label={`Supprimer l’enveloppe ${enveloppe.nom}`}
-              >
-                <Trash2 size={16} strokeWidth={2} aria-hidden />
-                Supprimer
-              </button>
+              ) : enveloppe.place_centimes !== null && enveloppe.place_centimes > 0 ? (
+                <span className={styles.details}>
+                  manque{' '}
+                  <Montant
+                    centimes={enveloppe.place_centimes}
+                    taille="ligne"
+                    neutre
+                    signeExplicitePositif={false}
+                  />
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>
       )}
 
       {ajout ? (
-        <form className={styles.formulaire} onSubmit={creer} noValidate>
-          <label className={styles.etiquette} htmlFor="enveloppe-nom">
-            Nom
-          </label>
-          <input
-            id="enveloppe-nom"
-            className={styles.saisie}
-            value={nom}
-            onChange={(e) => setNom(e.target.value)}
-            maxLength={80}
-            placeholder="Vacances"
-            required
-          />
-
-          <label className={styles.etiquette} htmlFor="enveloppe-categorie">
-            Catégorie
-          </label>
-          <select
-            id="enveloppe-categorie"
-            className={styles.saisie}
-            value={categorieId}
-            onChange={(e) => setCategorieId(e.target.value)}
-          >
-            <option value="">Sans catégorie</option>
-            {depenses.map((categorie) => (
-              <option key={categorie.id} value={categorie.id}>
-                {categorie.nom}
-              </option>
-            ))}
-          </select>
-
-          <label className={styles.etiquette} htmlFor="enveloppe-montant">
-            À réserver maintenant
-          </label>
-          <input
-            id="enveloppe-montant"
-            className={styles.saisie}
-            value={montant}
-            onChange={(e) => setMontant(e.target.value)}
-            inputMode="decimal"
-            placeholder="200,00"
-            autoComplete="off"
-          />
-
-          <label className={styles.etiquette} htmlFor="enveloppe-cible">
-            Objectif (facultatif)
-          </label>
-          <input
-            id="enveloppe-cible"
-            className={styles.saisie}
-            value={cible}
-            onChange={(e) => setCible(e.target.value)}
-            inputMode="decimal"
-            placeholder="1 500,00"
-            autoComplete="off"
-          />
-
-          <p className={styles.note}>
-            Réserver ne déplace aucun argent : l’enveloppe nomme une part de ce qui est déjà sur vos
-            livrets.
-          </p>
-
-          {erreur !== null && (
-            <p className={styles.erreur} role="alert">
-              {erreur}
-            </p>
-          )}
-
-          <div className={styles.actions}>
-            <button type="button" className={styles.secondaire} onClick={() => setAjout(false)}>
-              Annuler
-            </button>
-            <button type="submit" className={styles.principal}>
-              Créer l’enveloppe
-            </button>
-          </div>
-        </form>
+        formulaireDeCreation
       ) : (
-        <button type="button" className={styles.secondaire} onClick={() => setAjout(true)}>
-          <Plus size={16} strokeWidth={2} aria-hidden />
+        <button type="button" className={styles.ajouter} onClick={() => setAjout(true)}>
+          <Plus size={18} strokeWidth={2.4} aria-hidden />
           Nouvelle enveloppe
         </button>
+      )}
+
+      {erreur !== null && (
+        <p className={styles.erreur} role="alert">
+          {erreur}
+        </p>
       )}
     </main>
   )

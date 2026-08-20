@@ -58,7 +58,15 @@ export function FeuilleSaisie({
   const [destinationId, setDestinationId] = useState(comptes[1]?.id ?? '')
   const [categorieId, setCategorieId] = useState('')
 
-  /* Une catégorie nommée « Salaire » vaut « c'est ma paie », côté ÉCRAN seulement.
+  /* Une catégorie nommée « Salaire » vaut « c'est ma paie » — et c'est le SEUL chemin.
+   *
+   * La case à cocher a été retirée, sur demande d'Olivier : elle demandait de confirmer ce
+   * que la catégorie venait d'énoncer, et surtout elle s'affichait en mode Virement, où
+   * elle n'a aucun sens. La condition qui la gardait était `!sortie`, vraie pour le revenu
+   * ET pour le virement — une négation qui décrivait deux cas là où elle en visait un.
+   *
+   * Une paie est un revenu de catégorie Salaire, rien d'autre.
+   *
    *
    * `est_paie` reste une colonne explicite en base, et `models/budget.py` dit pourquoi :
    * déduire la règle d'un nom de catégorie la rendrait invisible et cassable par un simple
@@ -69,12 +77,10 @@ export function FeuilleSaisie({
    * La comparaison est faite sur le nom mis en minuscules et débarrassé de ses espaces :
    * c'est le nom que porte la catégorie initiale du domaine. */
   const laCategorieDitLaPaie =
-    !sortie &&
     categories
       .find((categorie) => categorie.id === categorieId)
       ?.nom.trim()
       .toLowerCase() === 'salaire'
-  const [estPaie, setEstPaie] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
   /* Date et compte sont repliés par DÉFAUT, et leurs valeurs restent lisibles sur le
@@ -150,7 +156,7 @@ export function FeuilleSaisie({
           montant_centimes: signe,
           date_operation: date,
           categorie_id: categorieId || null,
-          est_paie: !sortie && (laCategorieDitLaPaie || estPaie),
+          est_paie: laCategorieDitLaPaie,
         })
       }
       surEnregistrement()
@@ -183,7 +189,6 @@ export function FeuilleSaisie({
               onClick={() => {
                 setSens('depense')
                 setCategorieId('')
-                setEstPaie(false)
               }}
             >
               Dépense
@@ -208,7 +213,6 @@ export function FeuilleSaisie({
               onClick={() => {
                 setSens('virement')
                 setCategorieId('')
-                setEstPaie(false)
               }}
             >
               Virement
@@ -373,29 +377,7 @@ export function FeuilleSaisie({
           </div>
         )}
 
-        {/* La case ne s'affiche PLUS quand la catégorie dit déjà que c'est un salaire :
-            cocher « c'est ma paie » sous une catégorie « Salaire » demande de confirmer ce
-            qu'on vient d'énoncer. Elle réapparaît intacte pour toute autre catégorie de
-            revenu — une prime, un remboursement — où la question se pose vraiment. */}
-        {!sortie && !laCategorieDitLaPaie && (
-          <div className={styles.champ}>
-            <label className={styles.etiquette} htmlFor="est-paie">
-              <input
-                id="est-paie"
-                type="checkbox"
-                checked={estPaie}
-                onChange={(e) => setEstPaie(e.target.checked)}
-              />{' '}
-              C’est ma paie
-            </label>
-            <p className={styles.note}>
-              Une paie ouvre une nouvelle période budgétaire à sa date. Ne cochez pas pour une prime
-              si vous ne voulez pas que le mois reparte à zéro.
-            </p>
-          </div>
-        )}
-
-        {!sortie && laCategorieDitLaPaie && (
+        {laCategorieDitLaPaie && (
           <p className={styles.note}>
             Cette opération ouvrira une nouvelle période budgétaire à sa date, comme toute paie.
           </p>

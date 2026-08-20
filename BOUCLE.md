@@ -357,8 +357,11 @@ s'ouvre.
 - ~~**Lot A — la saisie.**~~ **Fait le 2026-08-20** — `docs/changelog.d/0047-saisie-simplifiee.md`.
   Date et compte repliés derrière un résumé qui affiche leurs valeurs, montant en grand,
   et « Virer de l'argent » qui ouvre la feuille verrouillée sur Virement.
-- **Lot B — l'écran des enveloppes.** Même traitement que Budget : lecture d'un coup d'œil,
-  saisie dépliée à la demande et à la place du bouton, édition par un crayon.
+- ~~**Lot B — l'écran des enveloppes.**~~ **Fait le 2026-08-20** —
+  `docs/changelog.d/0048-enveloppes-ecran.md`. Lignes plutôt que cartes, ajustement par un
+  crayon vers le montant visé, création à deux champs. Six tests de bout en bout, l'écran
+  n'en avait aucun. La coche « c'est ma paie » a disparu au passage : elle subsistait en
+  Virement, sa condition `!sortie` visant un cas et en décrivant deux.
 - **Lot C — le modèle des enveloppes.** `rollover_mode` d'abord : c'est la seule question
   du document du collègue restée sans réponse, et elle BLOQUE E3 — `place = max(0, cible −
   actuel)` suppose déjà de savoir ce que devient une enveloppe au changement de période.
