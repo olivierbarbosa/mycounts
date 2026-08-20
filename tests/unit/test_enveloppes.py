@@ -12,12 +12,17 @@ from __future__ import annotations
 
 import itertools
 
+import pytest
 from mycounts.domain.enveloppes import (
     CREDITE,
     Enveloppe,
     Mouvement,
     Repartition,
+    Rollover,
     TypeMouvement,
+    UsageEnveloppe,
+    ordre_de_service,
+    reliquat_au_changement_de_periode,
     repartir,
     solde_de,
 )
@@ -162,3 +167,102 @@ def test_une_repartition_sans_enveloppe_laisse_tout_disponible() -> None:
     vide = Repartition(epargne_totale=Cents(50_000), enveloppes=())
     assert vide.reserve == 0
     assert vide.non_affecte == 50_000
+
+
+class TestReliquatAuChangementDePeriode:
+    """Ce que le passage de période fait au solde, avant qu'aucune écriture n'ait lieu."""
+
+    @staticmethod
+    def _avec(solde: int, rollover: Rollover) -> Enveloppe:
+        """Une enveloppe dont le solde vaut exactement `solde`, quel qu'en soit le signe."""
+        type_ = TypeMouvement.ALLOCATION if solde >= 0 else TypeMouvement.REPRISE
+        return Enveloppe(
+            nom="Courses",
+            mouvements=(Mouvement(type=type_, montant=Cents(abs(solde))),),
+            rollover=rollover,
+        )
+
+    def test_le_report_ne_libere_rien(self) -> None:
+        reliquat = reliquat_au_changement_de_periode(self._avec(12_000, Rollover.REPORT))
+        assert reliquat.a_liberer == Cents(0)
+        assert reliquat.demande_un_choix is False
+
+    def test_la_liberation_rend_tout_le_solde(self) -> None:
+        reliquat = reliquat_au_changement_de_periode(self._avec(12_000, Rollover.LIBERATION))
+        assert reliquat.a_liberer == Cents(12_000)
+        assert reliquat.demande_un_choix is False
+
+    def test_demander_propose_le_solde_mais_attend_un_choix(self) -> None:
+        """La différence avec la libération n'est PAS le montant, c'est le drapeau.
+
+        Une implémentation qui traiterait « demander » comme « libérer » proposerait le bon
+        chiffre et l'écrirait sans rien demander : le test doit donc porter sur les deux.
+        """
+        reliquat = reliquat_au_changement_de_periode(self._avec(12_000, Rollover.DEMANDER))
+        assert reliquat.a_liberer == Cents(12_000)
+        assert reliquat.demande_un_choix is True
+
+    @pytest.mark.parametrize("rollover", list(Rollover))
+    def test_un_solde_negatif_ne_libere_jamais_rien(self, rollover: Rollover) -> None:
+        """Quel que soit le mode. Libérer un découvert ferait apparaître de l'argent.
+
+        Paramétré sur TOUS les modes : un mode ajouté plus tard sans traiter ce cas fera
+        échouer ce test au lieu de laisser passer un découvert converti en disponible.
+        """
+        reliquat = reliquat_au_changement_de_periode(self._avec(-5_000, rollover))
+        assert reliquat.a_liberer == Cents(0)
+        assert reliquat.demande_un_choix is False
+
+    @pytest.mark.parametrize("rollover", list(Rollover))
+    def test_un_solde_nul_ne_libere_jamais_rien(self, rollover: Rollover) -> None:
+        reliquat = reliquat_au_changement_de_periode(
+            Enveloppe(nom="Vide", rollover=rollover)
+        )
+        assert reliquat.a_liberer == Cents(0)
+        assert reliquat.demande_un_choix is False
+
+    def test_chaque_mode_est_traite(self) -> None:
+        """Un mode ajouté à l'énumération sans être traité fait échouer ce test.
+
+        `match` sans branche par défaut lèverait déjà, mais seulement si quelqu'un exécute
+        ce chemin. Ici la boucle le garantit.
+        """
+        for rollover in Rollover:
+            reliquat = reliquat_au_changement_de_periode(self._avec(1_000, rollover))
+            assert isinstance(reliquat.a_liberer, int)
+
+
+class TestOrdreDeService:
+    """Qui est servi en premier quand le disponible ne suffit pas."""
+
+    def test_la_plus_petite_priorite_passe_devant(self) -> None:
+        tard = Enveloppe(nom="Vacances", priorite=5)
+        tot = Enveloppe(nom="Impots", priorite=1)
+        assert ordre_de_service([tard, tot]) == (tot, tard)
+
+    def test_a_egalite_le_nom_tranche(self) -> None:
+        """Et non l'ordre d'insertion en base, qu'aucun utilisateur ne peut prévoir.
+
+        Le test présente les deux enveloppes dans l'ordre INVERSE de celui attendu : une
+        implémentation qui se contenterait de préserver l'ordre reçu échouerait ici.
+        """
+        zorro = Enveloppe(nom="Zorro", priorite=0)
+        alpha = Enveloppe(nom="Alpha", priorite=0)
+        assert ordre_de_service([zorro, alpha]) == (alpha, zorro)
+
+    def test_la_priorite_prime_sur_le_nom(self) -> None:
+        alpha = Enveloppe(nom="Alpha", priorite=9)
+        zorro = Enveloppe(nom="Zorro", priorite=1)
+        assert ordre_de_service([alpha, zorro]) == (zorro, alpha)
+
+
+class TestValeursParDefaut:
+    """Ce qu'une enveloppe vaut quand on ne règle rien."""
+
+    def test_le_defaut_est_le_report_et_le_fonctionnement(self) -> None:
+        """Le report parce qu'il est NON DESTRUCTIF : rien ne disparaît sans geste."""
+        enveloppe = Enveloppe(nom="Neuve")
+        assert enveloppe.rollover is Rollover.REPORT
+        assert enveloppe.usage is UsageEnveloppe.FONCTIONNEMENT
+        assert enveloppe.priorite == 0
+        assert enveloppe.contribution_mensuelle is None

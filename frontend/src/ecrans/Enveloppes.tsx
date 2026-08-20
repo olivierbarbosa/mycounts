@@ -1,9 +1,10 @@
-import { Check, ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, Pencil, Plus, Settings2, Trash2, X } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 
-import type { CategoriePublique, RepartitionEnveloppes } from '../api/client'
+import type { CategoriePublique, EnveloppePublique, RepartitionEnveloppes } from '../api/client'
 import { ErreurApi, api } from '../api/client'
 import { ChoixCategorie } from '../composants/ChoixCategorie'
+import { FeuilleReglagesEnveloppe } from '../composants/FeuilleReglagesEnveloppe'
 import { Montant } from '../composants/Montant'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import styles from './Enveloppes.module.css'
@@ -42,6 +43,10 @@ export function Enveloppes({ categories, rafraichissement, surReferentielsChange
   /** Enveloppe dont le montant réservé est en cours d'ajustement. Une seule à la fois :
    *  deux champs ouverts côte à côte laisseraient croire qu'ils se valident ensemble. */
   const [enEdition, setEnEdition] = useState<string | null>(null)
+  /** Enveloppe dont on règle le comportement. Séparé de `enEdition` : ajuster un montant
+   *  est fréquent, régler la fin de mois est rare — les deux ne s'ouvrent pas au même
+   *  endroit ni pour les mêmes raisons. */
+  const [enReglage, setEnReglage] = useState<EnveloppePublique | null>(null)
   const [nom, setNom] = useState('')
   const [categorieId, setCategorieId] = useState('')
   const [montant, setMontant] = useState('')
@@ -98,6 +103,12 @@ export function Enveloppes({ categories, rafraichissement, surReferentielsChange
           // EST une allocation, et le laisser deviner ferait de ce champ une règle métier
           // écrite nulle part côté appelant.
           type_allocation_initiale: 'allocation',
+          // Explicites parce que le schéma généré les exige, et à leurs valeurs les moins
+          // destructrices : une enveloppe naît en fonctionnement, reporte son solde, et
+          // n'a pas de rang particulier. Tout cela se règle ensuite dans sa feuille.
+          usage: 'fonctionnement',
+          rollover: 'report',
+          priorite: 0,
         }),
       )
       abandonner()
@@ -320,6 +331,14 @@ export function Enveloppes({ categories, rafraichissement, surReferentielsChange
                   </button>
                   <button
                     type="button"
+                    className={styles.crayon}
+                    onClick={() => setEnReglage(enveloppe)}
+                    aria-label={`Réglages de ${enveloppe.nom}`}
+                  >
+                    <Settings2 size={16} strokeWidth={2} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
                     className={styles.retirer}
                     onClick={() => void supprimer(enveloppe.id)}
                     aria-label={`Supprimer l’enveloppe ${enveloppe.nom}`}
@@ -411,6 +430,21 @@ export function Enveloppes({ categories, rafraichissement, surReferentielsChange
         <p className={styles.erreur} role="alert">
           {erreur}
         </p>
+      )}
+
+      {enReglage !== null && (
+        <FeuilleReglagesEnveloppe
+          key={enReglage.id}
+          enveloppe={enReglage}
+          categories={categories}
+          surReferentielsChanges={surReferentielsChanges}
+          surFermeture={() => setEnReglage(null)}
+          surEnregistrement={() => {
+            setEnReglage(null)
+            abandonner()
+            void charger()
+          }}
+        />
       )}
     </main>
   )

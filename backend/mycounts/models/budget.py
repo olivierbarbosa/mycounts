@@ -36,6 +36,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from mycounts.domain.agregats import EtatOperation
 from mycounts.domain.comptes import TypeCompte
+from mycounts.domain.enveloppes import Rollover, UsageEnveloppe
 from mycounts.domain.enveloppes import TypeMouvement as TypeMouvementEnveloppe
 from mycounts.domain.recurrence import UniteRecurrence
 from mycounts.models.auth import Foyer, Utilisateur
@@ -327,6 +328,10 @@ class Enveloppe(Base):
             "cible_centimes is null or cible_centimes > 0",
             name="ck_enveloppe_cible_positive",
         ),
+        CheckConstraint(
+            "contribution_mensuelle_centimes is null or contribution_mensuelle_centimes > 0",
+            name="ck_enveloppe_contribution_positive",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
@@ -352,6 +357,30 @@ class Enveloppe(Base):
     # préparation mensuelle ne doit rien lui recommander plutôt que de recommander zéro.
     cible_centimes: Mapped[int | None] = mapped_column(BigInteger, default=None)
     date_cible: Mapped[dt.date | None] = mapped_column(Date, default=None)
+
+    # À quoi sert l'enveloppe. Une enveloppe de fonctionnement se vide chaque période par
+    # construction, une réserve s'accumule : la préparation mensuelle ne leur recommande
+    # pas la même chose.
+    usage: Mapped[UsageEnveloppe] = mapped_column(
+        String(16), default=UsageEnveloppe.FONCTIONNEMENT, server_default="fonctionnement"
+    )
+
+    # Ce que devient le solde au passage à la période suivante. Le REPORT par défaut parce
+    # qu'il est le seul mode non destructif : une valeur par défaut ne doit jamais faire
+    # disparaître de l'argent réservé chez ceux qui n'ont rien réglé.
+    rollover: Mapped[Rollover] = mapped_column(
+        String(16), default=Rollover.REPORT, server_default="report"
+    )
+
+    # Ordre de service quand le disponible ne suffit pas : le plus petit passe en premier.
+    priorite: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+    # Ce qu'on prévoit d'y mettre à chaque période, quand aucun plafond ne le dit déjà.
+    # `NULL` et non zéro : sans contribution ni cible, la préparation ne recommande RIEN
+    # plutôt que zéro.
+    contribution_mensuelle_centimes: Mapped[int | None] = mapped_column(
+        BigInteger, default=None
+    )
 
     archive: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     cree_le: Mapped[dt.datetime] = mapped_column(

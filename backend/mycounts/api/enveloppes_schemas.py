@@ -11,7 +11,7 @@ import uuid
 
 from pydantic import BaseModel, Field
 
-from mycounts.domain.enveloppes import TypeMouvement
+from mycounts.domain.enveloppes import Rollover, TypeMouvement, UsageEnveloppe
 
 
 class DemandeEnveloppe(BaseModel):
@@ -30,6 +30,10 @@ class DemandeEnveloppe(BaseModel):
         ),
     )
     type_allocation_initiale: TypeMouvement = TypeMouvement.ALLOCATION
+    usage: UsageEnveloppe = UsageEnveloppe.FONCTIONNEMENT
+    rollover: Rollover = Rollover.REPORT
+    priorite: int = Field(default=0, ge=0)
+    contribution_mensuelle_centimes: int | None = Field(default=None, gt=0)
 
 
 class ModificationEnveloppe(BaseModel):
@@ -46,6 +50,10 @@ class ModificationEnveloppe(BaseModel):
     cible_centimes: int | None = Field(default=None, gt=0)
     date_cible: dt.date | None = None
     archive: bool | None = None
+    usage: UsageEnveloppe | None = None
+    rollover: Rollover | None = None
+    priorite: int | None = Field(default=None, ge=0)
+    contribution_mensuelle_centimes: int | None = Field(default=None, gt=0)
 
 
 class DemandeMouvement(BaseModel):
@@ -87,6 +95,10 @@ class EnveloppePublique(BaseModel):
 
     part: int
     archive: bool
+    usage: UsageEnveloppe
+    rollover: Rollover
+    priorite: int
+    contribution_mensuelle_centimes: int | None
 
 
 class RepartitionPublique(BaseModel):

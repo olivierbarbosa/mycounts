@@ -25,6 +25,9 @@ export type MoisDEpargne = components['schemas']['MoisDEpargnePublic']
 export type RepartitionEnveloppes = components['schemas']['RepartitionPublique']
 export type EnveloppePublique = components['schemas']['EnveloppePublique']
 export type DemandeEnveloppe = components['schemas']['DemandeEnveloppe']
+export type ModificationEnveloppe = components['schemas']['ModificationEnveloppe']
+export type Rollover = components['schemas']['Rollover']
+export type UsageEnveloppe = components['schemas']['UsageEnveloppe']
 export type DemandeMouvementEnveloppe = components['schemas']['DemandeMouvement']
 export type MouvementEnveloppe = components['schemas']['MouvementPublic']
 export type DemandeCompte = components['schemas']['DemandeCompte']
@@ -202,6 +205,14 @@ export const api = {
   creerEnveloppe: (demande: DemandeEnveloppe) =>
     appeler<RepartitionEnveloppes>('/enveloppes', {
       method: 'POST',
+      body: JSON.stringify(demande),
+    }),
+
+  /** Réglages d'une enveloppe. Les champs absents restent inchangés — conséquence
+   *  assumée côté serveur : on ne peut pas RETIRER une cible ici, seulement la changer. */
+  modifierEnveloppe: (id: string, demande: ModificationEnveloppe) =>
+    appeler<RepartitionEnveloppes>(`/enveloppes/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(demande),
     }),
 

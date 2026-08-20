@@ -184,3 +184,64 @@ test('le retrait n’est proposé que dans l’édition', async ({ page }) => {
   await supprimer.click()
   await expect(page.locator('li', { hasText: nom })).toHaveCount(0)
 })
+
+test('les réglages d’une enveloppe se posent et se relisent', async ({ page }) => {
+  /* Ce test existe pour une raison précise : le lot C ajoute quatre colonnes au modèle, et
+   * une colonne qu'aucun écran ne peut remplir ment sur ce que le modèle sait. Il vérifie
+   * donc le CHEMIN COMPLET — l'écran écrit, le serveur garde, l'écran relit. */
+  const nom = `Reglages ${Date.now()}`
+  await ouvrirEnveloppes(page)
+  await creerEnveloppe(page, nom, '100,00')
+
+  const ligne = page.locator('li', { hasText: nom }).first()
+  await ligne.getByRole('button', { name: `Ajuster l’enveloppe ${nom}` }).click()
+  await ligne.getByRole('button', { name: `Réglages de ${nom}` }).click()
+
+  const feuille = page.getByRole('dialog', { name: `Réglages de ${nom}` })
+  await feuille.getByRole('button', { name: 'Réserve', exact: true }).click()
+  await feuille.getByRole('button', { name: 'Libérer', exact: true }).click()
+  await feuille.getByLabel('Objectif').fill('1500,00')
+  await feuille.getByLabel('Chaque mois').fill('100,00')
+  await feuille.getByLabel('Priorité').fill('2')
+  await feuille.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+  await expect(feuille).toHaveCount(0)
+
+  const repartition = (await (await page.request.get('/api/enveloppes')).json()) as {
+    enveloppes: {
+      nom: string
+      usage: string
+      rollover: string
+      priorite: number
+      cible_centimes: number | null
+      contribution_mensuelle_centimes: number | null
+    }[]
+  }
+  const relue = repartition.enveloppes.find((e) => e.nom === nom)!
+  expect(relue.usage).toBe('reserve')
+  expect(relue.rollover).toBe('liberation')
+  expect(relue.priorite).toBe(2)
+  expect(relue.cible_centimes).toBe(150_000)
+  expect(relue.contribution_mensuelle_centimes).toBe(10_000)
+})
+
+test('chaque mode de fin de mois s’explique en une phrase', async ({ page }) => {
+  // « Libération » ne veut rien dire pour qui n'a pas lu le modèle de données, et un
+  // réglage qu'on ne comprend pas est un réglage qu'on laisse à sa valeur par défaut.
+  const nom = `Phrases ${Date.now()}`
+  await ouvrirEnveloppes(page)
+  await creerEnveloppe(page, nom, '50,00')
+
+  const ligne = page.locator('li', { hasText: nom }).first()
+  await ligne.getByRole('button', { name: `Ajuster l’enveloppe ${nom}` }).click()
+  await ligne.getByRole('button', { name: `Réglages de ${nom}` }).click()
+  const feuille = page.getByRole('dialog', { name: `Réglages de ${nom}` })
+
+  // Le défaut, et sa phrase.
+  await expect(feuille.getByText(/est conservé dans l’enveloppe/)).toBeVisible()
+
+  await feuille.getByRole('button', { name: 'Libérer', exact: true }).click()
+  await expect(feuille.getByText(/retourne au non-affecté/)).toBeVisible()
+
+  await feuille.getByRole('button', { name: 'Demander', exact: true }).click()
+  await expect(feuille.getByText(/posera la question/)).toBeVisible()
+})

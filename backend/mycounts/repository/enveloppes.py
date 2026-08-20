@@ -11,7 +11,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from mycounts.domain.enveloppes import TypeMouvement
+from mycounts.domain.enveloppes import Rollover, TypeMouvement, UsageEnveloppe
 from mycounts.domain.montants import Cents
 from mycounts.models.budget import Enveloppe, MouvementEnveloppe
 from mycounts.repository.base import Principal
@@ -58,6 +58,10 @@ def creer_enveloppe(
     compte_prefere_id: uuid.UUID | None = None,
     cible_centimes: int | None = None,
     date_cible: dt.date | None = None,
+    usage: UsageEnveloppe = UsageEnveloppe.FONCTIONNEMENT,
+    rollover: Rollover = Rollover.REPORT,
+    priorite: int = 0,
+    contribution_mensuelle_centimes: int | None = None,
 ) -> Enveloppe:
     enveloppe = Enveloppe(
         foyer_id=principal.foyer_id,
@@ -67,6 +71,10 @@ def creer_enveloppe(
         compte_prefere_id=compte_prefere_id,
         cible_centimes=cible_centimes,
         date_cible=date_cible,
+        usage=usage,
+        rollover=rollover,
+        priorite=priorite,
+        contribution_mensuelle_centimes=contribution_mensuelle_centimes,
     )
     session.add(enveloppe)
     session.flush()
@@ -83,6 +91,10 @@ def modifier_enveloppe(
     cible_centimes: int | None = None,
     date_cible: dt.date | None = None,
     archive: bool | None = None,
+    usage: UsageEnveloppe | None = None,
+    rollover: Rollover | None = None,
+    priorite: int | None = None,
+    contribution_mensuelle_centimes: int | None = None,
 ) -> Enveloppe:
     """Les champs laissés à `None` ne sont pas touchés.
 
@@ -102,6 +114,14 @@ def modifier_enveloppe(
         enveloppe.date_cible = date_cible
     if archive is not None:
         enveloppe.archive = archive
+    if usage is not None:
+        enveloppe.usage = usage
+    if rollover is not None:
+        enveloppe.rollover = rollover
+    if priorite is not None:
+        enveloppe.priorite = priorite
+    if contribution_mensuelle_centimes is not None:
+        enveloppe.contribution_mensuelle_centimes = contribution_mensuelle_centimes
     session.flush()
     return enveloppe
 

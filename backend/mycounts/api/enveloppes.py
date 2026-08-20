@@ -89,6 +89,10 @@ def _repartition(session: SessionBase, principal: PrincipalCourant) -> Repartiti
                 place_centimes=None if calcul.place is None else int(calcul.place),
                 part=etat.part(calcul),
                 archive=modele.archive,
+                usage=modele.usage,
+                rollover=modele.rollover,
+                priorite=modele.priorite,
+                contribution_mensuelle_centimes=modele.contribution_mensuelle_centimes,
             )
             for modele, calcul in zip(enveloppes, calculs, strict=True)
         ],
@@ -129,6 +133,10 @@ def creer(
         compte_prefere_id=demande.compte_prefere_id,
         cible_centimes=demande.cible_centimes,
         date_cible=demande.date_cible,
+        usage=demande.usage,
+        rollover=demande.rollover,
+        priorite=demande.priorite,
+        contribution_mensuelle_centimes=demande.contribution_mensuelle_centimes,
     )
     # Une allocation initiale reste un MOUVEMENT : elle entre dans le journal comme les
     # autres, sinon le solde de départ serait la seule valeur que l'historique ignore.
@@ -167,6 +175,10 @@ def modifier(
         cible_centimes=demande.cible_centimes,
         date_cible=demande.date_cible,
         archive=demande.archive,
+        usage=demande.usage,
+        rollover=demande.rollover,
+        priorite=demande.priorite,
+        contribution_mensuelle_centimes=demande.contribution_mensuelle_centimes,
     )
     session.commit()
     return _repartition(session, principal)

@@ -362,11 +362,11 @@ s'ouvre.
   crayon vers le montant visé, création à deux champs. Six tests de bout en bout, l'écran
   n'en avait aucun. La coche « c'est ma paie » a disparu au passage : elle subsistait en
   Virement, sa condition `!sortie` visant un cas et en décrivant deux.
-- **Lot C — le modèle des enveloppes.** `rollover_mode` d'abord : c'est la seule question
-  du document du collègue restée sans réponse, et elle BLOQUE E3 — `place = max(0, cible −
-  actuel)` suppose déjà de savoir ce que devient une enveloppe au changement de période.
-  Puis `purpose`, `priorite`, `statut`, contribution mensuelle. Voir
-  `docs/analyse-reference-collegue.md`, qui dit aussi ce qu'on n'en prend PAS.
+- ~~**Lot C — le modèle des enveloppes.**~~ **Fait le 2026-08-20** —
+  `docs/changelog.d/0049-reglages-des-enveloppes.md`. Trois modes de rollover, écrits
+  seulement par la préparation mensuelle validée ; usage, priorité, contribution ; une
+  feuille de réglages qui permet enfin de renommer une enveloppe. `statut` est laissé à E3,
+  qui sera le premier à le consommer — une colonne morte ment sur ce que le modèle sait.
 - **Lot D — Statistiques et coaching.** Consommation de toutes les catégories, KPI et
   graphiques, et repérage des dépenses évitables (abonnements dormants, livraisons
   répétées).

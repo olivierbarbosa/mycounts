@@ -201,3 +201,95 @@ def test_une_categorie_dun_autre_foyer_est_refusee(
         "/api/enveloppes", json={"nom": "Bizarre", "categorie_id": str(uuid.uuid4())}
     )
     assert reponse.status_code == 404, reponse.text
+
+
+def test_les_reglages_par_defaut_sont_les_moins_destructeurs(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Une enveloppe créée sans rien régler reporte son solde.
+
+    Le report est le seul mode qui ne fasse disparaître aucun argent réservé chez quelqu'un
+    qui n'a rien demandé. Un défaut à `liberation` viderait les enveloppes de tout le monde
+    à la première préparation, et personne n'aurait rien signé pour ça.
+    """
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creer_enveloppe(client, "Neuve")
+
+    enveloppe = enveloppe_nommee(client.get("/api/enveloppes").json(), "Neuve")
+    assert enveloppe["rollover"] == "report"
+    assert enveloppe["usage"] == "fonctionnement"
+    assert enveloppe["priorite"] == 0
+    assert enveloppe["contribution_mensuelle_centimes"] is None
+
+
+def test_les_reglages_survivent_a_un_aller_retour(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Écrits, relus, et RELUS AILLEURS : la modification renvoie la répartition entière,
+    donc une valeur pourrait n'être juste que dans sa réponse immédiate."""
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(client, "Vacances", cible_centimes=150_000)
+    identifiant = enveloppe_nommee(creee, "Vacances")["id"]
+
+    reponse = client.patch(
+        f"/api/enveloppes/{identifiant}",
+        json={
+            "usage": "reserve",
+            "rollover": "liberation",
+            "priorite": 3,
+            "contribution_mensuelle_centimes": 10_000,
+        },
+    )
+    assert reponse.status_code == 200, reponse.text
+
+    relue = enveloppe_nommee(client.get("/api/enveloppes").json(), "Vacances")
+    assert relue["usage"] == "reserve"
+    assert relue["rollover"] == "liberation"
+    assert relue["priorite"] == 3
+    assert relue["contribution_mensuelle_centimes"] == 10_000
+
+
+def test_un_rollover_inconnu_est_refuse(client: TestClient, session_bd: Session) -> None:
+    """La colonne est du texte en base : sans validation, n'importe quelle chaîne y
+    entrerait et ne se révélerait qu'au moment de préparer le mois."""
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(client, "Essence")
+    identifiant = enveloppe_nommee(creee, "Essence")["id"]
+
+    reponse = client.patch(f"/api/enveloppes/{identifiant}", json={"rollover": "peut_etre"})
+    assert reponse.status_code == 422, reponse.text
+
+
+def test_une_contribution_negative_est_refusee(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Une contribution est une somme qu'on PRÉVOIT de mettre. Négative, elle
+    recommanderait de retirer de l'argent à chaque période sans que rien ne le dise."""
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(client, "Impots")
+    identifiant = enveloppe_nommee(creee, "Impots")["id"]
+
+    reponse = client.patch(
+        f"/api/enveloppes/{identifiant}", json={"contribution_mensuelle_centimes": -5_000}
+    )
+    assert reponse.status_code == 422, reponse.text
+
+
+def test_les_reglages_se_posent_des_la_creation(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Sans quoi il faudrait créer puis modifier : deux requêtes pour un seul geste."""
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(
+        client, "Ski", usage="reserve", rollover="demander", priorite=2
+    )
+
+    enveloppe = enveloppe_nommee(creee, "Ski")
+    assert enveloppe["usage"] == "reserve"
+    assert enveloppe["rollover"] == "demander"
+    assert enveloppe["priorite"] == 2
