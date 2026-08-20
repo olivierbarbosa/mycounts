@@ -151,6 +151,17 @@ body::before {
    Mesuré : `clip-path` n'est pas composité, il force une repeinte plein écran à chaque
    image — 33,3 ms par image, soit 30 par seconde, sous un verre qui refait son flou.
    `scale` est joué par le compositeur. */
+@keyframes entree-par-la-gauche {
+  from {
+    transform: translateX(-100%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 @keyframes eclosion-depuis-un-point {
   from {
     scale: 0.55;
@@ -177,6 +188,10 @@ body::before {
   animation: entree-par-la-droite 260ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
+.mouvement-entree-gauche {
+  animation: entree-par-la-gauche 260ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
 .mouvement-sortie-droite {
   animation: sortie-vers-la-droite 260ms cubic-bezier(0.4, 0, 1, 1) both;
 }
@@ -193,6 +208,7 @@ body::before {
 
 @media (prefers-reduced-motion: reduce) {
   .mouvement-entree-droite,
+  .mouvement-entree-gauche,
   .mouvement-sortie-droite,
   .mouvement-eclosion,
   .mouvement-repli {

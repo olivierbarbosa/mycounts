@@ -40,8 +40,31 @@
   z-index: 10;
 }
 
+/* Pastille glissante. Les onglets sont à largeur égale (`flex: 1`), donc sa position se
+   calcule sans mesurer quoi que ce soit : un index et un nombre d'onglets suffisent.
+   Seul `transform` est animé — le compositeur le joue sans repeindre, ce qui compte
+   au-dessus d'un fond flouté qui devrait sinon refaire son flou à chaque image. */
+.pastille {
+  position: absolute;
+  top: var(--espace-xs);
+  bottom: var(--espace-xs);
+  left: var(--espace-xs);
+  width: calc(
+    (100% - 2 * var(--espace-xs) - (var(--onglets) - 1) * var(--espace-xs)) / var(--onglets)
+  );
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  transform: translateX(calc(var(--actif) * (100% + var(--espace-xs))));
+  transition: transform 320ms cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+}
+
 .onglet {
   flex: 1;
+  /* Au-dessus de la pastille, qui est posée en fond de la barre. */
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -63,14 +86,43 @@
   color: var(--couleur-texte);
 }
 
+/* Le fond de l'onglet actif est désormais la pastille glissante : l'onglet ne porte plus
+   que la couleur de son texte. */
 .onglet[aria-current='page'] {
   color: var(--couleur-accent-contraste);
-  background: var(--couleur-degrade-accent);
-  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
 }
 
 .icone {
   flex: 0 0 auto;
+}
+
+/* L'icône de l'onglet qui vient d'être choisi marque le coup d'un bref rebond.
+   Court et sans dépassement molle : un changement d'onglet est fréquent, et une
+   animation qu'on subit dix fois par jour doit se remarquer sans se faire attendre.
+   `scale` seul est animé — le compositeur le joue au-dessus du verre de la barre sans
+   la faire refaire son flou. */
+.iconeActive {
+  flex: 0 0 auto;
+  animation: rebond-de-licone 280ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes rebond-de-licone {
+  0% {
+    scale: 0.7;
+  }
+  55% {
+    scale: 1.12;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+/* Retour au toucher, avant même que la page ne change : sans lui, un appui sur un onglet
+   déjà actif ne produit aucun signe et l'on doute d'avoir touché. */
+.onglet:active .icone,
+.onglet:active .iconeActive {
+  scale: 0.88;
 }
 
 .marque {
@@ -93,6 +145,19 @@
    de l'air entre les items, et un état actif marqué par un indicateur latéral plutôt que
    par un bloc de couleur pleine. */
 @media (min-width: 1024px) {
+  /* Le rail empile les onglets sous une marque : l'arithmétique horizontale de la
+     pastille n'y a plus de sens, et la mesurer pour la rendre verticale reviendrait à
+     entretenir deux géométries. Au format bureau, l'onglet actif reprend son propre fond.
+     Ce que ce choix coûte : pas de glissement au clavier sur grand écran. Assumé. */
+  .pastille {
+    display: none;
+  }
+
+  .onglet[aria-current='page'] {
+    background: var(--couleur-degrade-accent);
+    box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  }
+
   .barre {
     top: 0;
     bottom: 0;
@@ -175,5 +240,23 @@
   .icone {
     flex: 0 0 auto;
     opacity: 0.9;
+  }
+}
+
+/* La pastille glisse pour dire d'où l'on vient ; ce n'est pas une information dont la
+   navigation dépend — `aria-current` la porte. Elle saute donc quand le système demande
+   moins de mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  .pastille {
+    transition: none;
+  }
+
+  .iconeActive {
+    animation: none;
+  }
+
+  .onglet:active .icone,
+  .onglet:active .iconeActive {
+    scale: 1;
   }
 }

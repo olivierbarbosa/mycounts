@@ -131,3 +131,87 @@ test('revenir d’un sous-menu le fait repartir vers la droite', async ({ page }
   // Et elle finit par quitter le DOM : une page qui s'attarde bloquerait les clics.
   await expect(page.locator('[class*="sousPage"]')).toHaveCount(0)
 })
+
+/** Transform de la première image clé de la page qui vient d'entrer. */
+async function entreeDeLaPage(page: Page) {
+  return page.evaluate(() => {
+    const conteneur = [...document.querySelectorAll('div')].find((element) =>
+      element.className.includes('mouvement-entree'),
+    )
+    const images = conteneur?.getAnimations()[0]?.effect?.getKeyframes() ?? []
+    return String(images[0]?.transform ?? '')
+  })
+}
+
+test('la page entre du côté d’où l’on vient dans la barre', async ({ page }) => {
+  // Le sens porte l'information : aller vers la droite dans la barre fait arriver la page
+  // par la droite. Sans mémoire du déplacement, toutes entreraient du même côté et le
+  // mouvement ne dirait plus rien du parcours — il ne serait que du bruit.
+  await connecter(page)
+
+  await page.getByRole('button', { name: 'Épargne' }).click()
+  expect(await entreeDeLaPage(page), 'aller à droite doit faire entrer par la droite').toBe(
+    'translateX(100%)',
+  )
+
+  // L'autre sens : c'est lui qui distingue une direction calculée d'une valeur figée.
+  await page.getByRole('button', { name: 'Calendrier' }).click()
+  expect(await entreeDeLaPage(page), 'revenir à gauche doit faire entrer par la gauche').toBe(
+    'translateX(-100%)',
+  )
+})
+
+// La pastille n'existe que sous 1024 px : au-delà, la barre devient un rail vertical et
+// l'onglet actif reprend son propre fond. Le test doit donc se placer sur un téléphone,
+// faute de quoi il mesure un élément masqué — et un rectangle masqué rend 0, ce qui se
+// lit comme une pastille immobile.
+test.describe('sur téléphone', () => {
+  test.use({ viewport: { width: 430, height: 839 } })
+
+  test('l’icône de l’onglet choisi marque le coup', async ({ page }) => {
+    // Une animation qui ne se rejoue pas est une animation qui n'existe qu'au premier
+    // rendu : changer d'onglet ne remplace pas l'élément, il change un attribut, et une
+    // animation CSS ne se rejoue pas pour si peu. C'est le défaut que ce test vise.
+    await connecter(page)
+    await page.getByRole('button', { name: 'Épargne' }).click()
+
+    const animees = await proprietesAnimees(page, 'nav [aria-current="page"] svg')
+    expect(animees, 'l’icône de l’onglet actif ne joue aucune animation').not.toBeNull()
+    expect(animees, 'le rebond se fait par une mise à l’échelle').toContain('scale')
+    for (const propriete of animees!) {
+      expect(COMPOSITABLES.has(propriete), `« ${propriete} » force une repeinte`).toBe(true)
+    }
+
+    // Et elle se rejoue au changement suivant, pas seulement la première fois.
+    await page.getByRole('button', { name: 'Calendrier' }).click()
+    const seconde = await page.evaluate(() => {
+      const icone = document.querySelector('nav [aria-current="page"] svg')
+      return icone?.getAnimations().length ?? 0
+    })
+    expect(seconde, 'l’animation ne s’est pas rejouée').toBeGreaterThan(0)
+  })
+
+  test('la pastille de la barre glisse d’un onglet à l’autre', async ({ page }) => {
+    await connecter(page)
+    const abscisse = () =>
+      page.evaluate(() => {
+        const pastille = document.querySelector('nav [class*="pastille"]')
+        return pastille === null ? null : Math.round(pastille.getBoundingClientRect().left)
+      })
+
+    const surAccueil = await abscisse()
+    expect(surAccueil, 'la barre n’a pas de pastille').not.toBeNull()
+
+    await page.getByRole('button', { name: 'Épargne' }).click()
+    await expect(page.getByRole('button', { name: 'Épargne' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    // La position se lit après la transition : la pastille glisse, elle ne saute pas.
+    await page.waitForTimeout(400)
+    const surEpargne = await abscisse()
+
+    expect(surEpargne).not.toBe(surAccueil)
+    expect(surEpargne!, 'Épargne est à droite d’Accueil').toBeGreaterThan(surAccueil!)
+  })
+})

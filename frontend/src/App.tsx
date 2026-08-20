@@ -36,6 +36,10 @@ export function App() {
   const [utilisateur, setUtilisateur] = useState<UtilisateurPublic | null>(null)
   const [chargement, setChargement] = useState(true)
   const [onglet, setOnglet] = useState('accueil')
+  // Sens du dernier déplacement dans la barre. La page entre du côté d'où l'on vient :
+  // aller vers la droite la fait arriver par la droite. Sans cette mémoire, toutes les
+  // pages entreraient du même côté et le mouvement ne dirait plus rien du parcours.
+  const [sens, setSens] = useState<'droite' | 'gauche'>('droite')
   const [comptes, setComptes] = useState<readonly ComptePublic[]>([])
   const [categories, setCategories] = useState<readonly CategoriePublique[]>([])
   const [saisieOuverte, setSaisieOuverte] = useState(false)
@@ -94,48 +98,64 @@ export function App() {
 
   return (
     <>
-      {onglet === 'accueil' && (
-        <Accueil
-          comptes={comptes}
-          categories={categories}
-          rafraichissement={rafraichissement}
-          surSaisie={() => setSaisieOuverte(true)}
-          surBudgets={() => setBudgetsOuverts(true)}
-          surOperationChoisie={setOperationChoisie}
-        />
-      )}
+      <div
+        // La clé force le remontage : sans elle, React réutiliserait le conteneur et
+        // l'animation, jouée une seule fois au montage, ne se rejouerait jamais.
+        key={onglet}
+        className={sens === 'droite' ? 'mouvement-entree-droite' : 'mouvement-entree-gauche'}
+      >
+        {onglet === 'accueil' && (
+          <Accueil
+            comptes={comptes}
+            categories={categories}
+            rafraichissement={rafraichissement}
+            surSaisie={() => setSaisieOuverte(true)}
+            surBudgets={() => setBudgetsOuverts(true)}
+            surOperationChoisie={setOperationChoisie}
+          />
+        )}
 
-      {onglet === 'calendrier' && (
-        <Calendrier
-          comptes={comptes}
-          categories={categories}
-          rafraichissement={rafraichissement}
-          surChangement={() => setRafraichissement((n) => n + 1)}
-          surNouvelleRecurrence={() => {
-            setRecurrenceAModifier(undefined)
-            setOperationChoisie(undefined)
-            setRecurrenceOuverte(true)
-          }}
-          surModificationRecurrence={(recurrence) => {
-            setRecurrenceAModifier(recurrence)
-            setRecurrenceOuverte(true)
-          }}
-        />
-      )}
+        {onglet === 'calendrier' && (
+          <Calendrier
+            comptes={comptes}
+            categories={categories}
+            rafraichissement={rafraichissement}
+            surChangement={() => setRafraichissement((n) => n + 1)}
+            surNouvelleRecurrence={() => {
+              setRecurrenceAModifier(undefined)
+              setOperationChoisie(undefined)
+              setRecurrenceOuverte(true)
+            }}
+            surModificationRecurrence={(recurrence) => {
+              setRecurrenceAModifier(recurrence)
+              setRecurrenceOuverte(true)
+            }}
+          />
+        )}
 
-      {onglet === 'epargne' && (
-        <Epargne
-          rafraichissement={rafraichissement}
-          surVirement={() => {
-            setOperationChoisie(undefined)
-            setSaisieOuverte(true)
-          }}
-        />
-      )}
+        {onglet === 'epargne' && (
+          <Epargne
+            rafraichissement={rafraichissement}
+            surVirement={() => {
+              setOperationChoisie(undefined)
+              setSaisieOuverte(true)
+            }}
+          />
+        )}
+      </div>
 
       <BulleAvatar nom={utilisateur.nom_affichage} surOuverture={setOrigineParametres} />
 
-      <BarreOnglets onglets={ONGLETS} actif={onglet} surChangement={setOnglet} />
+      <BarreOnglets
+        onglets={ONGLETS}
+        actif={onglet}
+        surChangement={(cle) => {
+          const depart = ONGLETS.findIndex((o) => o.cle === onglet)
+          const arrivee = ONGLETS.findIndex((o) => o.cle === cle)
+          setSens(arrivee > depart ? 'droite' : 'gauche')
+          setOnglet(cle)
+        }}
+      />
 
       {budgetsOuverts && (
         <Budget
