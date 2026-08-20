@@ -279,3 +279,78 @@ def test_un_virement_sortant_de_lepargne_ne_compte_pas_comme_verse(
     epargne = client.get("/api/epargne").json()
     assert epargne["verse_sur_la_periode_centimes"] == 20_000, "seul l'entrant compte"
     assert epargne["total_centimes"] == 50_000, "l'aller-retour laisse le livret intact"
+
+
+def test_le_detail_dun_livret_separe_ce_qui_est_verse_de_ce_qui_est_repris(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le mois d'un aller-retour doit se distinguer d'un mois calme.
+
+    Trois grandeurs : le versé, le repris, et le drapeau qui les relie. Un solde net les
+    confondrait — 200 versés puis 200 repris donnent zéro, comme un mois sans mouvement.
+    """
+    session_ouverte(client, session_bd)
+    courant = creer_compte_api(client, "Courant", ouverture=200_000)
+    livret = creer_compte_api(client, "Livret A", produit="livret_a")
+
+    def virer(source: str, destination: str, montant: int) -> None:
+        reponse = client.post(
+            "/api/virements",
+            json={
+                "compte_source_id": source,
+                "compte_destination_id": destination,
+                "montant_centimes": montant,
+                "date_operation": AUJOURD_HUI.isoformat(),
+            },
+        )
+        assert reponse.status_code == 201, reponse.text
+
+    virer(courant, livret, 50_000)
+    virer(livret, courant, 20_000)
+
+    detail = client.get(f"/api/epargne/{livret}").json()
+    assert detail["solde_centimes"] == 30_000
+    assert len(detail["mois"]) == 6, "la fenêtre annoncée est de six mois"
+
+    courant_mois = detail["mois"][-1]
+    assert courant_mois["verse_centimes"] == 50_000
+    assert courant_mois["repris_centimes"] == 20_000, "le repris se compte en positif"
+    assert courant_mois["net_centimes"] == 30_000
+    assert courant_mois["aller_retour"] is True
+    assert detail["mois_avec_aller_retour"] == 1
+
+
+def test_une_saisie_manuelle_sur_le_livret_nest_pas_un_versement(
+    client: TestClient, session_bd: Session
+) -> None:
+    """« Versé » mesure un effort délibéré, pas une variation de solde.
+
+    Un intérêt crédité par la banque change le solde sans rien dire de ce qu'on a mis de
+    côté. Le compter gonflerait un chiffre dont on se sert pour juger son propre rythme.
+    """
+    session_ouverte(client, session_bd)
+    livret = creer_compte_api(client, "Livret A", ouverture=100_000, produit="livret_a")
+
+    client.post(
+        "/api/operations",
+        json={
+            "compte_id": livret,
+            "libelle": "Intérêts",
+            "montant_centimes": 1_500,
+            "date_operation": AUJOURD_HUI.isoformat(),
+        },
+    )
+
+    detail = client.get(f"/api/epargne/{livret}").json()
+    assert detail["solde_centimes"] == 101_500, "les intérêts sont bien dans le solde"
+    assert detail["mois"][-1]["verse_centimes"] == 0, "mais ce n'est pas un versement"
+    assert detail["mois"][-1]["solde_fin_centimes"] == 101_500
+
+
+def test_un_compte_dun_autre_foyer_na_pas_de_detail(
+    client: TestClient, session_bd: Session
+) -> None:
+    import uuid
+
+    session_ouverte(client, session_bd)
+    assert client.get(f"/api/epargne/{uuid.uuid4()}").status_code == 404

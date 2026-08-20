@@ -32,8 +32,8 @@ async function creerEpargne(page: Page, nom: string, ouverture: string) {
   await page.getByLabel('Solde actuel (facultatif)').fill(ouverture)
   await page.getByRole('button', { name: 'Créer le compte' }).click()
   await expect(page.getByRole('button', { name: 'Ajouter un compte' })).toBeVisible()
-  await page.getByRole('button', { name: 'Retour' }).click()
-  await page.getByRole('button', { name: 'Fermer' }).click()
+  await page.getByRole('button', { name: 'Retour', exact: true }).click()
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click()
 }
 
 test('la page Épargne n’est jamais muette', async ({ page }) => {
@@ -90,14 +90,14 @@ test('virer vers l’épargne ne crée aucune dépense', async ({ page }) => {
   const avant = await lire()
 
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
-  await page.getByRole('button', { name: 'Virement' }).click()
+  await page.getByRole('button', { name: 'Virement', exact: true }).click()
   await page.getByLabel('Montant', { exact: true }).fill('200,00')
   await page.getByLabel('Libellé', { exact: true }).fill('Mise de côté')
   // La destination se choisit par SON NOM. Un index supposait l'ordre et le nombre des
   // comptes, deux choses que les autres tests font varier — le virement partait alors
   // vers un compte au hasard et le livret restait à zéro.
   await page.getByLabel('Vers le compte').selectOption({ label: livret })
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
   const apres = await lire()
@@ -122,14 +122,20 @@ test('l’épargne ne gonfle pas le solde du quotidien', async ({ page }) => {
   // Créer un livret avec de l'argent dessus ne doit rien changer à l'accueil : sinon
   // l'écran annoncerait une aisance qui n'existe pas.
   await connecter(page)
-  const avant = await page.locator('main header').innerText()
+
+  // Grandeurs exactes, pas comparaison de texte : l'en-tête entier change dès qu'une
+  // échéance sans rapport se matérialise entre les deux lectures, et le test échouait
+  // alors pour une raison étrangère à ce qu'il vérifie.
+  const soldeCourant = async () =>
+    ((await (await page.request.get('/api/resume')).json()) as { solde_reel: number }).solde_reel
+
+  const avant = await soldeCourant()
 
   const livret = `Livret bis ${Date.now()}`
   await creerEpargne(page, livret, '500,00')
 
-  await page.getByRole('button', { name: 'Accueil' }).click()
-  expect(await page.locator('main header').innerText()).toBe(avant)
+  expect(await soldeCourant(), 'un livret ne doit rien ajouter au solde du quotidien').toBe(avant)
 
   await page.getByRole('button', { name: 'Épargne' }).click()
-  await expect(page.locator('li', { hasText: livret })).toContainText('500')
+  await expect(page.locator('main li', { hasText: livret })).toContainText('500')
 })

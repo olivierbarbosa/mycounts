@@ -327,3 +327,31 @@ class AjustementFait(BaseModel):
 
     solde_centimes: int
     """Solde du compte après l'ajustement. Doit valoir celui qui a été demandé."""
+
+
+class MoisDEpargnePublic(BaseModel):
+    """Un mois du rythme d'épargne.
+
+    `verse` et `repris` sont TOUS DEUX positifs et ne doivent jamais être additionnés :
+    un mois à +300 puis −300 raconte une erreur de calibrage, un solde net le lirait
+    comme un mois où il ne s'est rien passé.
+    """
+
+    premier_jour: dt.date
+    verse_centimes: int
+    repris_centimes: int
+    net_centimes: int
+    solde_fin_centimes: int
+    aller_retour: bool
+
+
+class DetailEpargne(BaseModel):
+    compte: ComptePublic
+    solde_centimes: int
+    mois: list[MoisDEpargnePublic]
+    mois_avec_aller_retour: int
+    """Nombre de mois de la fenêtre où l'on a versé PUIS repris.
+
+    C'est la réponse à « est-ce que je place trop tôt ». Un compteur et non une moyenne :
+    une moyenne noierait deux mois catastrophiques dans dix mois calmes.
+    """

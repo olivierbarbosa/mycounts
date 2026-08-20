@@ -18,8 +18,8 @@ async function ouvrirReglages(page: import('@playwright/test').Page) {
 /** Le panneau est modal : tant qu'il est ouvert, il intercepte les clics sur la barre
  *  d'onglets. Le refermer fait partie du parcours, pas du décor. */
 async function fermerParametres(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: 'Retour' }).click()
-  await page.getByRole('button', { name: 'Fermer' }).click()
+  await page.getByRole('button', { name: 'Retour', exact: true }).click()
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Paramètres' })).toHaveCount(0)
 }
 
@@ -66,14 +66,17 @@ test('supprimer une catégorie inutilisée', async ({ page }) => {
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
 
   const ligne = page.locator('li', { has: page.getByLabel(`Nom de la catégorie ${nom}`) })
-  await ligne.getByRole('button', { name: 'Supprimer' }).click()
+  await ligne.getByRole('button', { name: 'Supprimer', exact: true }).click()
 
   // Une suppression ne part jamais d'un seul geste : la confirmation doit apparaître,
   // et la catégorie doit encore être là tant qu'elle n'est pas validée.
   await expect(page.getByRole('alertdialog')).toBeVisible()
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
 
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Supprimer', exact: true })
+    .click()
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toHaveCount(0)
 })
 
@@ -85,8 +88,8 @@ test('annuler une suppression laisse la catégorie en place', async ({ page }) =
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
 
   const ligne = page.locator('li', { has: page.getByLabel(`Nom de la catégorie ${nom}`) })
-  await ligne.getByRole('button', { name: 'Supprimer' }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Annuler' }).click()
+  await ligne.getByRole('button', { name: 'Supprimer', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Annuler', exact: true }).click()
 
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
@@ -107,13 +110,16 @@ test('supprimer une catégorie utilisée est refusé avec une explication', asyn
   await page.getByLabel('Montant').fill('9,99')
   await page.getByLabel('Libellé').fill(`Op ${nom}`)
   await page.getByLabel('Catégorie').selectOption({ label: nom })
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByText(`Op ${nom}`)).toBeVisible()
 
   await ouvrirCategories(page)
   const ligne = page.locator('li', { has: page.getByLabel(`Nom de la catégorie ${nom}`) })
-  await ligne.getByRole('button', { name: 'Supprimer' }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
+  await ligne.getByRole('button', { name: 'Supprimer', exact: true }).click()
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Supprimer', exact: true })
+    .click()
 
   await expect(page.getByRole('alert')).toContainText('archiver')
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()

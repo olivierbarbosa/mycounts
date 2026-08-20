@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Final
 
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -16,10 +17,12 @@ from mycounts.api.budget_schemas import (
     DemandeCompte,
     DemandeOperation,
     DemandeVirement,
+    DetailEpargne,
     EpargnePublique,
     ModificationCategorie,
     ModificationCompte,
     ModificationOperation,
+    MoisDEpargnePublic,
     OperationPublique,
     PeriodePublique,
     ProduitPublic,
@@ -32,6 +35,7 @@ from mycounts.domain import comptes as domaine_comptes
 from mycounts.domain.agregats import Agregat, calculer
 from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.comptes import TypeCompte
+from mycounts.domain.epargne import MouvementEpargne, mois_precedents, repartir_par_mois
 from mycounts.domain.montants import Cents
 from mycounts.domain.resume import ResumePeriode, resumer
 from mycounts.jobs.materialisation import materialiser
@@ -538,6 +542,75 @@ def epargne(session: SessionBase, principal: PrincipalCourant) -> EpargnePubliqu
             debut=periode.debut, fin=periode.fin, fin_estimee=periode.fin_estimee
         ),
         comptes=par_compte,
+    )
+
+
+MOIS_AFFICHES: Final = 6
+"""Six mois et non douze.
+
+Sur un écran de 390 px, douze groupes de deux barres tombent sous trois pixels chacune :
+le graphique cesse d'être lisible avant d'être complet. Six mois suffisent à voir un
+rythme s'installer, et c'est la fenêtre que l'écran annonce.
+"""
+
+
+@routeur.get("/epargne/{compte_id}", response_model=DetailEpargne)
+def detail_epargne(
+    compte_id: uuid.UUID, session: SessionBase, principal: PrincipalCourant
+) -> DetailEpargne:
+    """Rythme d'un compte d'épargne : versé, repris et solde, mois par mois.
+
+    Seuls les VIREMENTS alimentent `verse` et `repris` : eux seuls disent ce qu'on a
+    délibérément placé ou repris. Un intérêt versé par la banque change le solde sans rien
+    dire de l'effort. Le solde de fin de mois, lui, compte tout.
+    """
+    compte = depot.compte_visible(session, principal, compte_id)
+    if compte is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
+
+    jour = aujourd_hui()
+    operations = depot.operations_visibles(session, principal, comptes=[compte_id])
+    solde = int(
+        calculer(
+            Agregat.SOLDE_REEL,
+            depot.operations_pour_calcul(session, principal, comptes=[compte_id]),
+            aujourd_hui=jour,
+            fin_de_fenetre=jour,
+        )
+    )
+
+    virements = [
+        MouvementEpargne(montant=Cents(o.montant_centimes), date_operation=o.date_operation)
+        for o in operations
+        if o.virement_id is not None
+    ]
+    tous = [
+        MouvementEpargne(montant=Cents(o.montant_centimes), date_operation=o.date_operation)
+        for o in operations
+    ]
+
+    mois = repartir_par_mois(
+        virements,
+        solde_final=Cents(solde),
+        mois=mois_precedents(jour, MOIS_AFFICHES),
+        tous_les_mouvements=tous,
+    )
+
+    return DetailEpargne(
+        compte=_en_compte(compte),
+        solde_centimes=solde,
+        mois=[
+            MoisDEpargnePublic(
+                premier_jour=m.premier_jour,
+                verse_centimes=int(m.verse),
+                repris_centimes=int(m.repris),
+                net_centimes=int(m.net),
+                solde_fin_centimes=int(m.solde_fin),
+                aller_retour=m.aller_retour,
+            )
+            for m in mois
+        ],
+        mois_avec_aller_retour=sum(1 for m in mois if m.aller_retour),
     )
 
 

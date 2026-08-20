@@ -110,7 +110,7 @@ test('revenir d’un sous-menu le fait repartir vers la droite', async ({ page }
   await page.getByRole('button', { name: 'Catégories' }).click()
   await expect(page.getByRole('heading', { name: 'Catégories' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Retour' }).click()
+  await page.getByRole('button', { name: 'Retour', exact: true }).click()
 
   const trajet = await page.evaluate(() => {
     const sousPage = document.querySelector('[class*="sousPage"]')

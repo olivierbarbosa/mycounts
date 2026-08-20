@@ -22,7 +22,7 @@ async function saisir(page: import('@playwright/test').Page, libelle: string, mo
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await page.getByLabel('Montant', { exact: true }).fill(montant)
   await page.getByLabel('Libellé', { exact: true }).fill(libelle)
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 }
 
@@ -49,7 +49,7 @@ test('corriger un montant met à jour le solde affiché', async ({ page }) => {
 
   await page.getByRole('button', { name: `Détail de ${libelle}` }).click()
   await page.getByLabel('Montant', { exact: true }).fill('10,00')
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
   const ligne = page.locator('li', { hasText: libelle }).first()
@@ -66,7 +66,7 @@ test('corriger ne change pas le sens de l’opération', async ({ page }) => {
 
   await page.getByRole('button', { name: `Détail de ${libelle}` }).click()
   await page.getByLabel('Montant', { exact: true }).fill('50,00')
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
   const ligne = page.locator('li', { hasText: libelle }).first()
   await expect(ligne).toContainText('−50')
@@ -79,12 +79,15 @@ test('supprimer demande confirmation et retire l’opération', async ({ page })
   await saisir(page, libelle, '12,00')
 
   await page.getByRole('button', { name: `Détail de ${libelle}` }).click()
-  await page.getByRole('button', { name: 'Supprimer' }).click()
+  await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
 
   // La confirmation apparaît, et l'opération est toujours là tant qu'on n'a pas validé.
   await expect(page.getByRole('alertdialog')).toBeVisible()
 
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Supprimer', exact: true })
+    .click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('button', { name: `Détail de ${libelle}` })).toHaveCount(0)
 })
@@ -95,11 +98,11 @@ test('annuler la confirmation laisse l’opération en place', async ({ page }) 
   await saisir(page, libelle, '8,00')
 
   await page.getByRole('button', { name: `Détail de ${libelle}` }).click()
-  await page.getByRole('button', { name: 'Supprimer' }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Annuler' }).click()
+  await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Annuler', exact: true }).click()
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Fermer' }).click()
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click()
   await expect(page.getByRole('button', { name: `Détail de ${libelle}` })).toBeVisible()
 })
 
@@ -115,14 +118,17 @@ test('retirer une échéance de prélèvement ne la fait pas revenir', async ({ 
   await page.getByLabel('Montant', { exact: true }).fill('7,50')
   await page.getByLabel('Libellé', { exact: true }).fill(libelle)
   await page.getByLabel('Première échéance').fill(hier)
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Accueil' }).click()
   await page.getByRole('button', { name: `Détail de ${libelle}` }).click()
   await expect(page.getByRole('dialog')).toContainText('Prélèvement automatique')
-  await page.getByRole('button', { name: 'Supprimer' }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
+  await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Supprimer', exact: true })
+    .click()
 
   // Le calcul se rejoue à chaque ouverture du calendrier : trois passages suffisent
   // largement à faire réapparaître une ligne simplement supprimée.

@@ -18,6 +18,7 @@ import { FeuilleSaisie } from './composants/FeuilleSaisie'
 import { Accueil } from './ecrans/Accueil'
 import { Budget } from './ecrans/Budget'
 import { Calendrier } from './ecrans/Calendrier'
+import { DetailEpargne } from './ecrans/DetailEpargne'
 import { Connexion } from './ecrans/Connexion'
 import { Epargne } from './ecrans/Epargne'
 import { PremierCompte } from './ecrans/PremierCompte'
@@ -55,6 +56,7 @@ export function App() {
   const [origineParametres, setOrigineParametres] = useState<Origine | null>(null)
   const [budgetsOuverts, setBudgetsOuverts] = useState(false)
   const [ajustementOuvert, setAjustementOuvert] = useState(false)
+  const [livretChoisi, setLivretChoisi] = useState<string | null>(null)
   const [rafraichissement, setRafraichissement] = useState(0)
 
   const chargerReferentiels = useCallback(async () => {
@@ -139,6 +141,7 @@ export function App() {
         {onglet === 'epargne' && (
           <Epargne
             rafraichissement={rafraichissement}
+            surCompteChoisi={setLivretChoisi}
             surVirement={() => {
               setOperationChoisie(undefined)
               setSaisieOuverte(true)
@@ -159,6 +162,10 @@ export function App() {
           setOnglet(cle)
         }}
       />
+
+      {livretChoisi !== null && (
+        <DetailEpargne compteId={livretChoisi} surFermeture={() => setLivretChoisi(null)} />
+      )}
 
       {ajustementOuvert && (
         <FeuilleAjustement

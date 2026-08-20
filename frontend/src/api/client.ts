@@ -20,6 +20,8 @@ export type DemandeVirement = components['schemas']['DemandeVirement']
 export type VirementCree = components['schemas']['VirementCree']
 export type EpargnePublique = components['schemas']['EpargnePublique']
 export type CompteEpargne = components['schemas']['CompteEpargne']
+export type DetailEpargne = components['schemas']['DetailEpargne']
+export type MoisDEpargne = components['schemas']['MoisDEpargnePublic']
 export type DemandeCompte = components['schemas']['DemandeCompte']
 export type ModificationCompte = components['schemas']['ModificationCompte']
 export type ProduitPublic = components['schemas']['ProduitPublic']
@@ -184,6 +186,9 @@ export const api = {
   /** Ce que le foyer a mis de côté. Distinct du résumé : les deux totaux répondent à des
    *  questions différentes, et les additionner ferait croire à une aisance qui n'existe pas. */
   epargne: () => appeler<EpargnePublique>('/epargne'),
+
+  /** Rythme d'un livret : versé, repris et solde, mois par mois. */
+  detailEpargne: (compteId: string) => appeler<DetailEpargne>(`/epargne/${compteId}`),
 
   creerVirement: (demande: DemandeVirement) =>
     appeler<VirementCree>('/virements', { method: 'POST', body: JSON.stringify(demande) }),

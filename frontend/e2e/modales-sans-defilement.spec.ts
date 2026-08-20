@@ -51,7 +51,7 @@ async function saisir(page: Page, libelle: string, montant: string) {
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await page.getByLabel('Montant', { exact: true }).fill(montant)
   await page.getByLabel('Libellé', { exact: true }).fill(libelle)
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 }
 
@@ -153,7 +153,7 @@ for (const telephone of TELEPHONES) {
       await saisir(page, libelle, '12,00')
       await page.getByRole('button', { name: `Détail de ${libelle}` }).click()
       // L'état le plus haut de la feuille : la demande de confirmation s'ajoute au reste.
-      await page.getByRole('button', { name: 'Supprimer' }).click()
+      await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
       await expect(page.getByRole('alertdialog')).toBeVisible()
       expect(await defautsDe(page, 'Détail de l’opération', ecran)).toEqual(CONFORME)
     })

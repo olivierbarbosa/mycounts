@@ -26,8 +26,8 @@ async function creerCategorie(page: Page, nom: string) {
   await page.getByLabel('Nom de la nouvelle catégorie').fill(nom)
   await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
-  await page.getByRole('button', { name: 'Retour' }).click()
-  await page.getByRole('button', { name: 'Fermer' }).click()
+  await page.getByRole('button', { name: 'Retour', exact: true }).click()
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Paramètres' })).toHaveCount(0)
 }
 
@@ -36,7 +36,7 @@ async function saisirDepense(page: Page, libelle: string, montant: string, categ
   await page.getByLabel('Montant', { exact: true }).fill(montant)
   await page.getByLabel('Libellé', { exact: true }).fill(libelle)
   await page.getByLabel('Catégorie').selectOption({ label: categorie })
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 }
 

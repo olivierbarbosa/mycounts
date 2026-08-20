@@ -36,7 +36,7 @@ async function creerRecurrence(
   await page.getByLabel('Montant', { exact: true }).fill(montant)
   await page.getByLabel('Libellé', { exact: true }).fill(libelle)
   await page.getByLabel('Première échéance').fill(ancre)
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 }
 
@@ -101,7 +101,7 @@ test('une échéance échue remonte dans « à confirmer » sans job manuel', as
 
   await expect(page.getByText('À confirmer', { exact: false })).toBeVisible()
   const ligne = page.locator('li', { hasText: libelle }).first()
-  await expect(ligne.getByRole('button', { name: 'Confirmer' })).toBeVisible()
+  await expect(ligne.getByRole('button', { name: 'Confirmer', exact: true })).toBeVisible()
 })
 
 test('confirmer ne déplace pas le solde projeté', async ({ page }) => {
@@ -123,8 +123,8 @@ test('confirmer ne déplace pas le solde projeté', async ({ page }) => {
 
   const avant = await lire()
   const ligne = page.locator('li', { hasText: libelle }).first()
-  await ligne.getByRole('button', { name: 'Confirmer' }).click()
-  await expect(ligne.getByRole('button', { name: 'Confirmer' })).toHaveCount(0)
+  await ligne.getByRole('button', { name: 'Confirmer', exact: true }).click()
+  await expect(ligne.getByRole('button', { name: 'Confirmer', exact: true })).toHaveCount(0)
   const apres = await lire()
 
   expect(apres.solde_projete, 'double comptage à la confirmation').toBe(avant.solde_projete)
@@ -179,7 +179,7 @@ test('la feuille ne propose que des prélèvements, jamais de revenu', async ({ 
   await page.getByRole('button', { name: 'Ajouter un prélèvement' }).click()
 
   await expect(page.getByRole('dialog')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Revenu' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Revenu', exact: true })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Nouveau prélèvement' })).toBeVisible()
 })
 
@@ -219,7 +219,7 @@ test('modifier un prélèvement conserve son rythme à la réouverture', async (
   await page.getByLabel('Montant', { exact: true }).fill('45,00')
   await page.getByLabel('Libellé', { exact: true }).fill(libelle)
   await page.getByLabel('Fréquence').selectOption({ label: 'Tous les 3 mois' })
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
   await page.getByRole('button', { name: `Modifier le prélèvement ${libelle}` }).click()

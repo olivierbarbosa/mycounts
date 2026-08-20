@@ -64,6 +64,10 @@
 }
 
 .ligne {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  transition: border-color 160ms ease-out;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -74,7 +78,17 @@
   border: 1px solid var(--couleur-bordure);
 }
 
+.chevron {
+  flex: 0 0 auto;
+  color: var(--couleur-texte-faible);
+}
+
+.ligne:hover {
+  border-color: var(--couleur-accent-clair);
+}
+
 .nom {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

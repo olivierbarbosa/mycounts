@@ -356,6 +356,30 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/epargne/{compte_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Detail Epargne
+     * @description Rythme d'un compte d'épargne : versé, repris et solde, mois par mois.
+     *
+     *     Seuls les VIREMENTS alimentent `verse` et `repris` : eux seuls disent ce qu'on a
+     *     délibérément placé ou repris. Un intérêt versé par la banque change le solde sans rien
+     *     dire de l'effort. Le solde de fin de mois, lui, compte tout.
+     */
+    get: operations['detail_epargne_api_epargne__compte_id__get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/operations': {
     parameters: {
       query?: never
@@ -843,6 +867,16 @@ export interface components {
        */
       montant_centimes: number
     }
+    /** DetailEpargne */
+    DetailEpargne: {
+      compte: components['schemas']['ComptePublic']
+      /** Mois */
+      mois: components['schemas']['MoisDEpargnePublic'][]
+      /** Mois Avec Aller Retour */
+      mois_avec_aller_retour: number
+      /** Solde Centimes */
+      solde_centimes: number
+    }
     /**
      * EcheanceAgenda
      * @description Une échéance à venir, telle qu'affichée dans l'agenda.
@@ -979,6 +1013,31 @@ export interface components {
       /** Montant Centimes */
       montant_centimes?: number | null
       unite?: components['schemas']['UniteRecurrence'] | null
+    }
+    /**
+     * MoisDEpargnePublic
+     * @description Un mois du rythme d'épargne.
+     *
+     *     `verse` et `repris` sont TOUS DEUX positifs et ne doivent jamais être additionnés :
+     *     un mois à +300 puis −300 raconte une erreur de calibrage, un solde net le lirait
+     *     comme un mois où il ne s'est rien passé.
+     */
+    MoisDEpargnePublic: {
+      /** Aller Retour */
+      aller_retour: boolean
+      /** Net Centimes */
+      net_centimes: number
+      /**
+       * Premier Jour
+       * Format: date
+       */
+      premier_jour: string
+      /** Repris Centimes */
+      repris_centimes: number
+      /** Solde Fin Centimes */
+      solde_fin_centimes: number
+      /** Verse Centimes */
+      verse_centimes: number
     }
     /**
      * NatureCategorie
@@ -1815,6 +1874,39 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['EpargnePublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  detail_epargne_api_epargne__compte_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        compte_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['DetailEpargne']
         }
       }
       /** @description Validation Error */

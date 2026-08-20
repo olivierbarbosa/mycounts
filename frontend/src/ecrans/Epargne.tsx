@@ -1,4 +1,4 @@
-import { PiggyBank } from 'lucide-react'
+import { ChevronRight, PiggyBank } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type { EpargnePublique } from '../api/client'
@@ -9,6 +9,7 @@ import styles from './Epargne.module.css'
 type Props = {
   readonly rafraichissement: number
   readonly surVirement: () => void
+  readonly surCompteChoisi: (compteId: string) => void
 }
 
 const DATE_COURTE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' })
@@ -29,7 +30,7 @@ function dateCivile(iso: string): Date {
  * comptes alimentés, et réserver une part d'un compte à un projet serait un second
  * système comptable à tenir d'accord avec le premier.
  */
-export function Epargne({ rafraichissement, surVirement }: Props) {
+export function Epargne({ rafraichissement, surVirement, surCompteChoisi }: Props) {
   const [epargne, setEpargne] = useState<EpargnePublique | null>(null)
 
   const charger = useCallback(async () => {
@@ -78,14 +79,22 @@ export function Epargne({ rafraichissement, surVirement }: Props) {
           <h2 className={styles.titreListe}>Mes comptes</h2>
           <ul className={styles.liste}>
             {epargne.comptes.map((compte) => (
-              <li key={compte.id} className={styles.ligne}>
-                <span className={styles.nom}>{compte.nom}</span>
-                <Montant
-                  centimes={compte.solde_centimes}
-                  taille="titre"
-                  neutre
-                  signeExplicitePositif={false}
-                />
+              <li key={compte.id}>
+                <button
+                  type="button"
+                  className={styles.ligne}
+                  onClick={() => surCompteChoisi(compte.id)}
+                  aria-label={`Détail de ${compte.nom}`}
+                >
+                  <span className={styles.nom}>{compte.nom}</span>
+                  <Montant
+                    centimes={compte.solde_centimes}
+                    taille="titre"
+                    neutre
+                    signeExplicitePositif={false}
+                  />
+                  <ChevronRight size={18} strokeWidth={2} aria-hidden className={styles.chevron} />
+                </button>
               </li>
             ))}
           </ul>

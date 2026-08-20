@@ -26,8 +26,8 @@ async function ouvrirComptes(page: Page) {
 }
 
 async function fermer(page: Page) {
-  await page.getByRole('button', { name: 'Retour' }).click()
-  await page.getByRole('button', { name: 'Fermer' }).click()
+  await page.getByRole('button', { name: 'Retour', exact: true }).click()
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Paramètres' })).toHaveCount(0)
 }
 
@@ -73,7 +73,7 @@ test('changer le produit d’un compte le déplace vers l’épargne', async ({ 
     .getByRole('button', { name: `Modifier ${nom}` })
     .click()
   await page.getByLabel('Type de compte').selectOption('livret_a')
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
   await expect(carte(page, nom)).toContainText('Livret A')
   await fermer(page)
@@ -92,7 +92,10 @@ test('supprimer un compte vide', async ({ page }) => {
   await carte(page, nom)
     .getByRole('button', { name: `Supprimer ${nom}` })
     .click()
-  await carte(page, nom).getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
+  await carte(page, nom)
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Supprimer', exact: true })
+    .click()
 
   await expect(carte(page, nom)).toHaveCount(0)
   await fermer(page)
@@ -111,7 +114,10 @@ test('supprimer un compte qui porte des opérations est refusé, et l’archivag
   await carte(page, nom)
     .getByRole('button', { name: `Supprimer ${nom}` })
     .click()
-  await carte(page, nom).getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()
+  await carte(page, nom)
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Supprimer', exact: true })
+    .click()
 
   // Le solde d'ouverture EST une opération : le compte n'est donc pas vide.
   await expect(carte(page, nom).getByRole('alert')).toContainText('opérations')

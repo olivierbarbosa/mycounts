@@ -38,7 +38,7 @@ test('saisie : les montants affichés sont exacts', async ({ page }) => {
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await page.getByLabel('Montant').fill('45,90')
   await page.getByLabel('Libellé').fill(libelle)
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
   await expect(page.getByText(libelle)).toBeVisible()
 
@@ -58,11 +58,11 @@ test('une dépense saisie sans signe est enregistrée en négatif', async ({ pag
   await expect(page.getByRole('button', { name: 'Saisir une opération' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
-  await page.getByRole('button', { name: 'Dépense' }).click()
+  await page.getByRole('button', { name: 'Dépense', exact: true }).click()
   await page.getByLabel('Montant').fill('12,34')
   const libelle = `Sens e2e ${Date.now()}`
   await page.getByLabel('Libellé').fill(libelle)
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
   const ligne = page.locator('li', { hasText: libelle })
   await expect(ligne).toContainText('−12')
@@ -76,7 +76,7 @@ test('un montant illisible est refusé avant tout envoi', async ({ page }) => {
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await page.getByLabel('Montant').fill('douze euros')
   await page.getByLabel('Libellé').fill('Illisible')
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
   await expect(page.getByRole('alert')).toContainText('illisible')
   await expect(page.getByRole('dialog')).toBeVisible()

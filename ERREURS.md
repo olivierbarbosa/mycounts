@@ -1005,3 +1005,25 @@ CHOSE, et que ce quelque chose fait partie des propriétés que le compositeur j
 repeindre. Il ne chronomètre rien — une mesure de temps serait instable en intégration
 continue — il vérifie les deux causes, qui elles sont déterministes. Vérifié par mutation
 sur chacune.
+
+## #033 — Des localisateurs uniques le jour où je les écris, ambigus le lendemain
+
+**Ce que je croyais.** Que `getByRole('button', { name: 'Virement' })` désignait le bouton
+de la feuille de saisie. C'était vrai quand je l'ai écrit.
+
+**Ce que j'ai mesuré.** Neuf correspondances. Les virements créés par les tests portent le
+libellé « Virement », et chaque ligne d'opération de l'accueil est un bouton nommé
+« Détail de Virement ». Même histoire pour « Retour », rendu ambigu par un compte d'essai
+que j'avais nommé « Livret retour ».
+
+**Pourquoi ça ne pouvait qu'arriver.** Les tests partagent une base qui se remplit au fil
+de la suite. Un localisateur par sous-chaîne est unique tant que les données sont pauvres
+et cesse de l'être dès qu'elles ressemblent à de vraies données — c'est-à-dire au moment
+précis où la suite devient utile. Le défaut n'est pas dans le test qui échoue, il est dans
+tous ceux qui ont été écrits pareil.
+
+**Le contrôle en place.** `exact: true` sur tous les libellés d'action courts — Retour,
+Fermer, Virement, Dépense, Revenu, Enregistrer, Supprimer, Confirmer, Annuler — et les
+cartes cadrées sur leur panneau plutôt que cherchées dans la page entière. Huit fichiers
+corrigés d'un coup, parce que corriger seulement celui qui rougissait aurait laissé les
+sept autres attendre leur tour.
