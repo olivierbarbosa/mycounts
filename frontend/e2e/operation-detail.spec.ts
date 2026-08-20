@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { jourLocal } from './dates'
+
 /**
  * Détail, correction et retrait d'une opération.
  *
@@ -128,7 +130,7 @@ test('retirer une échéance de prélèvement ne la fait pas revenir', async ({ 
   // Le contrôle qui distingue une annulation d'une suppression sèche : celle-ci
   // paraîtrait juste jusqu'au prochain calcul, où la ligne réapparaîtrait.
   const libelle = `Echeance ${Date.now()}`
-  const hier = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
+  const hier = jourLocal(-1)
 
   await connecter(page)
   await ouvrirCalendrier(page)

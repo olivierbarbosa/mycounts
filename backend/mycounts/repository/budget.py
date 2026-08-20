@@ -282,6 +282,8 @@ def creer_virement(
     montant_centimes: Cents,
     date_operation: dt.date,
     libelle: str,
+    cle_import: str | None = None,
+    compte_du_releve_id: uuid.UUID | None = None,
 ) -> tuple[Operation, Operation]:
     """Crée les deux moitiés d'un virement, liées par un même identifiant.
 
@@ -298,6 +300,10 @@ def creer_virement(
     nulle part.
     """
     virement_id = uuid.uuid4()
+    # La clé d'import ne va que sur la moitié correspondant à la LIGNE DU RELEVÉ, celle du
+    # compte importé. La poser sur les deux ferait deux lignes prétendant venir de la même
+    # ligne de fichier ; n'en marquer aucune rendrait le réimport non idempotent, et le
+    # virement serait recréé à chaque fois.
     moities = [
         Operation(
             compte_id=compte,
@@ -307,6 +313,7 @@ def creer_virement(
             date_operation=date_operation,
             etat=EtatOperation.CONFIRMEE,
             virement_id=virement_id,
+            cle_import=cle_import if compte == compte_du_releve_id else None,
         )
         for compte, signe in ((compte_source_id, -1), (compte_destination_id, 1))
     ]

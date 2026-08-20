@@ -69,6 +69,19 @@ class LigneAValider(BaseModel):
     l'utilisateur ne servirait qu'à cette ligne-ci et il faudrait tout refaire au prochain
     import."""
 
+    sens: SensImporte = SensImporte.DEPENSE
+    """Ce que la ligne EST, éventuellement corrigé pendant la revue.
+
+    La banque marque ses mouvements internes, mais pas toujours : un virement d'un LEP vers
+    un compte chèques arrive parfois comme un simple crédit. L'utilisateur doit pouvoir le
+    dire — sans quoi la somme entre dans ses revenus, qu'elle gonfle d'un argent qui n'est
+    jamais entré dans le foyer."""
+
+    contrepartie_id: uuid.UUID | None = None
+    """L'AUTRE compte, quand la ligne est un virement. Le relevé ne le dit jamais : il
+    montre ce qui est sorti d'un compte, pas où c'est allé. Sans lui, la ligne est écrite
+    comme une opération ordinaire — un virement à une seule jambe n'existe pas."""
+
 
 class DemandeValidationImport(BaseModel):
     """Les lignes retenues, et le compte où les écrire.

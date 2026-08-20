@@ -65,6 +65,14 @@ export function ImportReleve({
    *  foyer a appris des imports précédents — l'utilisateur n'a plus qu'à corriger les
    *  exceptions au lieu de tout ranger. */
   const [categories, setCategories] = useState<Record<string, string>>({})
+  /** Sens corrigé par l'utilisateur, quand la banque n'a pas marqué le mouvement. Un
+   *  virement d'un LEP vers un compte chèques arrive parfois comme un simple crédit, et
+   *  sans correction il gonflerait les revenus d'un argent jamais entré dans le foyer. */
+  const [sens, setSens] = useState<Record<string, string>>({})
+  const [contreparties, setContreparties] = useState<Record<string, string>>({})
+  /** Ne lire le relevé qu'à partir de ce jour. Vide = tout le fichier. Sert à n'importer
+   *  que depuis la dernière paie, pour ne pas faire doublon avec ce qui est déjà saisi. */
+  const [depuis, setDepuis] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
   const [bilan, setBilan] = useState<string | null>(null)
@@ -74,7 +82,7 @@ export function ImportReleve({
     setBilan(null)
     setEnCours(true)
     try {
-      const analyse = await api.analyserReleve(fichier)
+      const analyse = await api.analyserReleve(fichier, depuis || undefined)
       setRevue(analyse)
       // Tout ce qui est nouveau est coché d'emblée : le cas courant est « je veux tout »,
       // et faire cocher deux cents lignes à la main serait une corvée qui ferait renoncer.
@@ -88,6 +96,8 @@ export function ImportReleve({
             .map((ligne) => ligne.cle),
         ),
       )
+      setSens(Object.fromEntries(analyse.lignes.map((ligne) => [ligne.cle, ligne.sens])))
+      setContreparties({})
       setCategories(
         Object.fromEntries(
           analyse.lignes
@@ -124,6 +134,8 @@ export function ImportReleve({
         libelle: ligne.libelle,
         montant_centimes: ligne.montant_centimes,
         categorie_id: categories[ligne.cle] ?? null,
+        sens: (sens[ligne.cle] ?? ligne.sens) as LigneAValider['sens'],
+        contrepartie_id: contreparties[ligne.cle] ?? null,
         // Renvoyée pour que le rangement s'APPRENNE : sans elle, le choix ne servirait
         // qu'à cette ligne et tout serait à refaire au prochain import.
         categorie_banque: ligne.categorie_banque,
@@ -175,6 +187,21 @@ export function ImportReleve({
               puis déposez le fichier ici. Rien ne sera enregistré avant que vous n’ayez vu ce qu’il
               contient.
             </p>
+            <label className={styles.champDate}>
+              <span className={styles.etiquette}>N’importer qu’à partir du</span>
+              <input
+                type="date"
+                className={styles.choix}
+                value={depuis}
+                onChange={(evenement) => setDepuis(evenement.target.value)}
+                aria-label="N’importer qu’à partir du"
+              />
+              <span className={styles.aide}>
+                Laissez vide pour tout lire. Vous pouvez partir de votre dernière paie, pour ne pas
+                doubler ce que vous avez déjà saisi.
+              </span>
+            </label>
+
             <label className={styles.bouton}>
               <FileUp size={18} strokeWidth={2.2} aria-hidden />
               Choisir un fichier
@@ -284,30 +311,79 @@ export function ImportReleve({
                       </span>
                     )}
                     {!ligne.deja_importee && (
-                      <select
-                        className={styles.categorie}
-                        value={categories[ligne.cle] ?? ''}
-                        aria-label={`Catégorie de ${ligne.libelle}`}
-                        onChange={(evenement) =>
-                          setCategories((actuel) => ({
-                            ...actuel,
-                            [ligne.cle]: evenement.target.value,
-                          }))
-                        }
-                      >
-                        <option value="">Sans catégorie</option>
-                        {categoriesDuFoyer
-                          .filter((categorie) =>
-                            ligne.montant_centimes < 0
-                              ? categorie.nature === 'depense'
-                              : categorie.nature === 'revenu',
-                          )
-                          .map((categorie) => (
-                            <option key={categorie.id} value={categorie.id}>
-                              {categorie.nom}
+                      <span className={styles.reglages}>
+                        <select
+                          className={styles.categorie}
+                          value={sens[ligne.cle] ?? ligne.sens}
+                          aria-label={`Nature de ${ligne.libelle}`}
+                          onChange={(evenement) =>
+                            setSens((actuel) => ({
+                              ...actuel,
+                              [ligne.cle]: evenement.target.value,
+                            }))
+                          }
+                        >
+                          <option value={ligne.montant_centimes < 0 ? 'depense' : 'revenu'}>
+                            {ligne.montant_centimes < 0 ? 'Dépense' : 'Revenu'}
+                          </option>
+                          <option value="virement">Virement entre comptes</option>
+                        </select>
+
+                        {(sens[ligne.cle] ?? ligne.sens) === 'virement' ? (
+                          // Le relevé ne dit jamais l'autre compte : il montre ce qui est
+                          // sorti, pas où c'est allé. Sans lui, la ligne serait écrite
+                          // comme une opération ordinaire.
+                          <select
+                            className={styles.categorie}
+                            value={contreparties[ligne.cle] ?? ''}
+                            aria-label={`Autre compte pour ${ligne.libelle}`}
+                            onChange={(evenement) =>
+                              setContreparties((actuel) => ({
+                                ...actuel,
+                                [ligne.cle]: evenement.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">
+                              {ligne.montant_centimes < 0
+                                ? 'Vers quel compte ?'
+                                : 'De quel compte ?'}
                             </option>
-                          ))}
-                      </select>
+                            {comptes
+                              .filter((compte) => compte.id !== compteId)
+                              .map((compte) => (
+                                <option key={compte.id} value={compte.id}>
+                                  {compte.nom}
+                                </option>
+                              ))}
+                          </select>
+                        ) : (
+                          <select
+                            className={styles.categorie}
+                            value={categories[ligne.cle] ?? ''}
+                            aria-label={`Catégorie de ${ligne.libelle}`}
+                            onChange={(evenement) =>
+                              setCategories((actuel) => ({
+                                ...actuel,
+                                [ligne.cle]: evenement.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">Sans catégorie</option>
+                            {categoriesDuFoyer
+                              .filter((categorie) =>
+                                ligne.montant_centimes < 0
+                                  ? categorie.nature === 'depense'
+                                  : categorie.nature === 'revenu',
+                              )
+                              .map((categorie) => (
+                                <option key={categorie.id} value={categorie.id}>
+                                  {categorie.nom}
+                                </option>
+                              ))}
+                          </select>
+                        )}
+                      </span>
                     )}
                   </span>
                   <Montant centimes={ligne.montant_centimes} taille="ligne" />

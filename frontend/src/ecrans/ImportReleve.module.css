@@ -342,3 +342,38 @@
   color: var(--couleur-texte-faible);
   font-size: 12px;
 }
+
+/* Le filtre de date, dans la zone de dépôt : c'est une décision à prendre AVANT de lire
+   le fichier, pas après. La placer dans la revue obligerait à redéposer pour la changer. */
+.champDate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+}
+
+.aide {
+  color: var(--couleur-texte-faible);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* Les deux sélecteurs d'une ligne : sa nature, et son autre compte s'il y a lieu. En
+   colonne sur téléphone — côte à côte, deux menus déroulants sur 390 px n'ont plus assez
+   de place pour montrer ce qu'ils contiennent. */
+.reglages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+@media (min-width: 600px) {
+  .reglages {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}

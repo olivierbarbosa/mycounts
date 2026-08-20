@@ -235,12 +235,20 @@ def test_le_rangement_sAPPREND_dun_import_a_lautre(
     client: TestClient, session_bd: Session
 ) -> None:
     """Sans mémoire, 198 lignes seraient à ranger à la main à chaque import — et personne
-    ne le fait deux fois."""
+    ne le fait deux fois.
+
+    La catégorie bancaire choisie ici — « Banque et assurances » — est délibérément une de
+    celles que le tableau par défaut NE couvre pas : sans cela, la première analyse
+    proposerait déjà quelque chose et le test mesurerait ce tableau au lieu de mesurer
+    l'apprentissage.
+    """
     session_ouverte(client, session_bd)
     compte = creer_compte(client)
     courses = creer_categorie(client, "Courses")
 
-    revue = analyser(client, releve(ligne("INTERMARCHE", "-46,80", "r1")))
+    revue = analyser(
+        client, releve(ligne("INTERMARCHE", "-46,80", "r1", categorie="Banque et assurances"))
+    )
     assert revue["lignes"][0]["categorie_proposee_id"] is None
 
     premiere = revue["lignes"][0]
@@ -262,7 +270,9 @@ def test_le_rangement_sAPPREND_dun_import_a_lautre(
     )
 
     # Second relevé, même commerçant, autre montant et autre référence.
-    seconde = analyser(client, releve(ligne("INTERMARCHE", "-31,20", "r2")))
+    seconde = analyser(
+        client, releve(ligne("INTERMARCHE", "-31,20", "r2", categorie="Banque et assurances"))
+    )
     assert seconde["lignes"][0]["categorie_proposee_id"] == courses
 
 
@@ -342,3 +352,173 @@ def test_les_recurrences_du_releve_sont_PROPOSEES_jamais_creees(
     assert revue["recurrences_proposees"][0]["cadence"] == "mois"
     # Rien n'a été créé.
     assert len(client.get("/api/recurrences").json()) == avant
+
+
+def test_une_ligne_reclassee_en_virement_ne_compte_PAS_comme_un_revenu(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le cas d'Olivier : un +200 € qui vient de son LEP, pas de l'extérieur.
+
+    La banque marque ses mouvements internes, mais pas toujours. Sans reclassement, la
+    somme entre dans les revenus et gonfle d'un argent qui n'est jamais entré dans le
+    foyer — 31 lignes sur 198 dans son export réel.
+    """
+    session_ouverte(client, session_bd)
+    cheques = creer_compte(client)
+    lep = client.post(
+        "/api/comptes", json={"nom": "LEP", "prive": True, "produit": "lep"}
+    )
+    assert lep.status_code == 201, lep.text
+    lep_id = lep.json()["id"]
+
+    revue = analyser(client, releve(ligne("VIR RECU", "", "v1", credit="+200,00")))
+    proposee = revue["lignes"][0]
+
+    reponse = client.post(
+        "/api/import/valider",
+        json={
+            "compte_id": cheques,
+            "lignes": [
+                {
+                    "cle": proposee["cle"],
+                    "date_operation": proposee["date_operation"],
+                    "libelle": proposee["libelle"],
+                    "montant_centimes": proposee["montant_centimes"],
+                    "sens": "virement",
+                    "contrepartie_id": lep_id,
+                }
+            ],
+        },
+    )
+    assert reponse.status_code == 201, reponse.text
+
+    operations = client.get("/api/operations?periode_courante=false").json()
+    # Deux moitiés, liées, de signes opposés : l'argent a changé de poche sans entrer.
+    assert len(operations) == 2
+    assert sum(operation["montant_centimes"] for operation in operations) == 0
+    assert all(operation["virement_id"] is not None for operation in operations)
+
+
+def test_le_sens_du_virement_se_deduit_du_SIGNE(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Un débit sur le compte importé va VERS l'autre compte, un crédit en vient. Le
+    fichier contient déjà la réponse : la demander serait une question de trop."""
+    session_ouverte(client, session_bd)
+    cheques = creer_compte(client)
+    lep_id = client.post(
+        "/api/comptes", json={"nom": "LEP", "prive": True, "produit": "lep"}
+    ).json()["id"]
+
+    revue = analyser(client, releve(ligne("VIR EMIS", "-150,00", "v2")))
+    proposee = revue["lignes"][0]
+    client.post(
+        "/api/import/valider",
+        json={
+            "compte_id": cheques,
+            "lignes": [
+                {
+                    "cle": proposee["cle"],
+                    "date_operation": proposee["date_operation"],
+                    "libelle": proposee["libelle"],
+                    "montant_centimes": proposee["montant_centimes"],
+                    "sens": "virement",
+                    "contrepartie_id": lep_id,
+                }
+            ],
+        },
+    )
+
+    operations = client.get("/api/operations?periode_courante=false").json()
+    sortie = next(o for o in operations if o["montant_centimes"] < 0)
+    entree = next(o for o in operations if o["montant_centimes"] > 0)
+    assert sortie["compte_id"] == cheques
+    assert entree["compte_id"] == lep_id
+
+
+def test_un_virement_importe_ne_se_reimporte_pas(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Un virement crée DEUX opérations ; si aucune ne portait la clé, il serait recréé à
+    chaque import."""
+    session_ouverte(client, session_bd)
+    cheques = creer_compte(client)
+    lep_id = client.post(
+        "/api/comptes", json={"nom": "LEP", "prive": True, "produit": "lep"}
+    ).json()["id"]
+    contenu = releve(ligne("VIR RECU", "", "v3", credit="+200,00"))
+
+    proposee = analyser(client, contenu)["lignes"][0]
+    client.post(
+        "/api/import/valider",
+        json={
+            "compte_id": cheques,
+            "lignes": [
+                {
+                    "cle": proposee["cle"],
+                    "date_operation": proposee["date_operation"],
+                    "libelle": proposee["libelle"],
+                    "montant_centimes": proposee["montant_centimes"],
+                    "sens": "virement",
+                    "contrepartie_id": lep_id,
+                }
+            ],
+        },
+    )
+    assert analyser(client, contenu)["nouvelles"] == 0
+
+
+def test_importer_depuis_une_date_ecarte_ce_qui_precede(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le cas d'Olivier : n'importer que depuis sa dernière paie, pour ne pas faire
+    doublon avec ce qu'il a déjà saisi à la main."""
+    session_ouverte(client, session_bd)
+    creer_compte(client)
+    contenu = releve(
+        ligne("ANCIEN", "-10,00", "a1", date="01/07/2026"),
+        ligne("RECENT", "-20,00", "a2", date="18/08/2026"),
+    )
+
+    reponse = client.post(
+        "/api/import/analyse?depuis=2026-08-01",
+        files={"fichier": ("releve.csv", contenu, "text/csv")},
+    )
+    assert reponse.status_code == 200, reponse.text
+    revue = reponse.json()
+    assert revue["total"] == 1
+    assert revue["lignes"][0]["libelle"] == "RECENT"
+
+
+def test_le_tableau_par_defaut_range_des_le_PREMIER_import(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le pire cas de l'import est un premier relevé tout « sans catégorie ».
+
+    Mesuré sur un export réel : le tableau par défaut range 99 lignes sur 198, dont 90 des
+    135 dépenses, sans qu'aucun libellé ne sorte du foyer ni qu'on ait rien appris.
+    """
+    session_ouverte(client, session_bd)
+    creer_compte(client)
+    courses = creer_categorie(client, "Courses")
+
+    revue = analyser(client, releve(ligne("INTERMARCHE", "-46,80", "r1")))
+    assert revue["lignes"][0]["categorie_proposee_id"] == courses
+
+
+def test_une_categorie_bancaire_sans_equivalent_ne_propose_RIEN(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Deviner ferait plus de mal que de bien : une ligne mal rangée disparaît dans un
+    total juste en apparence, là où une ligne non rangée se voit."""
+    session_ouverte(client, session_bd)
+    creer_compte(client)
+    creer_categorie(client, "Courses")
+
+    revue = analyser(
+        client,
+        releve(
+            ligne("MAITRE DUPONT", "-300,00", "r7", categorie="Juridique et administratif")
+        ),
+    )
+    assert revue["lignes"][0]["categorie_proposee_id"] is None

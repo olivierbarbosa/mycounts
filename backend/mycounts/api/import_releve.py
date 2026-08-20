@@ -15,6 +15,7 @@ bénéfice nul — la revue se fait dans la foulée, et la validation renvoie le
 
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from typing import Annotated
 
@@ -32,7 +33,9 @@ from mycounts.domain.import_releve import (
     LigneImportee,
     OperationExistante,
     ReleveIllisible,
+    SensImporte,
     analyser,
+    categorie_par_defaut,
     categorie_proposee,
     detecter_les_recurrences,
     ecarter_les_deja_importees,
@@ -42,6 +45,7 @@ from mycounts.domain.import_releve import (
 from mycounts.domain.montants import Cents
 from mycounts.repository import budget as depot
 from mycounts.repository import recurrences as depot_recurrences
+from mycounts.services.categorisation_ia import proposer_des_categories
 
 routeur = APIRouter(tags=["import"])
 
@@ -84,6 +88,7 @@ async def analyser_un_releve(
     fichier: Annotated[
         UploadFile, File(description="Relevé au format CSV, exporté depuis la banque.")
     ],
+    depuis: dt.date | None = None,
 ) -> RevueImport:
     """Lit le relevé et rend ce qu'il propose. **N'écrit rien.**
 
@@ -99,6 +104,11 @@ async def analyser_un_releve(
 
     try:
         lignes = analyser(contenu)
+        if depuis is not None:
+            # Filtré APRÈS l'analyse et non pendant : les rangs d'occurrence se calculent
+            # sur le fichier ENTIER, sinon écarter une première occurrence donnerait le
+            # rang 1 à la seconde, qui passerait alors pour déjà importée.
+            lignes = tuple(ligne for ligne in lignes if ligne.date_operation >= depuis)
     except ReleveIllisible as cause:
         # Le message du domaine est écrit POUR l'utilisateur : il nomme la colonne
         # manquante ou la valeur illisible. Le remplacer par un texte générique lui
@@ -126,6 +136,54 @@ async def analyser_un_releve(
         for recurrence in depot_recurrences.recurrences_visibles(session, principal)
     ]
 
+    # Quatre niveaux, du moins coûteux au plus coûteux, et chacun ne voit que ce que le
+    # précédent n'a pas su ranger. L'ordre n'est pas une optimisation : chaque niveau
+    # franchi est un libellé de moins qui sort du foyer.
+    categories_du_foyer = depot.categories(session, principal)
+    par_nom = {categorie.nom: categorie.id for categorie in categories_du_foyer}
+    proposees: dict[str, str] = {}
+    for ligne in nouvelles:
+        #  1. ce que le foyer a explicitement rangé ainsi ;
+        apprise = categorie_proposee(ligne, correspondances)
+        if apprise is not None:
+            proposees[ligne.cle] = apprise
+            continue
+        #  2. le tableau par défaut des catégories bancaires.
+        nom = categorie_par_defaut(ligne, list(par_nom))
+        if nom is not None:
+            proposees[ligne.cle] = str(par_nom[nom])
+
+    #  3. l'assistance externe, pour ce qui reste — et pour cela SEULEMENT. Les libellés
+    #     déjà rangés ne sortent pas. Voir `services/categorisation_ia.py` : c'est le seul
+    #     fichier du projet qui parle à un tiers, et il n'envoie que des libellés.
+    #
+    #     Les dépenses et les revenus sont demandés SÉPARÉMENT, chacun avec les seules
+    #     catégories de sa nature. Une première version envoyait tout ensemble et recevait
+    #     « Revolut → Autres revenus », « BPCE Vie → Autres revenus » : privé du signe, le
+    #     modèle rangeait des dépenses en recettes. Le corriger ne demande pas d'envoyer
+    #     davantage — il suffit de ne pas proposer une catégorie que la nature interdit.
+    restants = [
+        ligne
+        for ligne in nouvelles
+        if ligne.cle not in proposees and ligne.sens is not SensImporte.VIREMENT
+    ]
+    for nature, sens_attendu in (("depense", SensImporte.DEPENSE), ("revenu", SensImporte.REVENU)):
+        de_cette_nature = [ligne for ligne in restants if ligne.sens is sens_attendu]
+        if not de_cette_nature:
+            continue
+        noms_permis = [
+            categorie.nom for categorie in categories_du_foyer if categorie.nature == nature
+        ]
+        if not noms_permis:
+            continue
+        suggestions = proposer_des_categories(
+            [ligne.libelle for ligne in de_cette_nature], noms_permis
+        )
+        for ligne in de_cette_nature:
+            nom_suggere = suggestions.get(ligne.libelle)
+            if nom_suggere is not None:
+                proposees[ligne.cle] = str(par_nom[nom_suggere])
+
     return RevueImport(
         total=len(lignes),
         nouvelles=len(nouvelles),
@@ -134,7 +192,7 @@ async def analyser_un_releve(
             _en_public(
                 ligne,
                 False,
-                categorie_proposee(ligne, correspondances),
+                proposees.get(ligne.cle),
                 ressemble_a_une_operation_existante(ligne, existantes),
             )
             for ligne in nouvelles
@@ -174,21 +232,41 @@ def valider_un_import(
     for ligne in demande.lignes:
         if ligne.cle in connues:
             continue
-        depot.creer_operation(
-            session,
-            principal,
-            compte_id=demande.compte_id,
-            libelle=ligne.libelle,
-            montant_centimes=Cents(ligne.montant_centimes),
-            date_operation=ligne.date_operation,
-            categorie_id=ligne.categorie_id,
-            cle_import=ligne.cle,
-        )
+        if ligne.sens is SensImporte.VIREMENT and ligne.contrepartie_id is not None:
+            # Le SIGNE du relevé décide du sens : un crédit sur le compte importé vient de
+            # l'autre compte, un débit y va. Le déduire évite de poser à l'utilisateur une
+            # question dont le fichier contient déjà la réponse.
+            if ligne.montant_centimes >= 0:
+                source, destination = ligne.contrepartie_id, demande.compte_id
+            else:
+                source, destination = demande.compte_id, ligne.contrepartie_id
+            depot.creer_virement(
+                session,
+                principal,
+                compte_source_id=source,
+                compte_destination_id=destination,
+                montant_centimes=Cents(abs(ligne.montant_centimes)),
+                date_operation=ligne.date_operation,
+                libelle=ligne.libelle,
+                cle_import=ligne.cle,
+                compte_du_releve_id=demande.compte_id,
+            )
+        else:
+            depot.creer_operation(
+                session,
+                principal,
+                compte_id=demande.compte_id,
+                libelle=ligne.libelle,
+                montant_centimes=Cents(ligne.montant_centimes),
+                date_operation=ligne.date_operation,
+                categorie_id=ligne.categorie_id,
+                cle_import=ligne.cle,
+            )
 
         # Le rangement s'APPREND. Sans cela, le choix de l'utilisateur ne servirait qu'à
         # cette ligne-ci, et deux cents lignes seraient à ranger de nouveau au prochain
         # import — ce que personne ne fait deux fois.
-        if ligne.categorie_id is not None:
+        if ligne.categorie_id is not None and ligne.sens is not SensImporte.VIREMENT:
             depot.retenir_la_correspondance(
                 session,
                 principal,

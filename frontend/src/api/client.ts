@@ -242,10 +242,13 @@ export const api = {
 
   /** Analyse un relevé. N'ÉCRIT RIEN — c'est `validerImport` qui écrit, et seulement les
    *  lignes qu'on lui redonne. Le fichier n'est jamais conservé côté serveur. */
-  analyserReleve: async (fichier: File): Promise<RevueImport> => {
+  analyserReleve: async (fichier: File, depuis?: string): Promise<RevueImport> => {
     const corps = new FormData()
     corps.append('fichier', fichier)
-    return appeler<RevueImport>('/import/analyse', { method: 'POST', body: corps })
+    // La date est un paramètre de requête et non un champ du formulaire : elle filtre ce
+    // que le serveur RETOURNE, elle ne fait pas partie du fichier envoyé.
+    const filtre = depuis ? `?depuis=${depuis}` : ''
+    return appeler<RevueImport>(`/import/analyse${filtre}`, { method: 'POST', body: corps })
   },
 
   validerImport: (compteId: string, lignes: readonly LigneAValider[]) =>

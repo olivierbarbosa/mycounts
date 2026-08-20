@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { jourLocal } from './dates'
+
 /**
  * Agenda et confirmation, dans le vrai navigateur.
  *
@@ -8,7 +10,7 @@ import { expect, test } from '@playwright/test'
  * — pas dans une réponse d'API.
  */
 
-const HIER = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
+const HIER = jourLocal(-1)
 
 async function connecter(page: import('@playwright/test').Page) {
   await page.goto('/')
@@ -69,6 +71,10 @@ test('« À venir » vide ne prétend pas que rien n’est enregistré', async (
   }
   // Une échéance hors du mois en cours : elle peuple « Mes prélèvements » sans jamais
   // entrer dans « À venir ».
+  // `T12:00:00` et non `T00:00:00` : c'est ce qui rend le `toISOString()` ci-dessous sûr.
+  // À midi local, un décalage de deux heures ne change pas le jour, alors qu'à minuit il
+  // le fait reculer d'un — c'est exactement le défaut qui a fait rougir budget.spec.ts le
+  // 21 août 2026 à 00h21. Voir `dates.ts`.
   const moisSuivant = new Date(`${mois.fin}T12:00:00`)
   moisSuivant.setDate(moisSuivant.getDate() + 10)
   await creerRecurrence(
@@ -97,7 +103,7 @@ test('« À venir » vide ne prétend pas que rien n’est enregistré', async (
 test('créer un prélèvement et le voir dans le calendrier', async ({ page }) => {
   const libelle = `Abonnement ${Date.now()}`
   await ouvrirAgenda(page)
-  const dans10 = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10)
+  const dans10 = jourLocal(10)
 
   await creerRecurrence(page, libelle, '10,99', dans10)
 
@@ -164,7 +170,7 @@ test('le total des charges est la somme des lignes affichées', async ({ page })
   // L'ancre est ramenée dans le mois. Sans ce plafond, le test créait une échéance à
   // cinq jours qui, passé le 26, tombait le mois suivant : elle n'entrait alors plus dans
   // le total, et le test échouait quelques jours par mois sans que rien n'ait changé.
-  const dans5 = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10)
+  const dans5 = jourLocal(5)
   await creerRecurrence(page, `Somme ${Date.now()}`, '25,00', dans5 <= mois.fin ? dans5 : mois.fin)
 
   const echeances = await page.request.get('/api/agenda?jours=120')
@@ -212,12 +218,7 @@ test('les rythmes sont nommés, pas exprimés en intervalle', async ({ page }) =
 test('un prélèvement saisi sans signe est enregistré en négatif', async ({ page }) => {
   const libelle = `Charge ${Date.now()}`
   await ouvrirAgenda(page)
-  await creerRecurrence(
-    page,
-    libelle,
-    '24,99',
-    new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10),
-  )
+  await creerRecurrence(page, libelle, '24,99', jourLocal(5))
 
   const ligne = agenda(page).locator('li', { hasText: libelle }).first()
   await expect(ligne).toContainText('−24')
@@ -245,12 +246,7 @@ test('modifier un prélèvement conserve son rythme à la réouverture', async (
 test('modifier le montant d’un prélèvement met à jour le calendrier', async ({ page }) => {
   const libelle = `Modif ${Date.now()}`
   await ouvrirAgenda(page)
-  await creerRecurrence(
-    page,
-    libelle,
-    '12,00',
-    new Date(Date.now() + 6 * 86_400_000).toISOString().slice(0, 10),
-  )
+  await creerRecurrence(page, libelle, '12,00', jourLocal(6))
 
   await page.getByRole('button', { name: `Modifier le prélèvement ${libelle}` }).click()
   await page.getByLabel('Montant', { exact: true }).fill('30,00')
@@ -267,12 +263,7 @@ test('modifier le montant d’un prélèvement met à jour le calendrier', async
 test('arrêter un prélèvement demande confirmation', async ({ page }) => {
   const libelle = `Arret ${Date.now()}`
   await ouvrirAgenda(page)
-  await creerRecurrence(
-    page,
-    libelle,
-    '9,99',
-    new Date(Date.now() + 4 * 86_400_000).toISOString().slice(0, 10),
-  )
+  await creerRecurrence(page, libelle, '9,99', jourLocal(4))
 
   await page.getByRole('button', { name: `Arrêter le prélèvement ${libelle}` }).click()
   await expect(page.getByRole('alertdialog')).toBeVisible()

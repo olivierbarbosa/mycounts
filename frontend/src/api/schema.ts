@@ -1331,6 +1331,10 @@ export interface components {
        * @default
        */
       categorie_banque: string
+      /** @default depense */
+      sens: components['schemas']['SensImporte']
+      /** Contrepartie Id */
+      contrepartie_id?: string | null
     }
     /**
      * LigneImportPublique
@@ -3348,7 +3352,9 @@ export interface operations {
   }
   analyser_un_releve_api_import_analyse_post: {
     parameters: {
-      query?: never
+      query?: {
+        depuis?: string | null
+      }
       header?: never
       path?: never
       cookie?: {

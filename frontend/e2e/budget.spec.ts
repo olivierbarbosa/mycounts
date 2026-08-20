@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { jourLocal } from './dates'
+
 /**
  * Plafonds par catégorie, vus de l'écran.
  *
@@ -84,12 +86,21 @@ test('l’à-venir ne s’additionne jamais au consommé', async ({ page }) => {
   await expect(bloc).toContainText('100')
   await expect(bloc, 'aucune alerte tant que rien n’est prévu').not.toContainText('Sera dépassé')
 
-  // Un prélèvement de 50 € dans la même catégorie, avant la fin de la période.
-  const resume = (await (await page.request.get('/api/resume')).json()) as {
-    periode: { fin: string }
-  }
-  const demain = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
-  const echeance = demain <= resume.periode.fin ? demain : resume.periode.fin
+  /* Un prélèvement de 50 € dans la même catégorie, à une date STRICTEMENT future.
+   *
+   * `jourLocal(1)` et non `toISOString()` : ce dernier bascule en UTC et rendait la date
+   * d'AUJOURD'HUI entre minuit et deux heures du matin, si bien que l'échéance était
+   * matérialisée et comptée dans le CONSOMMÉ. Le test annonçait alors « Plafond dépassé »
+   * là où il attendait « Sera dépassé » — il mesurait la matérialisation au lieu de
+   * l'à-venir. Voir `dates.ts`.
+   *
+   * Une version intermédiaire créait ici une paie du jour pour garantir que demain tombe
+   * dans la période. Elle réglait ce test et en cassait un autre : une paie ouvre une
+   * NOUVELLE période, et toutes les opérations datées d'hier des tests suivants en
+   * sortaient — donc disparaissaient de l'accueil. Un test qui déplace la période d'un
+   * foyer partagé déplace le sol sous les autres.
+   */
+  const echeance = jourLocal(1)
   const comptes = (await (await page.request.get('/api/comptes')).json()) as { id: string }[]
   await page.request.post('/api/recurrences', {
     data: {

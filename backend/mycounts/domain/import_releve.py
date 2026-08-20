@@ -530,3 +530,54 @@ def detecter_les_recurrences(
         )
 
     return tuple(sorted(candidates, key=lambda c: (int(c.montant), c.libelle)))
+
+
+"""Correspondances par défaut entre les catégories des banques françaises et celles du
+foyer, par NOM.
+
+Elles évitent le pire cas de l'import : un premier relevé de deux cents lignes toutes
+« sans catégorie », qui rend muets les statistiques et les budgets, et qu'il faudrait
+ranger à la main avant que l'apprentissage n'ait quoi que ce soit à apprendre.
+
+Par NOM et non par identifiant : le domaine ne connaît pas la base. L'appelant cherche la
+catégorie du foyer qui porte ce nom, et ne propose rien s'il ne la trouve pas — un foyer
+qui a renommé « Courses » en « Alimentation » ne doit pas se voir imposer une catégorie
+inventée.
+
+Ce tableau ne couvre PAS tout, volontairement. « Banque et assurances », « Juridique et
+administratif » ou « À catégoriser » n'ont pas d'équivalent évident, et deviner y ferait
+plus de mal que de bien : une ligne mal rangée disparaît dans un total juste en apparence,
+là où une ligne non rangée se voit.
+"""
+CORRESPONDANCES_PAR_DEFAUT: Final[dict[str, tuple[str, ...]]] = {
+    # Chaque catégorie de banque propose plusieurs noms possibles, du plus précis au plus
+    # général : le foyer garde ses propres mots, et le premier nom qu'il possède gagne.
+    "Alimentation": ("Courses", "Alimentation"),
+    "Transports": ("Transport", "Transports"),
+    "Sante": ("Santé", "Sante"),
+    "Santé": ("Santé", "Sante"),
+    "Logement - maison": ("Logement", "Loyer"),
+    "Loisirs et vacances": ("Restaurants et sorties", "Sorties", "Loisirs"),
+    "Shopping et services": ("Achats divers", "Shopping"),
+    "Revenus et rentrees d'argent": ("Autres revenus", "Salaire"),
+    "Remboursements de soins": ("Remboursement", "Santé"),
+}
+
+
+def categorie_par_defaut(
+    ligne: LigneImportee, noms_du_foyer: Sequence[str]
+) -> str | None:
+    """Le nom de catégorie du foyer qui correspond à celle de la banque, s'il existe.
+
+    Rend un NOM, que l'appelant convertit en identifiant. Rien quand le foyer ne possède
+    aucun des noms proposés : mieux vaut une ligne non rangée qu'une catégorie inventée.
+    """
+    propositions = CORRESPONDANCES_PAR_DEFAUT.get(ligne.categorie_banque.strip())
+    if propositions is None:
+        return None
+    disponibles = {nom.strip().lower(): nom for nom in noms_du_foyer}
+    for propose in propositions:
+        trouve = disponibles.get(propose.lower())
+        if trouve is not None:
+            return trouve
+    return None

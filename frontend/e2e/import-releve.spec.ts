@@ -22,10 +22,10 @@ function releve(...lignes: readonly string[]): Buffer {
   return Buffer.from([ENTETE, ...lignes].join('\r\n') + '\r\n', 'latin1')
 }
 
-function ligne(libelle: string, debit: string, reference = ''): string {
+function ligne(libelle: string, debit: string, reference = '', date = '17/08/2026'): string {
   return (
-    `19/08/2026;${libelle};CB ${libelle};${reference};;Carte bancaire;Alimentation;` +
-    `Sous;${debit};;17/08/2026;17/08/2026;0`
+    `${date};${libelle};CB ${libelle};${reference};;Carte bancaire;Alimentation;` +
+    `Sous;${debit};;${date};${date};0`
   )
 }
 
@@ -213,4 +213,72 @@ test('les prélèvements réguliers du relevé sont proposés, jamais créés', 
   // Rien n'a été créé : l'écran propose, il ne remplit pas le calendrier tout seul.
   const apres = ((await (await page.request.get('/api/recurrences')).json()) as unknown[]).length
   expect(apres).toBe(avant)
+})
+
+test('une ligne peut être reclassée en virement entre comptes', async ({ page }) => {
+  /* Le cas d'Olivier : un +200 € qui vient de son LEP, pas de l'extérieur. Sans
+   * reclassement, la somme entre dans ses revenus et les gonfle d'un argent qui n'est
+   * jamais entré dans le foyer. */
+  const marque = Date.now()
+  await connecter(page)
+
+  /* Le test crée SON compte de contrepartie et le choisit par son NOM.
+   *
+   * Une première version réutilisait un compte existant quand il y en avait déjà deux, et
+   * le sélectionnait par index. Elle passait seule et échouait dans la suite complète, où
+   * dix-neuf comptes se sont accumulés — l'index ne désignait plus rien de prévisible. Un
+   * test qui suppose un état sans le garantir lui-même finit toujours par mesurer autre
+   * chose que son sujet. */
+  const nomDeLaContrepartie = `LEP ${marque}`
+  await page.request.post('/api/comptes', {
+    data: { nom: nomDeLaContrepartie, produit: 'lep', prive: true },
+  })
+  await page.reload()
+  await expect(page.locator('nav')).toBeVisible()
+
+  const libelle = `VIR RECU ${marque}`
+  await ouvrirImport(page)
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await deposer(
+    page,
+    releve(
+      `19/08/2026;${libelle};VIR;v-${marque};;Virement recu;Divers;Sous;;+173,47;19/08/2026;19/08/2026;0`,
+    ),
+  )
+
+  await ecran.getByLabel(`Nature de ${libelle}`).selectOption('virement')
+  const autre = ecran.getByLabel(`Autre compte pour ${libelle}`)
+  await expect(autre).toBeVisible()
+  await autre.selectOption({ label: nomDeLaContrepartie })
+  await ecran.getByRole('button', { name: /Importer 1 opération/ }).click()
+  await expect(ecran.getByText(/1 opération importée/)).toBeVisible()
+
+  // Deux moitiés de signes opposés : l'argent a changé de poche sans entrer dans le foyer.
+  const operations = (await (
+    await page.request.get('/api/operations?periode_courante=false')
+  ).json()) as { libelle: string; montant_centimes: number; virement_id: string | null }[]
+  const moities = operations.filter((operation) => operation.libelle === libelle)
+  expect(moities).toHaveLength(2)
+  expect(moities[0].montant_centimes + moities[1].montant_centimes).toBe(0)
+  expect(moities.every((moitie) => moitie.virement_id !== null)).toBe(true)
+})
+
+test('on peut n’importer qu’à partir d’une date', async ({ page }) => {
+  // Pour ne pas doubler ce qui a déjà été saisi à la main avant la dernière paie.
+  const marque = Date.now()
+  await connecter(page)
+  await ouvrirImport(page)
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+
+  await ecran.getByLabel('N’importer qu’à partir du').fill('2026-08-01')
+  await deposer(
+    page,
+    releve(
+      ligne(`ANCIEN ${marque}`, '-10,00', `x1-${marque}`, '01/07/2026'),
+      ligne(`RECENT ${marque}`, '-20,00', `x2-${marque}`, '18/08/2026'),
+    ),
+  )
+
+  await expect(ecran.getByText(`RECENT ${marque}`)).toBeVisible()
+  await expect(ecran.getByText(`ANCIEN ${marque}`)).toHaveCount(0)
 })

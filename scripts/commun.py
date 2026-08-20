@@ -6,6 +6,7 @@ garantirait qu'un jour l'un d'eux analyse `node_modules` et l'autre non.
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Final
@@ -24,11 +25,41 @@ BINAIRES: Final = frozenset(
 
 
 def fichiers_du_depot(racine: Path = RACINE) -> Iterator[Path]:
-    """Tous les fichiers versionnables du dépôt, hors répertoires d'outillage."""
-    for chemin in racine.rglob("*"):
+    """Tous les fichiers qui peuvent PARTIR dans un commit, hors outillage.
+
+    Demandé à git plutôt que parcouru sur le disque, et la nuance n'est pas théorique :
+    `.env` existe sur toute machine de développement et contient des secrets — c'est sa
+    raison d'être. Un balayage du disque le trouvait et faisait rougir le garde-fou des
+    secrets sur un fichier que `.gitignore` empêche justement de partir. Un contrôle qui
+    rougit devant une situation correcte finit par être désactivé, et c'est alors le vrai
+    cas qui passe.
+
+    Sont rendus les fichiers SUIVIS et les fichiers non suivis mais non ignorés — ces
+    derniers comptent, car ce sont précisément ceux qu'un `git add .` distrait emporterait.
+
+    Repli sur le disque quand git est absent : mieux vaut un contrôle trop large qu'aucun.
+    """
+    try:
+        listés = subprocess.run(
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+            cwd=racine,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        for chemin in racine.rglob("*"):
+            if chemin.is_file() and not (EXCLUS & set(chemin.relative_to(racine).parts)):
+                yield chemin
+        return
+
+    for relatif in listés.split("\0"):
+        if not relatif:
+            continue
+        chemin = racine / relatif
         if not chemin.is_file():
             continue
-        if EXCLUS & set(chemin.relative_to(racine).parts):
+        if EXCLUS & set(Path(relatif).parts):
             continue
         yield chemin
 

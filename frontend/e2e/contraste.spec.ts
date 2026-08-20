@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { jourLocal } from './dates'
+
 /**
  * Contrepartie de la direction artistique néon + Liquid Glass (BOUCLE.md, décision D3).
  *
@@ -217,7 +219,7 @@ const MESURE = ([seuilNormal, seuilGrand, debit, plancherDebit]: [
 async function garantirDesMontants(page: import('@playwright/test').Page) {
   const comptes = (await (await page.request.get('/api/comptes')).json()) as { id: string }[]
   const compte_id = comptes[0].id
-  const aujourdhui = new Date().toISOString().slice(0, 10)
+  const aujourdhui = jourLocal()
   for (const montant_centimes of [-4299, 1250]) {
     await page.request.post('/api/operations', {
       data: {

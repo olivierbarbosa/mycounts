@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { jourLocal } from './dates'
+
 /**
  * Détail d'un livret : versé, repris, et le signal de l'aller-retour.
  *
@@ -33,7 +35,7 @@ async function livretAvecMouvements(page: Page, nom: string, verse: number, repr
     })
   ).json()) as { id: string }
 
-  const jour = new Date().toISOString().slice(0, 10)
+  const jour = jourLocal()
   await page.request.post('/api/virements', {
     data: {
       compte_source_id: courant.id,
