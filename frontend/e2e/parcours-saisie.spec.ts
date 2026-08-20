@@ -89,3 +89,38 @@ test('le solde projeté est toujours accompagné de sa borne', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Saisir une opération' })).toBeVisible()
   await expect(page.locator('main header')).toContainText('jusqu’au')
 })
+
+test('les options secondaires sont repliées, et leurs valeurs restent lisibles', async ({
+  page,
+}) => {
+  // Ce qui est mesuré n'est pas « la date est cachée » mais « on peut la VÉRIFIER sans
+  // rien déplier ». Un repli qui n'annoncerait que « Options » aurait passé la première
+  // moitié de ce test et raté tout son intérêt : il faudrait ouvrir pour savoir.
+  await connecter(page)
+  await page.getByRole('button', { name: 'Saisir une opération' }).click()
+
+  const feuille = page.getByRole('dialog', { name: 'Saisir une opération' })
+  await expect(feuille.getByLabel('Montant')).toBeVisible()
+  await expect(feuille.getByLabel('Date de l’opération')).toHaveCount(0)
+
+  const repli = feuille.getByRole('button', { expanded: false })
+  await expect(repli, 'la valeur par défaut doit se lire sans déplier').toContainText('Aujourd’hui')
+
+  await repli.click()
+  await expect(feuille.getByLabel('Date de l’opération')).toBeVisible()
+})
+
+test('changer la date se voit sur le repli une fois refermé', async ({ page }) => {
+  // Le témoin qui distingue un résumé CALCULÉ d'un libellé écrit en dur : « Aujourd'hui »
+  // seul passerait le test précédent même s'il ne regardait jamais la valeur du champ.
+  await connecter(page)
+  await page.getByRole('button', { name: 'Saisir une opération' }).click()
+
+  const feuille = page.getByRole('dialog', { name: 'Saisir une opération' })
+  await feuille.getByRole('button', { expanded: false }).click()
+  await feuille.getByLabel('Date de l’opération').fill('2026-03-14')
+
+  const repli = feuille.getByRole('button', { expanded: true })
+  await expect(repli).toContainText('14 mars')
+  await expect(repli).not.toContainText('Aujourd’hui')
+})

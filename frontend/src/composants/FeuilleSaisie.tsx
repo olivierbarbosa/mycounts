@@ -1,4 +1,4 @@
-import { ArrowDownUp } from 'lucide-react'
+import { ArrowDownUp, ChevronDown } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
 import type { CategoriePublique, ComptePublic } from '../api/client'
@@ -16,6 +16,13 @@ type Props = {
   readonly surReferentielsChanges: () => void | Promise<void>
   readonly surFermeture: () => void
   readonly surEnregistrement: () => void
+  /** Verrouille la nature de l'opération et masque la bascule.
+   *
+   *  Utilisé par l'Épargne : « Virer de l'argent » y ouvre cette feuille, et proposer
+   *  « Dépense » ou « Revenu » depuis un écran d'épargne demande de choisir entre deux
+   *  options qui n'ont aucun sens à cet endroit. Une bascule à trois positions dont deux
+   *  sont hors sujet coûte une lecture à chaque ouverture. */
+  readonly sensImpose?: Sens
 }
 
 const aujourdHuiLocal = (): string => {
@@ -38,8 +45,9 @@ export function FeuilleSaisie({
   surFermeture,
   surEnregistrement,
   surReferentielsChanges,
+  sensImpose,
 }: Props) {
-  const [sens, setSens] = useState<Sens>('depense')
+  const [sens, setSens] = useState<Sens>(sensImpose ?? 'depense')
   const sortie = sens === 'depense'
 
   const [montant, setMontant] = useState('')
@@ -69,6 +77,29 @@ export function FeuilleSaisie({
   const [estPaie, setEstPaie] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
+  /* Date et compte sont repliés par DÉFAUT, et leurs valeurs restent lisibles sur le
+   * bouton qui les replie. Ce n'est pas la même chose que les cacher : on saisit presque
+   * toujours une dépense du jour sur le compte courant, si bien que ces deux champs
+   * faisaient lire et sauter deux lignes à chaque saisie pour n'être jamais touchés. Les
+   * afficher en résumé garde la vérification à coût nul et ne demande un geste qu'à ceux
+   * qui changent vraiment quelque chose. */
+  const [optionsOuvertes, setOptionsOuvertes] = useState(false)
+
+  /* Ce que le repli affiche sans qu'on l'ouvre. « Aujourd'hui » plutôt que la date du jour
+   * écrite en clair : c'est l'information utile — savoir qu'on n'a rien à changer — et
+   * elle se lit plus vite qu'un « 20/08/2026 » qu'il faut comparer mentalement à la date
+   * du jour. Le compte n'y figure que s'il y a un choix à faire. */
+  const dateLisible =
+    date === aujourdHuiLocal()
+      ? 'Aujourd’hui'
+      : new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(
+          new Date(`${date}T12:00:00`),
+        )
+  const compteLisible =
+    sens !== 'virement' && comptes.length > 1
+      ? comptes.find((compte) => compte.id === compteId)?.nom
+      : undefined
+  const resumeDesOptions = [dateLisible, compteLisible].filter(Boolean).join(' · ')
 
   // Virer suppose deux comptes. Proposer l'option avec un seul mènerait à un formulaire
   // qu'on ne peut pas valider — mieux vaut dire pourquoi.
@@ -139,91 +170,79 @@ export function FeuilleSaisie({
       aria-label="Saisir une opération"
     >
       <form className={styles.feuille} onSubmit={soumettre} noValidate>
-        <h2 className={styles.titre}>Nouvelle opération</h2>
+        <h2 className={styles.titre}>
+          {sensImpose === 'virement' ? 'Virement' : 'Nouvelle opération'}
+        </h2>
 
-        <div className={styles.bascule} role="group" aria-label="Nature de l'opération">
-          <button
-            type="button"
-            className={styles.sens}
-            aria-pressed={sens === 'depense'}
-            onClick={() => {
-              setSens('depense')
-              setCategorieId('')
-              setEstPaie(false)
-            }}
-          >
-            Dépense
-          </button>
-          <button
-            type="button"
-            className={styles.sens}
-            aria-pressed={sens === 'revenu'}
-            onClick={() => {
-              setSens('revenu')
-              setCategorieId('')
-            }}
-          >
-            Revenu
-          </button>
-          <button
-            type="button"
-            className={styles.sens}
-            aria-pressed={sens === 'virement'}
-            disabled={!virementPossible}
-            title={virementPossible ? undefined : 'Il faut au moins deux comptes pour virer.'}
-            onClick={() => {
-              setSens('virement')
-              setCategorieId('')
-              setEstPaie(false)
-            }}
-          >
-            Virement
-          </button>
-        </div>
+        {sensImpose === undefined && (
+          <div className={styles.bascule} role="group" aria-label="Nature de l'opération">
+            <button
+              type="button"
+              className={styles.sens}
+              aria-pressed={sens === 'depense'}
+              onClick={() => {
+                setSens('depense')
+                setCategorieId('')
+                setEstPaie(false)
+              }}
+            >
+              Dépense
+            </button>
+            <button
+              type="button"
+              className={styles.sens}
+              aria-pressed={sens === 'revenu'}
+              onClick={() => {
+                setSens('revenu')
+                setCategorieId('')
+              }}
+            >
+              Revenu
+            </button>
+            <button
+              type="button"
+              className={styles.sens}
+              aria-pressed={sens === 'virement'}
+              disabled={!virementPossible}
+              title={virementPossible ? undefined : 'Il faut au moins deux comptes pour virer.'}
+              onClick={() => {
+                setSens('virement')
+                setCategorieId('')
+                setEstPaie(false)
+              }}
+            >
+              Virement
+            </button>
+          </div>
+        )}
 
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="montant">
-            Montant
-          </label>
-          <input
-            id="montant"
-            className={styles.saisie}
-            value={montant}
-            onChange={(e) => setMontant(e.target.value)}
-            inputMode="decimal"
-            placeholder="45,90"
-            autoComplete="off"
-            required
-          />
-        </div>
+        {/* Le montant en grand et sans étiquette visible : c'est le seul champ dont
+            personne ne se demande ce qu'il attend, et le seul qu'on tape à coup sûr.
+            L'étiquette reste portée par `aria-label` — la retirer du DOM la retirerait
+            aussi aux lecteurs d'écran, ce qui n'est pas la même simplification. */}
+        <input
+          id="montant"
+          className={styles.montantGrand}
+          value={montant}
+          onChange={(e) => setMontant(e.target.value)}
+          inputMode="decimal"
+          placeholder="0,00"
+          autoComplete="off"
+          aria-label="Montant"
+          autoFocus
+          required
+        />
 
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="libelle">
-            Libellé
-          </label>
-          <input
-            id="libelle"
-            className={styles.saisie}
-            value={libelle}
-            onChange={(e) => setLibelle(e.target.value)}
-            maxLength={140}
-            required
-          />
-        </div>
-
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="date">
-            Date de l’opération
-          </label>
-          <input
-            id="date"
-            className={styles.saisie}
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            required
-          />
-        </div>
+        <input
+          id="libelle"
+          className={styles.saisie}
+          value={libelle}
+          onChange={(e) => setLibelle(e.target.value)}
+          maxLength={140}
+          placeholder={sens === 'virement' ? 'Virement' : 'Libellé'}
+          aria-label="Libellé"
+          required
+        />
 
         {sens !== 'virement' && (
           <div className={styles.champ}>
@@ -297,23 +316,60 @@ export function FeuilleSaisie({
           </div>
         )}
 
-        {sens !== 'virement' && comptes.length > 1 && (
-          <div className={styles.champ}>
-            <label className={styles.etiquette} htmlFor="compte">
-              Compte
-            </label>
-            <select
-              id="compte"
-              className={styles.choix}
-              value={compteId}
-              onChange={(e) => setCompteId(e.target.value)}
-            >
-              {comptes.map((compte) => (
-                <option key={compte.id} value={compte.id}>
-                  {compte.nom}
-                </option>
-              ))}
-            </select>
+        {/* Le repli. Son libellé n'annonce pas « Options » mais montre les VALEURS —
+            « Aujourd'hui · Compte courant ». Un intitulé générique obligerait à déplier
+            pour vérifier, ce qui rendrait le repli plus coûteux que les deux champs qu'il
+            remplace. */}
+        <button
+          type="button"
+          className={styles.repli}
+          onClick={() => setOptionsOuvertes((ouvert) => !ouvert)}
+          aria-expanded={optionsOuvertes}
+        >
+          <span className={styles.repliResume}>{resumeDesOptions}</span>
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            aria-hidden
+            className={optionsOuvertes ? styles.chevronOuvert : styles.chevron}
+          />
+        </button>
+
+        {optionsOuvertes && (
+          <div className={styles.options}>
+            <div className={styles.champ}>
+              <label className={styles.etiquette} htmlFor="date">
+                Date de l’opération
+              </label>
+              <input
+                id="date"
+                className={styles.saisie}
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
+            </div>
+
+            {sens !== 'virement' && comptes.length > 1 && (
+              <div className={styles.champ}>
+                <label className={styles.etiquette} htmlFor="compte">
+                  Compte
+                </label>
+                <select
+                  id="compte"
+                  className={styles.choix}
+                  value={compteId}
+                  onChange={(e) => setCompteId(e.target.value)}
+                >
+                  {comptes.map((compte) => (
+                    <option key={compte.id} value={compte.id}>
+                      {compte.nom}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
 

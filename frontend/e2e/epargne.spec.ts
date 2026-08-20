@@ -139,3 +139,37 @@ test('l’épargne ne gonfle pas le solde du quotidien', async ({ page }) => {
   await page.getByRole('button', { name: 'Épargne' }).click()
   await expect(page.locator('main li', { hasText: livret })).toContainText('500')
 })
+
+test('virer depuis l’Épargne ne propose ni dépense ni revenu', async ({ page }) => {
+  // Depuis un écran d'épargne, « Dépense » et « Revenu » sont deux options hors sujet dans
+  // une bascule à trois positions : elles coûtent une lecture à chaque ouverture.
+  await connecter(page)
+  await page.getByRole('button', { name: 'Épargne' }).click()
+  await page.getByRole('button', { name: 'Virer de l’argent' }).click()
+
+  const feuille = page.getByRole('dialog', { name: 'Saisir une opération' })
+  await expect(feuille.getByRole('heading', { name: 'Virement' })).toBeVisible()
+  await expect(feuille.getByRole('button', { name: 'Dépense', exact: true })).toHaveCount(0)
+  await expect(feuille.getByRole('button', { name: 'Revenu', exact: true })).toHaveCount(0)
+
+  // Le formulaire est bien celui d'un virement : deux comptes, aucune catégorie.
+  await expect(feuille.getByLabel('Du compte')).toBeVisible()
+  await expect(feuille.getByLabel('Vers le compte')).toBeVisible()
+})
+
+test('le + de la barre rend la bascule après un passage par l’Épargne', async ({ page }) => {
+  // Le sens imposé est un état de l'application, pas de la feuille : sans remise à zéro à
+  // chaque ouverture, le `+` de la barre resterait verrouillé sur Virement pour le reste
+  // de la session. C'est le témoin qui distingue « imposé quand il faut » de « imposé ».
+  await connecter(page)
+  await page.getByRole('button', { name: 'Épargne' }).click()
+  await page.getByRole('button', { name: 'Virer de l’argent' }).click()
+  await page
+    .getByRole('dialog', { name: 'Saisir une opération' })
+    .getByRole('button', { name: 'Annuler', exact: true })
+    .click()
+
+  await page.getByRole('button', { name: 'Saisir une opération' }).click()
+  const feuille = page.getByRole('dialog', { name: 'Saisir une opération' })
+  await expect(feuille.getByRole('button', { name: 'Dépense', exact: true })).toBeVisible()
+})

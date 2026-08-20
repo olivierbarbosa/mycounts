@@ -189,3 +189,83 @@
 .sens:disabled {
   opacity: 0.45;
 }
+
+/* Le montant, en grand et sans étiquette. C'est le seul champ dont personne ne se demande
+   ce qu'il attend : lui donner la taille d'un titre dit à lui seul par où commencer.
+   16 px au moins reste garanti par la taille choisie — en dessous, iOS agrandit la page à
+   la mise au point et ne la réduit jamais. */
+.montantGrand {
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: var(--espace-s) var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  font-family: var(--typo-famille-chiffres);
+  font-size: 32px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.montantGrand::placeholder {
+  color: var(--couleur-texte-faible);
+  font-weight: var(--typo-gras-moyen);
+}
+
+/* Le repli des options secondaires. Il porte les VALEURS, pas un intitulé générique :
+   « Aujourd'hui · Compte courant » se vérifie d'un regard, « Options » obligerait à
+   ouvrir pour savoir, ce qui coûterait plus cher que les deux champs qu'il remplace. */
+.repli {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-m);
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: 1px dashed var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  text-align: left;
+}
+
+/* Tiretée et non pleine : la bordure dit « il y a autre chose dessous » sans se donner le
+   poids d'un champ à remplir. */
+.repli:hover {
+  border-color: var(--couleur-accent-clair);
+  color: var(--couleur-texte);
+}
+
+.repliResume {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron,
+.chevronOuvert {
+  flex: 0 0 auto;
+  transition: rotate 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.chevronOuvert {
+  rotate: 180deg;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-l);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .chevronOuvert {
+    transition: none;
+  }
+}

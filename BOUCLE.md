@@ -349,8 +349,27 @@ mouvement des écrans mesuré à 60 images/s.
 1bis. ~~Refonte visuelle : palette bleu ardoise, navbar à deux capsules, bulles unifiées
    avec glissement de retour, accueil et budgets allégés, création de catégorie à la
    volée~~ — **fait le 2026-08-20**, voir `docs/changelog.d/0046-refonte-bleu-ardoise.md`.
-   Restent de cette vague : Épargne (le virement doit ouvrir un modal ciblé), Enveloppes
-   (simplifier la saisie comme sur Budget), modal `+` à simplifier davantage.
+
+**Le reste est découpé en cinq lots, faits un par un** (demandé le 2026-08-20). Chacun se
+termine par une vérification verte complète, sa doc et son commit, avant que le suivant ne
+s'ouvre.
+
+- ~~**Lot A — la saisie.**~~ **Fait le 2026-08-20** — `docs/changelog.d/0047-saisie-simplifiee.md`.
+  Date et compte repliés derrière un résumé qui affiche leurs valeurs, montant en grand,
+  et « Virer de l'argent » qui ouvre la feuille verrouillée sur Virement.
+- **Lot B — l'écran des enveloppes.** Même traitement que Budget : lecture d'un coup d'œil,
+  saisie dépliée à la demande et à la place du bouton, édition par un crayon.
+- **Lot C — le modèle des enveloppes.** `rollover_mode` d'abord : c'est la seule question
+  du document du collègue restée sans réponse, et elle BLOQUE E3 — `place = max(0, cible −
+  actuel)` suppose déjà de savoir ce que devient une enveloppe au changement de période.
+  Puis `purpose`, `priorite`, `statut`, contribution mensuelle. Voir
+  `docs/analyse-reference-collegue.md`, qui dit aussi ce qu'on n'en prend PAS.
+- **Lot D — Statistiques et coaching.** Consommation de toutes les catégories, KPI et
+  graphiques, et repérage des dépenses évitables (abonnements dormants, livraisons
+  répétées).
+- **Lot E — import de relevé.** CSV d'abord, avec écran de revue, clé d'unicité documentée
+  et fixtures à IBAN cassé. Le PDF est une décision SÉPARÉE : un CSV a des colonnes, un PDF
+  a une mise en page, et une ligne mal lue devient de l'argent faux.
 2. **Enveloppes** — chantier découpé en quatre lots, tranché le 2026-08-20 d'après
    `docs/reference-enveloppes-collegue.md`. La règle qui commande tout le reste :
 

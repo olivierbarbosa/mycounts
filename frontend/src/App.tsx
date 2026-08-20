@@ -48,6 +48,9 @@ export function App() {
   const [comptes, setComptes] = useState<readonly ComptePublic[]>([])
   const [categories, setCategories] = useState<readonly CategoriePublique[]>([])
   const [saisieOuverte, setSaisieOuverte] = useState(false)
+  /* Nature imposée à la feuille de saisie, quand l'écran qui l'ouvre la connaît déjà.
+   * L'Épargne s'en sert : « Virer de l'argent » n'a pas à proposer Dépense ni Revenu. */
+  const [sensDeLaSaisie, setSensDeLaSaisie] = useState<'virement' | undefined>()
   const [recurrenceOuverte, setRecurrenceOuverte] = useState(false)
   const [recurrenceAModifier, setRecurrenceAModifier] = useState<RecurrencePublique>()
   const [operationChoisie, setOperationChoisie] = useState<OperationPublique>()
@@ -119,7 +122,10 @@ export function App() {
             comptes={comptes}
             categories={categories}
             rafraichissement={rafraichissement}
-            surSaisie={() => setSaisieOuverte(true)}
+            surSaisie={() => {
+              setSensDeLaSaisie(undefined)
+              setSaisieOuverte(true)
+            }}
             surBudgets={() => setOnglet('budget')}
             surAjustement={() => setAjustementOuvert(true)}
             surOperationChoisie={setOperationChoisie}
@@ -144,6 +150,7 @@ export function App() {
             surCompteChoisi={setLivretChoisi}
             surVirement={() => {
               setOperationChoisie(undefined)
+              setSensDeLaSaisie('virement')
               setSaisieOuverte(true)
             }}
           />
@@ -168,7 +175,10 @@ export function App() {
       <BarreOnglets
         onglets={ONGLETS}
         actif={onglet}
-        surAjout={() => setSaisieOuverte(true)}
+        surAjout={() => {
+          setSensDeLaSaisie(undefined)
+          setSaisieOuverte(true)
+        }}
         surChangement={(cle) => {
           const depart = ONGLETS.findIndex((o) => o.cle === onglet)
           const arrivee = ONGLETS.findIndex((o) => o.cle === cle)
@@ -232,6 +242,7 @@ export function App() {
         <FeuilleSaisie
           comptes={comptes}
           categories={categories}
+          sensImpose={sensDeLaSaisie}
           surReferentielsChanges={chargerReferentiels}
           surFermeture={() => setSaisieOuverte(false)}
           surEnregistrement={apresEcriture}
