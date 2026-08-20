@@ -171,3 +171,110 @@ def _lire_la_reponse(
         and libelle in connus
         and categorie in permises
     }
+
+
+"""Nombre minimal de libellés distincts pour proposer une catégorie qui n'existe pas.
+
+Deux, et c'est la règle qui empêche cette fonctionnalité de devenir insupportable : sans
+elle, chaque commerçant inconnu produirait sa propre catégorie, et l'écran de revue
+proposerait d'en créer trente. Une catégorie qui ne servirait qu'une fois n'est pas une
+catégorie, c'est un libellé.
+"""
+LIBELLES_POUR_UNE_NOUVELLE_CATEGORIE: Final[int] = 2
+
+CONSIGNE_MANQUANTES: Final[str] = (
+    "Tu analyses des libellés de relevé bancaire français qu'aucune catégorie de budget "
+    "existante ne couvre. Propose les catégories MANQUANTES qui les couvriraient. "
+    "Réponds UNIQUEMENT par un objet JSON dont chaque clé est un nom de catégorie nouveau, "
+    "court et générique — un ou deux mots — et chaque valeur la liste des libellés reçus "
+    "qu'elle couvrirait. N'utilise aucun nom de la liste des catégories existantes. "
+    "Ne propose rien si les libellés ne se regroupent pas."
+)
+
+
+def proposer_des_categories_manquantes(
+    libelles: Sequence[str], categories_existantes: Sequence[str]
+) -> dict[str, list[str]]:
+    """Suggère des catégories à CRÉER, pour les libellés qu'aucune ne couvre.
+
+    Demandé par Olivier après avoir vu « RADIO VETERINAIRE » n'aller nulle part : ce n'est
+    pas de la santé, ce n'est pas des courses, il manque « Animaux ».
+
+    Ne rend que les propositions couvrant au moins deux libellés distincts, et jamais un
+    nom qui existe déjà — le modèle en propose volontiers un déjà présent sous une autre
+    orthographe, et l'écran offrirait alors de créer un doublon.
+
+    Comme le reste de ce module : ne décide rien, n'échoue jamais, se tait sans clé.
+    """
+    cle = _cle()
+    if cle is None or not libelles:
+        return {}
+
+    uniques = list(dict.fromkeys(libelle for libelle in libelles if libelle.strip()))[
+        :LOT_MAXIMAL
+    ]
+    if not uniques:
+        return {}
+
+    demande = {
+        "model": os.environ.get("MYCOUNTS_MODELE_IA", MODELE_PAR_DEFAUT),
+        "temperature": 0,
+        "messages": [
+            {"role": "system", "content": CONSIGNE_MANQUANTES},
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"existantes": list(categories_existantes), "libelles": uniques},
+                    ensure_ascii=False,
+                ),
+            },
+        ],
+    }
+
+    try:
+        reponse = httpx.post(
+            URL,
+            headers={"Authorization": f"Bearer {cle}", "Content-Type": "application/json"},
+            json=demande,
+            timeout=DELAI,
+        )
+        reponse.raise_for_status()
+        contenu = reponse.json()["choices"][0]["message"]["content"]
+    except Exception:
+        return {}
+
+    return _lire_les_manquantes(contenu, uniques, categories_existantes)
+
+
+def _lire_les_manquantes(
+    contenu: str, libelles: Sequence[str], existantes: Sequence[str]
+) -> dict[str, list[str]]:
+    """Ne garde que les propositions vérifiables et utiles."""
+    debut, fin = contenu.find("{"), contenu.rfind("}")
+    if debut == -1 or fin <= debut:
+        return {}
+    try:
+        brut = json.loads(contenu[debut : fin + 1])
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(brut, dict):
+        return {}
+
+    connus = set(libelles)
+    deja = {nom.strip().lower() for nom in existantes}
+    retenues: dict[str, list[str]] = {}
+
+    for nom, couverts in brut.items():
+        if not isinstance(nom, str) or not isinstance(couverts, list):
+            continue
+        propre = nom.strip()
+        # Un nom déjà pris, ou trop long pour tenir dans une pastille de catégorie.
+        if not propre or propre.lower() in deja or len(propre) > 40:
+            continue
+        vraiment_couverts = [
+            libelle for libelle in couverts if isinstance(libelle, str) and libelle in connus
+        ]
+        if len(set(vraiment_couverts)) >= LIBELLES_POUR_UNE_NOUVELLE_CATEGORIE:
+            retenues[propre] = sorted(set(vraiment_couverts))
+
+    return retenues

@@ -377,3 +377,24 @@
     flex-wrap: wrap;
   }
 }
+
+/* Le bouton de création d'une catégorie suggérée. Bordé et non plein : créer une catégorie
+   est une décision du foyer, pas l'action principale de cet écran — qui reste d'importer. */
+.creer {
+  min-height: 32px;
+  padding: 0 var(--espace-m);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.creer:hover:not(:disabled) {
+  border-color: var(--couleur-accent-clair);
+}
+
+.creer:disabled {
+  opacity: 0.55;
+}

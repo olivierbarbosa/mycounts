@@ -23,6 +23,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from mycounts.api.dependances import PrincipalCourant, SessionBase
 from mycounts.api.import_schemas import (
+    CategorieManquante,
     DemandeValidationImport,
     LigneImportPublique,
     RecurrenceProposee,
@@ -45,7 +46,10 @@ from mycounts.domain.import_releve import (
 from mycounts.domain.montants import Cents
 from mycounts.repository import budget as depot
 from mycounts.repository import recurrences as depot_recurrences
-from mycounts.services.categorisation_ia import proposer_des_categories
+from mycounts.services.categorisation_ia import (
+    proposer_des_categories,
+    proposer_des_categories_manquantes,
+)
 
 routeur = APIRouter(tags=["import"])
 
@@ -184,6 +188,23 @@ async def analyser_un_releve(
             if nom_suggere is not None:
                 proposees[ligne.cle] = str(par_nom[nom_suggere])
 
+    #  4. et ce que personne ne peut ranger : une catégorie qui manque. Elle n'est
+    #     proposée que si PLUSIEURS libellés l'appellent — sans quoi chaque commerçant
+    #     inconnu produirait la sienne, et l'écran offrirait d'en créer trente.
+    orphelins = [
+        ligne
+        for ligne in nouvelles
+        if ligne.cle not in proposees and ligne.sens is SensImporte.DEPENSE
+    ]
+    manquantes = (
+        proposer_des_categories_manquantes(
+            [ligne.libelle for ligne in orphelins],
+            [categorie.nom for categorie in categories_du_foyer],
+        )
+        if orphelins
+        else {}
+    )
+
     return RevueImport(
         total=len(lignes),
         nouvelles=len(nouvelles),
@@ -198,6 +219,10 @@ async def analyser_un_releve(
             for ligne in nouvelles
         ]
         + [_en_public(ligne, True) for ligne in ignorees],
+        categories_manquantes=[
+            CategorieManquante(nom=nom, libelles=couverts)
+            for nom, couverts in manquantes.items()
+        ],
         recurrences_proposees=[
             RecurrenceProposee(
                 libelle=candidate.libelle,

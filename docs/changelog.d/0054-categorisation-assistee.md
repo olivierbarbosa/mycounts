@@ -79,3 +79,24 @@ Et une régression que j'ai introduite en corrigeant le premier : la paie du jou
 j'avais ajoutée pour stabiliser un test ouvrait une NOUVELLE période, faisant sortir de
 l'accueil les opérations datées d'hier de tous les tests suivants. Un test qui déplace la
 période d'un foyer partagé déplace le sol sous les autres.
+
+## Proposer une catégorie qui manque
+
+Demandé par Olivier après avoir vu « RADIO VETERINAIRE » n'aller nulle part : ce n'est pas
+de la santé, ce n'est pas des courses, il manque « Animaux ».
+
+L'écran propose désormais les catégories que le relevé appellerait et que le foyer n'a pas
+— avec un bouton pour les créer, jamais de création d'office.
+
+**Jamais pour un seul libellé.** C'est la règle qui empêche cette fonctionnalité de devenir
+insupportable : sans elle, chaque commerçant inconnu produirait sa propre catégorie et
+l'écran offrirait d'en créer trente. Une catégorie qui ne servirait qu'une fois n'est pas
+une catégorie, c'est un libellé.
+
+Sont écartés aussi : les noms qui existent déjà, quelle qu'en soit la casse — le modèle en
+propose volontiers un déjà présent, et l'écran offrirait alors de créer un doublon — et
+ceux trop longs pour tenir dans une pastille.
+
+Éprouvé sur les orphelins réels du relevé d'Olivier : « Soins Animaux » couvrant ses trois
+lignes vétérinaires, « Meubles » couvrant deux achats de mobilier, et rien pour le libellé
+isolé.

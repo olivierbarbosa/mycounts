@@ -866,6 +866,20 @@ export interface components {
        */
       fin: string
     }
+    /**
+     * CategorieManquante
+     * @description Une catégorie qui n'existe pas encore et que plusieurs libellés appelleraient.
+     *
+     *     Proposée, jamais créée : c'est le foyer qui décide de son propre rangement. Et jamais
+     *     pour un seul libellé — une catégorie qui ne servirait qu'une fois n'est pas une
+     *     catégorie, c'est un libellé.
+     */
+    CategorieManquante: {
+      /** Nom */
+      nom: string
+      /** Libelles */
+      libelles: string[]
+    }
     /** CategoriePublique */
     CategoriePublique: {
       /**
@@ -1751,6 +1765,8 @@ export interface components {
       deja_importees: number
       /** Lignes */
       lignes: components['schemas']['LigneImportPublique'][]
+      /** Categories Manquantes */
+      categories_manquantes: components['schemas']['CategorieManquante'][]
       /** Recurrences Proposees */
       recurrences_proposees: components['schemas']['RecurrenceProposee'][]
     }

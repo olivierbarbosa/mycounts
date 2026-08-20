@@ -9,6 +9,7 @@ import type {
   RevueImport,
 } from '../api/client'
 import { ErreurApi, api } from '../api/client'
+import { teinteLaMoinsEmployee } from '../composants/ChoixCategorie'
 import { type Origine, useEcranDeBulle } from '../composants/EcranDeBulle'
 import { Montant } from '../composants/Montant'
 import styles from './ImportReleve.module.css'
@@ -17,9 +18,14 @@ type Props = {
   readonly origine: Origine
   readonly comptes: readonly ComptePublic[]
   readonly categoriesDuFoyer: readonly CategoriePublique[]
+  readonly surReferentielsChanges: () => void | Promise<void>
   readonly surFermeture: () => void
   readonly surImport: () => void
 }
+
+/** La teinte d'une catégorie créée ici : la moins employée, comme partout ailleurs. Le
+ *  nom n'entre pas dans le calcul — deux catégories créées à la suite doivent différer. */
+const teinteSuggeree = (_nom: string) => teinteLaMoinsEmployee([])
 
 const jourEtMois = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
 
@@ -54,6 +60,7 @@ export function ImportReleve({
   origine,
   comptes,
   categoriesDuFoyer,
+  surReferentielsChanges,
   surFermeture,
   surImport,
 }: Props) {
@@ -73,6 +80,9 @@ export function ImportReleve({
   /** Ne lire le relevé qu'à partir de ce jour. Vide = tout le fichier. Sert à n'importer
    *  que depuis la dernière paie, pour ne pas faire doublon avec ce qui est déjà saisi. */
   const [depuis, setDepuis] = useState('')
+  /** Catégories suggérées déjà créées, pour ne pas les proposer deux fois. Le nom suffit :
+   *  une catégorie ne peut pas exister en double dans un foyer. */
+  const [creees, setCreees] = useState<Set<string>>(new Set())
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
   const [bilan, setBilan] = useState<string | null>(null)
@@ -110,6 +120,19 @@ export function ImportReleve({
       setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
     } finally {
       setEnCours(false)
+    }
+  }
+
+  async function creerLaCategorie(nom: string) {
+    setErreur(null)
+    try {
+      // Une catégorie de DÉPENSE : les suggestions ne portent que sur des sorties, et la
+      // nature n'est pas modifiable après coup — se tromper ici serait irréversible.
+      await api.creerCategorie(nom, 'depense', teinteSuggeree(nom))
+      setCreees((actuel) => new Set(actuel).add(nom))
+      await surReferentielsChanges()
+    } catch (cause) {
+      setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
     }
   }
 
@@ -256,6 +279,34 @@ export function ImportReleve({
                   ))}
                 </select>
               </label>
+            )}
+
+            {revue.categories_manquantes.length > 0 && (
+              <section className={styles.recurrences}>
+                <h2 className={styles.titreBloc}>Catégories qui vous manquent</h2>
+                <p className={styles.explicationBloc}>
+                  Plusieurs opérations de ce relevé n’entrent dans aucune de vos catégories. Rien
+                  n’est créé sans vous.
+                </p>
+                <ul className={styles.listeRecurrences}>
+                  {revue.categories_manquantes.map((manquante) => (
+                    <li key={manquante.nom}>
+                      <span className={styles.nomRecurrence}>{manquante.nom}</span>
+                      <button
+                        type="button"
+                        className={styles.creer}
+                        disabled={creees.has(manquante.nom)}
+                        onClick={() => void creerLaCategorie(manquante.nom)}
+                      >
+                        {creees.has(manquante.nom) ? 'Créée' : 'Créer'}
+                      </button>
+                      <span className={styles.metaRecurrence}>
+                        {manquante.libelles.length} opérations : {manquante.libelles.join(', ')}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
 
             {revue.recurrences_proposees.length > 0 && (

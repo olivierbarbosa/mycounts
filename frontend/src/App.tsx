@@ -213,6 +213,7 @@ export function App() {
           origine={origineImport}
           comptes={comptes}
           categoriesDuFoyer={categories}
+          surReferentielsChanges={chargerReferentiels}
           surFermeture={() => setOrigineImport(null)}
           surImport={apresEcriture}
         />

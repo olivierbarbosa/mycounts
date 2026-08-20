@@ -14,8 +14,14 @@ touche à de l'argent.
 
 from __future__ import annotations
 
+import json
+
 import pytest
-from mycounts.services.categorisation_ia import _lire_la_reponse, proposer_des_categories
+from mycounts.services.categorisation_ia import (
+    _lire_la_reponse,
+    _lire_les_manquantes,
+    proposer_des_categories,
+)
 
 CATEGORIES = ["Courses", "Transport", "Santé"]
 
@@ -84,3 +90,40 @@ class TestLectureDeLaReponse:
         """Aucune de ces formes ne doit lever : l'appelant est un import qui doit aboutir
         même quand le service répond n'importe quoi."""
         assert _lire_la_reponse(contenu, ["INTERMARCHE"], CATEGORIES) == {}
+
+
+class TestCategoriesManquantes:
+    """Proposer une catégorie qui n'existe pas, sans en proposer trente."""
+
+    def test_une_categorie_couvrant_plusieurs_libelles_est_proposee(self) -> None:
+        contenu = '{"Animaux": ["VETERINAIRE", "CLINIQUE VETO"]}'
+        assert _lire_les_manquantes(
+            contenu, ["VETERINAIRE", "CLINIQUE VETO"], CATEGORIES
+        ) == {"Animaux": ["CLINIQUE VETO", "VETERINAIRE"]}
+
+    def test_une_categorie_pour_UN_SEUL_libelle_est_ecartee(self) -> None:
+        """Sans cette règle, chaque commerçant inconnu produirait la sienne et l'écran
+        offrirait d'en créer trente. Une catégorie qui ne sert qu'une fois est un libellé."""
+        contenu = '{"Taxidermie": ["ZZQX 447"]}'
+        assert _lire_les_manquantes(contenu, ["ZZQX 447"], CATEGORIES) == {}
+
+    def test_une_categorie_qui_EXISTE_DEJA_est_ecartee(self) -> None:
+        """Le modèle propose volontiers un nom déjà présent : l'écran offrirait alors de
+        créer un doublon."""
+        contenu = '{"Courses": ["MARCHE", "EPICERIE"]}'
+        assert _lire_les_manquantes(contenu, ["MARCHE", "EPICERIE"], CATEGORIES) == {}
+
+    def test_la_casse_ne_permet_pas_de_contourner_lexistant(self) -> None:
+        contenu = '{"courses": ["MARCHE", "EPICERIE"]}'
+        assert _lire_les_manquantes(contenu, ["MARCHE", "EPICERIE"], CATEGORIES) == {}
+
+    def test_un_nom_trop_long_pour_une_pastille_est_ecarte(self) -> None:
+        nom = "Dépenses liées aux animaux de compagnie et à leur suivi vétérinaire"
+        contenu = json.dumps({nom: ["A", "B"]})
+        assert _lire_les_manquantes(contenu, ["A", "B"], CATEGORIES) == {}
+
+    def test_un_libelle_QUON_NA_PAS_ENVOYE_ne_compte_pas(self) -> None:
+        """Deux libellés annoncés dont un inventé : il n'en reste qu'un vrai, donc pas de
+        proposition."""
+        contenu = '{"Animaux": ["VETERINAIRE", "LIGNE INVENTEE"]}'
+        assert _lire_les_manquantes(contenu, ["VETERINAIRE"], CATEGORIES) == {}

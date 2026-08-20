@@ -33,6 +33,18 @@ class LigneImportPublique(BaseModel):
     typiquement un prélèvement saisi comme récurrence. Signalé, jamais décidé."""
 
 
+class CategorieManquante(BaseModel):
+    """Une catégorie qui n'existe pas encore et que plusieurs libellés appelleraient.
+
+    Proposée, jamais créée : c'est le foyer qui décide de son propre rangement. Et jamais
+    pour un seul libellé — une catégorie qui ne servirait qu'une fois n'est pas une
+    catégorie, c'est un libellé.
+    """
+
+    nom: str
+    libelles: list[str]
+
+
 class RecurrenceProposee(BaseModel):
     """Un prélèvement régulier repéré dans le relevé, qu'aucune récurrence ne couvre."""
 
@@ -48,6 +60,10 @@ class RevueImport(BaseModel):
     nouvelles: int
     deja_importees: int
     lignes: list[LigneImportPublique]
+    categories_manquantes: list[CategorieManquante]
+    """Catégories que le relevé appellerait et que le foyer n'a pas. Proposées à la
+    création, jamais créées d'office."""
+
     recurrences_proposees: list[RecurrenceProposee]
     """Repérées dans le relevé, jamais créées d'office : un écran qui ajouterait des
     récurrences tout seul remplirait le calendrier de prélèvements que personne n'a
