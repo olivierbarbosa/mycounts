@@ -950,3 +950,29 @@ projection débranchée, il rougit.
 
 **Corrigé** en extrayant la projection des échéances dans le dépôt, partagée par l'agenda
 et les plafonds. Deux copies auraient fini par diverger.
+
+## #031 — Un effet qui existait dans le code et nulle part à l'écran
+
+**Ce que je croyais.** Que la transition d'élément partagé fonctionnait : le code FLIP
+était écrit, les types passaient, les tests restaient verts.
+
+**Ce que j'ai mesuré.** L'avatar partait de sa position d'ARRIVÉE, à 198 px de la bulle.
+En listant `getAnimations()` sur l'élément : **deux** animations. La première juste —
+`translate(-181px, -80px) scale(0.52)`, exactement l'écart vers la bulle. La seconde nulle
+— `translate(0, 0) scale(1)`. React en mode strict rejoue l'effet ; le second passage
+mesurait une position DÉJÀ DÉPLACÉE par le premier, calculait donc un trajet nul, et
+l'emportait en étant joué en dernier.
+
+**Pourquoi rien ne m'a alerté.** Aucun test ne regardait le mouvement. Un effet visuel qui
+ne casse rien passe tous les contrôles d'un projet qui n'en mesure aucun — et en
+production, sans mode strict, il aurait fonctionné. J'aurais livré un effet dont je ne
+savais pas s'il tenait.
+
+**Le contrôle qui a tranché.** Lire la première image de position de l'élément et la
+comparer au centre de la bulle : deux nombres, un écart, une réponse. Corrigé en annulant
+toute animation en cours sur l'élément AVANT de mesurer.
+
+**Une seconde mesure, imprévue.** Le débit tombait de 61 à **36 images par seconde** :
+un `backdrop-filter` plein écran refait son flou à chaque image tant que ce qu'il recouvre
+bouge — et les halos voyagent. Figer les halos pendant qu'un écran les recouvre l'a
+ramené à 55. Sans mesure, l'effet aurait été livré saccadé sur téléphone.

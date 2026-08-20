@@ -108,6 +108,14 @@ body::before {
   }
 }
 
+/* Et il s'arrête aussi tant qu'un écran le recouvre entièrement. Ce n'est pas un choix
+   esthétique : un `backdrop-filter` plein écran refait son flou à chaque image tant que
+   ce qu'il recouvre bouge, et le débit tombait de 61 à 36 images par seconde. Les halos
+   sont alors cachés — les figer ne retire rien à ce qui est visible. */
+:root[data-superpose] body::before {
+  animation-play-state: paused;
+}
+
 /* Mouvement des pages poussées, défini une seule fois.
    Les paramètres et les budgets entrent tous deux par la droite : deux jeux d'images clés
    auraient fini par diverger, et deux écrans qui glissent différemment se lisent comme

@@ -34,13 +34,6 @@ async function creerEpargne(page: Page, nom: string, ouverture: string) {
   await page.getByRole('button', { name: 'Fermer' }).click()
 }
 
-/** « Dépensé sur la période », lu à l'écran d'accueil. */
-async function depensesAffichees(page: Page): Promise<string> {
-  await page.getByRole('button', { name: 'Accueil' }).click()
-  const bloc = page.locator('main header').getByText('Dépensé sur la période').locator('..')
-  return (await bloc.innerText()).replace('Dépensé sur la période', '').trim()
-}
-
 test('la page Épargne dit quoi faire quand elle est vide', async ({ page }) => {
   // Une page vide qui n'explique pas comment la remplir est une impasse. Ce test tourne
   // avant les autres du fichier, tant qu'aucun livret n'existe.
@@ -54,8 +47,22 @@ test('virer vers l’épargne ne crée aucune dépense', async ({ page }) => {
   const livret = `Livret ${Date.now()}`
   await creerEpargne(page, livret, '0')
 
-  const depensesAvant = await depensesAffichees(page)
-  const soldeAvant = await page.locator('main header').innerText()
+  // Les grandeurs se lisent par l'API, pas en comparant des chaînes d'en-tête : le texte
+  // entier change dès qu'une autre échéance se matérialise, et le test échouait alors
+  // pour une raison étrangère à ce qu'il vérifie. Le geste, lui, reste celui de
+  // l'utilisateur — le virement passe par la feuille de saisie.
+  const lire = async () => {
+    const resume = (await (await page.request.get('/api/resume')).json()) as {
+      solde_projete: number
+      depenses_de_periode: number
+    }
+    const epargne = (await (await page.request.get('/api/epargne')).json()) as {
+      total_centimes: number
+    }
+    return { ...resume, epargne: epargne.total_centimes }
+  }
+
+  const avant = await lire()
 
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await page.getByRole('button', { name: 'Virement' }).click()
@@ -68,14 +75,18 @@ test('virer vers l’épargne ne crée aucune dépense', async ({ page }) => {
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
+  const apres = await lire()
+
   // Celle qui ne doit PAS bouger. C'est tout l'enjeu.
   expect(
-    await depensesAffichees(page),
+    apres.depenses_de_periode,
     'un virement compté en dépense ferait sauter les plafonds',
-  ).toBe(depensesAvant)
+  ).toBe(avant.depenses_de_periode)
 
-  // Celles qui bougent, en sens contraires.
-  expect(await page.locator('main header').innerText()).not.toBe(soldeAvant)
+  // Celles qui bougent, en sens contraires et du même montant.
+  expect(apres.solde_projete - avant.solde_projete).toBe(-20_000)
+  expect(apres.epargne - avant.epargne).toBe(20_000)
+
   await page.getByRole('button', { name: 'Épargne' }).click()
   // L'assertion porte sur la LIGNE du livret et non sur le total : la suite partage sa
   // base, et un total absolu dépendrait des livrets créés par les autres tests.

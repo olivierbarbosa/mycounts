@@ -10,7 +10,7 @@ import type {
 } from './api/client'
 import { api } from './api/client'
 import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
-import { BulleAvatar } from './composants/BulleAvatar'
+import { BulleAvatar, type Origine } from './composants/BulleAvatar'
 import { FeuilleOperation } from './composants/FeuilleOperation'
 import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
 import { FeuilleSaisie } from './composants/FeuilleSaisie'
@@ -44,7 +44,10 @@ export function App() {
   const [operationChoisie, setOperationChoisie] = useState<OperationPublique>()
   // Compteur d'invalidation : incrémenté après chaque écriture, il force les écrans à
   // relire le serveur. Recalculer un solde côté client dupliquerait la règle métier.
-  const [parametresOuverts, setParametresOuverts] = useState(false)
+  // L'origine porte l'ouverture : sa présence dit que le panneau est ouvert ET d'où
+  // il doit naître. Deux états séparés auraient pu se contredire — panneau ouvert sans
+  // origine, et une transition partant du coin haut-gauche de l'écran.
+  const [origineParametres, setOrigineParametres] = useState<Origine | null>(null)
   const [budgetsOuverts, setBudgetsOuverts] = useState(false)
   const [rafraichissement, setRafraichissement] = useState(0)
 
@@ -130,10 +133,7 @@ export function App() {
         />
       )}
 
-      <BulleAvatar
-        nom={utilisateur.nom_affichage}
-        surOuverture={() => setParametresOuverts(true)}
-      />
+      <BulleAvatar nom={utilisateur.nom_affichage} surOuverture={setOrigineParametres} />
 
       <BarreOnglets onglets={ONGLETS} actif={onglet} surChangement={setOnglet} />
 
@@ -145,15 +145,16 @@ export function App() {
         />
       )}
 
-      {parametresOuverts && (
+      {origineParametres !== null && (
         <Parametres
+          origine={origineParametres}
           utilisateur={utilisateur}
           categories={categories}
           comptes={comptes}
           surChangement={apresEcriture}
-          surFermeture={() => setParametresOuverts(false)}
+          surFermeture={() => setOrigineParametres(null)}
           surDeconnexion={() => {
-            setParametresOuverts(false)
+            setOrigineParametres(null)
             setUtilisateur(null)
             setComptes([])
           }}

@@ -5,6 +5,7 @@ import type { CategoriePublique, PlafondPublic } from '../api/client'
 import { ErreurApi, api } from '../api/client'
 import { Jauge } from '../composants/Jauge'
 import { Montant } from '../composants/Montant'
+import { useSuperposition } from '../composants/superposition'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import styles from './Budget.module.css'
 
@@ -32,6 +33,7 @@ export function Budget({ categories, rafraichissement, surFermeture }: Props) {
   const [categorieChoisie, setCategorieChoisie] = useState('')
   const [montant, setMontant] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
+  useSuperposition()
 
   const charger = useCallback(async () => {
     setPlafonds(await api.plafonds())

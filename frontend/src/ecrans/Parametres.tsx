@@ -8,12 +8,13 @@ import {
   UserRound,
   Users,
 } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
 
 import type { CategoriePublique, ComptePublic, UtilisateurPublic } from '../api/client'
 import { api } from '../api/client'
-import { initiales } from '../composants/BulleAvatar'
+import { type Origine, initiales } from '../composants/BulleAvatar'
 import { ComptesBancaires } from '../composants/ComptesBancaires'
+import { useSuperposition } from '../composants/superposition'
 import { ReglageTheme } from '../composants/ReglageTheme'
 import { ReglageTransparence } from '../composants/ReglageTransparence'
 import { Categories } from './Categories'
@@ -26,6 +27,8 @@ type Props = {
   readonly surChangement: () => void
   readonly surFermeture: () => void
   readonly surDeconnexion: () => void
+  /** D'où le panneau doit naître. Voir `BulleAvatar`. */
+  readonly origine: Origine
 }
 
 type Cle = 'compte' | 'comptes' | 'categories' | 'apparence' | 'foyer'
@@ -49,10 +52,47 @@ export function Parametres({
   surChangement,
   surFermeture,
   surDeconnexion,
+  origine,
 }: Props) {
   const [sousMenu, setSousMenu] = useState<Cle | null>(null)
   const [ferme, setFerme] = useState(false)
   const [code, setCode] = useState<string | null>(null)
+  const avatar = useRef<HTMLSpanElement>(null)
+  useSuperposition()
+
+  // Transition d'élément partagé, en FLIP : on mesure l'ARRIVÉE de l'avatar une fois
+  // posé, on calcule le transform qui le ramènerait sur la bulle, et on joue l'inverse.
+  //
+  // Mesurer l'arrivée plutôt que deviner le trajet est ce qui rend l'effet juste quel
+  // que soit l'écran : la place finale de l'avatar dépend de la largeur, de la longueur
+  // du nom, de la barre d'état. Une trajectoire écrite à la main serait fausse partout
+  // sauf sur l'appareil qui a servi à l'écrire.
+  useEffect(() => {
+    const element = avatar.current
+    if (element === null) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    // Annuler d'abord toute animation en cours SUR CET ÉLÉMENT, avant de mesurer. Sans
+    // cela, un second passage de l'effet — React en mode strict en déclenche un — mesure
+    // une position déjà déplacée par le premier, calcule un trajet nul, et l'emporte
+    // parce qu'il est joué en dernier. L'effet existait alors dans le code et nulle part
+    // à l'écran.
+    element.getAnimations().forEach((animation) => animation.cancel())
+
+    const arrivee = element.getBoundingClientRect()
+    const facteur = origine.taille / arrivee.width
+    const dx = origine.x - (arrivee.left + arrivee.width / 2)
+    const dy = origine.y - (arrivee.top + arrivee.height / 2)
+
+    const jouee = element.animate(
+      [
+        { transform: `translate(${dx}px, ${dy}px) scale(${facteur})`, opacity: 0.85 },
+        { transform: 'none', opacity: 1 },
+      ],
+      { duration: 380, easing: 'cubic-bezier(0.2, 0, 0, 1)', fill: 'both' },
+    )
+    return () => jouee.cancel()
+  }, [origine])
 
   // La fermeture est retardée le temps de la glissade : démonter tout de suite ferait
   // disparaître le panneau d'un coup, sans le mouvement qui dit d'où il vient.
@@ -152,6 +192,13 @@ export function Parametres({
   return (
     <div
       className={`${styles.panneau} ${ferme ? styles.sortant : ''}`}
+      style={
+        {
+          '--origine-x': `${origine.x}px`,
+          '--origine-y': `${origine.y}px`,
+          '--origine-rayon': `${origine.taille / 2}px`,
+        } as CSSProperties
+      }
       role="dialog"
       aria-modal="true"
       aria-label="Paramètres"
@@ -165,7 +212,7 @@ export function Parametres({
           </header>
 
           <div className={styles.identite}>
-            <span className={styles.avatar} aria-hidden>
+            <span ref={avatar} className={styles.avatar} aria-hidden>
               {initiales(utilisateur.nom_affichage)}
             </span>
             <h1 className={styles.nom}>{utilisateur.nom_affichage}</h1>
