@@ -101,12 +101,14 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 
 ## Garde-fous actifs
 
-Dix, tous bloquants, tous prouvés en les faisant échouer devant la faute qu'ils
+Onze — dix bloquants et un avertisseur — tous prouvés en les faisant échouer devant la faute qu'ils
 prétendent détecter — **y compris les cibles du `Makefile` elles-mêmes** : `front-lint` a
 été vert sans rien vérifier pendant toute la vie du projet, faute de `-p` sur un tsconfig
 de références (ERREURS.md #034) : données bancaires (IBAN mod-97, PAN Luhn), secrets, dépendances LLM,
 tête Alembic unique, flottants dans le domaine, requêtes hors repository, couleurs en dur
-hors `tokens.ts`, et mise en page sur trois tailles d'écran. Chaque script documente en
+hors `tokens.ts`, et mise en page sur trois tailles d'écran. Le onzième avertit quand la base de
+DÉMONSTRATION est en retard sur les migrations : elle se migre séparément, son API refuse
+alors de démarrer, et l'application n'affiche plus rien (ERREURS.md #039). Chaque script documente en
 tête **ce qu'il ne détecte pas** — lire cette section avant de lui faire confiance.
 
 ## Habitudes

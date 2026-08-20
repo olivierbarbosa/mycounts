@@ -1149,3 +1149,40 @@ une feuille.
 **Le contrôle en place maintenant.** `tokens.ts` porte une échelle de plans nommés — `fond`,
 `poignee`, `navigation`, `bulle`, `ecran`, `feuille`, `confirmation` — et plus aucun module
 n'écrit de nombre. Un composant choisit un RÔLE, et l'ordre se lit à un seul endroit.
+
+## #039 — Une consigne que je relisais, et que j'ai payée quand même
+
+**Ce que je croyais.** Que `make migrer` suffisait après avoir écrit une migration.
+
+**Ce qu'il s'est passé.** Olivier : « l'appli sert juste le background, là ça ne m'affiche
+plus rien. » L'API de démonstration refusait de démarrer :
+
+    BaseNonMigree: La base est en révision '9af113325c74', le code attend 'efe3ce18d323'.
+
+Le lot C avait ajouté une migration. Je l'avais appliquée à la base de développement — d'où
+des tests d'intégration verts, une suite de bout en bout verte, et une application morte
+chez lui.
+
+**Ce qui rend cette erreur particulière.** Elle était écrite. Noir sur blanc, dans
+`BOUCLE.md`, dans la liste intitulée « pièges déjà payés, à ne pas repayer » : *la base de
+DÉMONSTRATION se migre séparément (`make demo-migrer`). L'API refuse désormais de démarrer
+si elle est en retard.* Je l'ai lue au début de la session, je l'ai eue sous les yeux à
+chaque relecture du fichier, et je ne l'ai pas appliquée.
+
+**La leçon, et elle vaut au-delà de ce cas.** Une consigne qu'on relit ne remplace pas un
+contrôle qui la vérifie. Ce projet le sait déjà pour le code — c'est la raison d'être de ses
+dix garde-fous — mais avait laissé cette règle-ci à l'état de phrase. Une phrase ne peut pas
+rendre la réponse « rouge ».
+
+Deux détails aggravants, tous deux du même genre : **rien de ce que je lance ne touche à la
+base de démonstration**, donc aucune de mes vérifications ne pouvait voir le problème ; et
+la vérification que je répétais à chaque lot était complète sur le mauvais périmètre. C'est
+la sixième entrée de ce fichier où la mesure porte sur le bon sujet mais pas sur la bonne
+machine.
+
+**Le contrôle en place maintenant.** Garde-fou nº 11,
+`scripts/verifier_demo_migree.py`, appelé par `make verifier`. Il AVERTIT sans bloquer —
+une base de démonstration absente ou injoignable n'est pas une faute, et faire échouer la
+vérification d'un poste qui n'en a pas serait punir ceux qui ne sont pas concernés. Vérifié
+par mutation : contre une base réellement migrée à la révision précédente, il affiche
+l'avertissement et nomme la commande à lancer.

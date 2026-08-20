@@ -34,6 +34,11 @@ garde-fous:
 	$(PY) -m scripts.verifier_pas_de_float
 	$(PY) -m scripts.verifier_scope_repository
 	$(PY) -m scripts.verifier_couleurs
+	@# Avertit sans bloquer : voir la tête du script. Une base de démonstration absente
+	@# ou injoignable n'est pas une faute, mais une démonstration EN RETARD produit une
+	@# application qui n'affiche plus rien — piège documenté dans BOUCLE.md et payé quand
+	@# même le 20 août 2026, faute d'un contrôle qui le dise.
+	$(PY) -m scripts.verifier_demo_migree
 
 tests:
 	$(PY) -m pytest tests/unit -q
