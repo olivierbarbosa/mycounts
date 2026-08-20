@@ -1,0 +1,141 @@
+import { expect, test, type Page } from '@playwright/test'
+
+/**
+ * Import d'un relevé, à l'écran.
+ *
+ * **Toutes les données de ce fichier sont inventées.** Elles reproduisent la forme d'un
+ * export bancaire réel — encodage Latin-1, séparateur point-virgule, débit et crédit en
+ * deux colonnes, deux dates — sans en reprendre aucun contenu.
+ *
+ * Le test central est `réimporter le même fichier ne propose plus rien` : c'est la
+ * contrainte que BOUCLE.md posait comme non négociable, et la seule dont une violation
+ * dupliquerait de l'argent sans que rien ne le signale.
+ */
+
+const ENTETE =
+  'Date de comptabilisation;Libelle simplifie;Libelle operation;Reference;' +
+  'Informations complementaires;Type operation;Categorie;Sous categorie;' +
+  'Debit;Credit;Date operation;Date de valeur;Pointage operation'
+
+function releve(...lignes: readonly string[]): Buffer {
+  // Latin-1, comme les exports réels : c'est aussi ce que l'écran doit savoir lire.
+  return Buffer.from([ENTETE, ...lignes].join('\r\n') + '\r\n', 'latin1')
+}
+
+function ligne(libelle: string, debit: string, reference = ''): string {
+  return (
+    `19/08/2026;${libelle};CB ${libelle};${reference};;Carte bancaire;Alimentation;` +
+    `Sous;${debit};;17/08/2026;17/08/2026;0`
+  )
+}
+
+async function connecter(page: Page) {
+  await page.goto('/')
+  await page.locator('nav, form').first().waitFor({ state: 'visible' })
+  if (await page.locator('nav').isVisible()) return
+  await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
+  await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
+  await page.getByRole('button', { name: 'Se connecter' }).click()
+  await expect(page.locator('nav')).toBeVisible()
+}
+
+/** `dispatchEvent` : l'écran monte sa coquille sans attendre le réseau et recouvre la
+ *  bulle dans la milliseconde, si bien que Playwright refuse de valider un clic dont
+ *  l'interception qui suit est justement le résultat attendu. */
+async function ouvrirImport(page: Page) {
+  await page.getByRole('button', { name: 'Importer un relevé' }).dispatchEvent('click')
+  await expect(page.getByRole('dialog', { name: 'Importer un relevé' })).toBeVisible()
+}
+
+async function deposer(page: Page, contenu: Buffer, nom = 'releve.csv') {
+  await page
+    .getByRole('dialog', { name: 'Importer un relevé' })
+    .getByLabel('Relevé au format CSV')
+    .setInputFiles({ name: nom, mimeType: 'text/csv', buffer: contenu })
+}
+
+test('déposer un relevé montre ce qu’il contient SANS rien écrire', async ({ page }) => {
+  const libelle = `Boulangerie ${Date.now()}`
+  await connecter(page)
+
+  const avant = (await (await page.request.get('/api/operations?periode_courante=false')).json())
+    .length
+
+  await ouvrirImport(page)
+  await deposer(page, releve(ligne(libelle, '-12,40', `r-${Date.now()}`)))
+
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await expect(ecran.getByText(libelle)).toBeVisible()
+  await expect(ecran.getByText(/1 nouvelle/)).toBeVisible()
+
+  // Rien n'a été écrit tant qu'on n'a pas validé.
+  const apres = (await (await page.request.get('/api/operations?periode_courante=false')).json())
+    .length
+  expect(apres).toBe(avant)
+})
+
+test('valider écrit les lignes retenues, et elles apparaissent dans les comptes', async ({
+  page,
+}) => {
+  const libelle = `Import ${Date.now()}`
+  await connecter(page)
+  await ouvrirImport(page)
+  await deposer(page, releve(ligne(libelle, '-33,50', `r-${Date.now()}`)))
+
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await ecran.getByRole('button', { name: /Importer 1 opération/ }).click()
+  await expect(ecran.getByText(/1 opération importée/)).toBeVisible()
+
+  const operations = (await (
+    await page.request.get('/api/operations?periode_courante=false')
+  ).json()) as { libelle: string; montant_centimes: number }[]
+  const importee = operations.find((operation) => operation.libelle === libelle)
+  expect(importee, 'l’opération n’a pas été écrite').toBeDefined()
+  expect(importee!.montant_centimes).toBe(-3_350)
+})
+
+test('réimporter le même fichier ne propose plus rien', async ({ page }) => {
+  /* La contrainte non négociable de BOUCLE.md. Sans elle, réimporter un mois qui chevauche
+   * le précédent duplique l'argent — et l'erreur ne se voit qu'en comparant son solde à
+   * celui de sa banque, des semaines plus tard. */
+  const marque = Date.now()
+  const contenu = releve(ligne(`Doublon ${marque}`, '-19,90', `r-${marque}`))
+  await connecter(page)
+
+  await ouvrirImport(page)
+  await deposer(page, contenu)
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await ecran.getByRole('button', { name: /Importer 1 opération/ }).click()
+  await expect(ecran.getByText(/1 opération importée/)).toBeVisible()
+
+  // Second dépôt du MÊME fichier.
+  await deposer(page, contenu)
+  await expect(ecran.getByText(/1 déjà importée/)).toBeVisible()
+  // La ligne reste visible — la taire ferait croire à un fichier incomplet.
+  await expect(ecran.getByText(`Doublon ${marque}`)).toBeVisible()
+  await expect(ecran.getByRole('button', { name: /Importer 0 opération/ })).toBeDisabled()
+})
+
+test('un fichier illisible est refusé en disant ce qui manque', async ({ page }) => {
+  await connecter(page)
+  await ouvrirImport(page)
+  await deposer(page, Buffer.from('un;deux\r\n1;2\r\n', 'latin1'), 'bidon.csv')
+
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  // Le message nomme la colonne manquante : c'est la seule information qui permet d'agir.
+  await expect(ecran.getByRole('alert')).toContainText('Debit')
+})
+
+test('les accents d’un relevé Latin-1 survivent à l’import', async ({ page }) => {
+  // La plupart des banques françaises exportent en ISO-8859-1. Lu de travers, « Café »
+  // deviendrait « Caf? » — et le regroupement par commerçant des statistiques ne s'en
+  // remettrait pas.
+  const libelle = `Café Crème ${Date.now()}`
+  await connecter(page)
+  await ouvrirImport(page)
+  await deposer(page, releve(ligne(libelle, '-4,20', `r-${Date.now()}`)))
+
+  await expect(
+    page.getByRole('dialog', { name: 'Importer un relevé' }).getByText(libelle),
+  ).toBeVisible()
+})

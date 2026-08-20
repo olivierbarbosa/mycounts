@@ -1,0 +1,268 @@
+/* Import d'un relevé, poussé depuis une bulle du haut. La géométrie reprend celle des
+   statistiques : c'est la même nature d'écran, et deux écrans frères qui se placeraient
+   différemment se liraient comme deux applications. */
+.panneau {
+  position: fixed;
+  inset: 0;
+  z-index: var(--plan-ecran);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: var(--couleur-fond);
+  background-image: var(--fond-degrade-page);
+}
+
+.page {
+  min-height: 100dvh;
+  padding: var(--espace-xl);
+  /* Pas de réserve de bulle : cet écran COUVRE les bulles, leur garder 56 px de vide
+     pousserait le retour et le titre d'une hauteur de pouce sans que rien n'occupe la
+     place. Même valeur que le calendrier et les paramètres. */
+  padding-top: calc(var(--espace-m) + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(var(--espace-xxl) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xl);
+}
+
+.enteteEcran {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+}
+
+.ligneDuTitre {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+}
+
+.titre {
+  margin: 0;
+  font-family: var(--typo-famille-chiffres);
+  font-size: 28px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: -0.02em;
+}
+
+.rond {
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  transition: scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.rond:active {
+  scale: 0.94;
+}
+
+/* Zone de dépôt. Elle explique AVANT de demander : « déposez un CSV » sans dire ce qui va
+   se passer ensuite ferait hésiter sur une action qui touche à de l'argent. */
+.depot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-l);
+  padding: var(--espace-xxl) var(--espace-xl);
+  border-radius: var(--rayon-grand);
+  border: 1px dashed var(--couleur-bordure);
+  background: var(--couleur-surface);
+  text-align: center;
+}
+
+.explication {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Le champ natif est masqué mais RESTE dans le DOM et focalisable : le remplacer par un
+   bouton qui le déclenche en JavaScript retirerait le clavier et les lecteurs d'écran du
+   parcours, pour un gain purement visuel. */
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-xl);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+  cursor: pointer;
+}
+
+.champFichier {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bouton:focus-within {
+  outline: 2px solid var(--couleur-accent-clair);
+  outline-offset: 2px;
+}
+
+.resume {
+  margin: 0;
+  font-size: 15px;
+  color: var(--couleur-texte);
+}
+
+.bilan {
+  margin: 0;
+  color: var(--couleur-credit);
+  font-size: 14px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+}
+
+.etiquette {
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.choix {
+  min-height: var(--cible-tactile);
+  padding: var(--espace-s) var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  font-size: 16px;
+}
+
+.liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ligne,
+.ligneDeja {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+  padding: var(--espace-s) 0;
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+/* Les lignes déjà importées restent LISIBLES, seulement atténuées : les cacher ferait
+   croire à un fichier incomplet à qui réimporte un mois entier pour deux oublis. */
+.ligneDeja {
+  opacity: 0.5;
+}
+
+.coche {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  min-width: var(--cible-tactile);
+  min-height: var(--cible-tactile);
+}
+
+.corps {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.libelle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--couleur-texte-faible);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--espace-s);
+  justify-content: flex-end;
+  padding-top: var(--espace-m);
+}
+
+.annuler {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 15px;
+}
+
+.valider {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.valider:disabled {
+  opacity: 0.55;
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 13px;
+}
+
+@media (min-width: 600px) {
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding-left: calc(var(--disposition-largeur-rail) + var(--espace-xxl));
+    padding-right: var(--espace-xxl);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rond {
+    transition: none;
+  }
+  .rond:active {
+    scale: 1;
+  }
+}

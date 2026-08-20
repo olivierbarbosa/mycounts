@@ -28,6 +28,9 @@ export type DemandeEnveloppe = components['schemas']['DemandeEnveloppe']
 export type ModificationEnveloppe = components['schemas']['ModificationEnveloppe']
 export type PreparationPublique = components['schemas']['PreparationPublique']
 export type StatistiquesPubliques = components['schemas']['StatistiquesPubliques']
+export type RevueImport = components['schemas']['RevueImport']
+export type LigneImport = components['schemas']['LigneImportPublique']
+export type LigneAValider = components['schemas']['LigneAValider']
 export type PosteDeDepense = components['schemas']['PostePublic']
 export type Constat = components['schemas']['ConstatPublic']
 export type LignePreparation = components['schemas']['LignePreparationPublique']
@@ -91,7 +94,14 @@ async function appeler<T>(chemin: string, options: RequestInit = {}): Promise<T>
     ...options,
     // Indispensable : la session vit dans un cookie httpOnly, jamais en localStorage.
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    // `Content-Type` seulement pour les corps JSON. Un envoi de fichier passe par un
+    // `FormData`, dont la frontière multipart est générée par le NAVIGATEUR : lui imposer
+    // un type ici produirait un corps que le serveur ne sait pas découper, et l'erreur
+    // arriverait sous la forme d'un 422 parlant de champ manquant.
+    headers:
+      options.body instanceof FormData
+        ? { ...options.headers }
+        : { 'Content-Type': 'application/json', ...options.headers },
   })
 
   if (!reponse.ok) {
@@ -229,6 +239,20 @@ export const api = {
   /** Où va l'argent, et ce que l'addition mentale rate. Le serveur est seul auteur des
    *  seuils qui décident qu'un constat mérite d'être affiché. */
   statistiques: () => appeler<StatistiquesPubliques>('/statistiques'),
+
+  /** Analyse un relevé. N'ÉCRIT RIEN — c'est `validerImport` qui écrit, et seulement les
+   *  lignes qu'on lui redonne. Le fichier n'est jamais conservé côté serveur. */
+  analyserReleve: async (fichier: File): Promise<RevueImport> => {
+    const corps = new FormData()
+    corps.append('fichier', fichier)
+    return appeler<RevueImport>('/import/analyse', { method: 'POST', body: corps })
+  },
+
+  validerImport: (compteId: string, lignes: readonly LigneAValider[]) =>
+    appeler<{ ecrites: number; ignorees: number }>('/import/valider', {
+      method: 'POST',
+      body: JSON.stringify({ compte_id: compteId, lignes }),
+    }),
 
   appliquerPreparation: (lignes: readonly ChoixDeLigne[]) =>
     appeler<RepartitionEnveloppes>('/enveloppes/preparation', {

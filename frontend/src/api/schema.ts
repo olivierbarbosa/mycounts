@@ -761,6 +761,56 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/import/analyse': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Analyser Un Releve
+     * @description Lit le relevé et rend ce qu'il propose. **N'écrit rien.**
+     *
+     *     Les lignes déjà importées sont rendues elles aussi, marquées comme telles : les taire
+     *     ferait croire à un fichier incomplet à qui réimporte un mois entier pour deux oublis.
+     */
+    post: operations['analyser_un_releve_api_import_analyse_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/import/valider': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Valider Un Import
+     * @description Écrit les lignes retenues. **Seule écriture de l'import.**
+     *
+     *     Les lignes viennent de la demande et non d'une relecture du fichier : l'utilisateur a
+     *     pu en écarter, et relire le fichier ici lui reprendrait la décision qu'on vient de lui
+     *     donner. Le fichier n'est d'ailleurs plus là — il n'est jamais conservé.
+     *
+     *     La clé est revérifiée contre la base au moment d'écrire : entre l'analyse et la
+     *     validation, un autre appareil a pu importer le même relevé.
+     */
+    post: operations['valider_un_import_api_import_valider_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/health': {
     parameters: {
       query?: never
@@ -788,6 +838,14 @@ export interface components {
       ecart_centimes: number
       /** Solde Centimes */
       solde_centimes: number
+    }
+    /** Body_analyser_un_releve_api_import_analyse_post */
+    Body_analyser_un_releve_api_import_analyse_post: {
+      /**
+       * Fichier
+       * @description Relevé au format CSV, exporté depuis la banque.
+       */
+      fichier: string
     }
     /**
      * BornesDuMois
@@ -1084,6 +1142,22 @@ export interface components {
       fin?: string | null
     }
     /**
+     * DemandeValidationImport
+     * @description Les lignes retenues, et le compte où les écrire.
+     *
+     *     Le compte est demandé UNE fois pour tout le lot : un relevé porte sur un compte, et le
+     *     faire choisir ligne à ligne transformerait une validation en corvée.
+     */
+    DemandeValidationImport: {
+      /**
+       * Compte Id
+       * Format: uuid
+       */
+      compte_id: string
+      /** Lignes */
+      lignes: components['schemas']['LigneAValider'][]
+    }
+    /**
      * DemandeVirement
      * @description Déplacement d'argent entre deux comptes du foyer.
      *
@@ -1233,6 +1307,47 @@ export interface components {
        * Format: date-time
        */
       expire_le: string
+    }
+    /**
+     * LigneAValider
+     * @description Ce que l'utilisateur retient d'une ligne, après l'avoir vue.
+     */
+    LigneAValider: {
+      /** Cle */
+      cle: string
+      /**
+       * Date Operation
+       * Format: date
+       */
+      date_operation: string
+      /** Libelle */
+      libelle: string
+      /** Montant Centimes */
+      montant_centimes: number
+      /** Categorie Id */
+      categorie_id?: string | null
+    }
+    /**
+     * LigneImportPublique
+     * @description Une ligne proposée. Rien n'est écrit tant qu'elle n'est pas validée.
+     */
+    LigneImportPublique: {
+      /** Cle */
+      cle: string
+      /**
+       * Date Operation
+       * Format: date
+       */
+      date_operation: string
+      /** Libelle */
+      libelle: string
+      /** Montant Centimes */
+      montant_centimes: number
+      sens: components['schemas']['SensImporte']
+      /** Categorie Banque */
+      categorie_banque: string
+      /** Deja Importee */
+      deja_importee: boolean
     }
     /**
      * LignePreparationPublique
@@ -1594,6 +1709,17 @@ export interface components {
       /** Depenses De Periode */
       depenses_de_periode: number
     }
+    /** RevueImport */
+    RevueImport: {
+      /** Total */
+      total: number
+      /** Nouvelles */
+      nouvelles: number
+      /** Deja Importees */
+      deja_importees: number
+      /** Lignes */
+      lignes: components['schemas']['LigneImportPublique'][]
+    }
     /**
      * Rollover
      * @description Ce que devient le solde d'une enveloppe au passage à la période suivante.
@@ -1606,6 +1732,12 @@ export interface components {
      * @enum {string}
      */
     Rollover: 'report' | 'liberation' | 'demander'
+    /**
+     * SensImporte
+     * @description Ce que la ligne fera si elle est retenue.
+     * @enum {string}
+     */
+    SensImporte: 'depense' | 'revenu' | 'virement'
     /** SoldeDeCompte */
     SoldeDeCompte: {
       /**
@@ -3171,6 +3303,78 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['StatistiquesPubliques']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  analyser_un_releve_api_import_analyse_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'multipart/form-data': components['schemas']['Body_analyser_un_releve_api_import_analyse_post']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RevueImport']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  valider_un_import_api_import_valider_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeValidationImport']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: number
+          }
         }
       }
       /** @description Validation Error */

@@ -377,9 +377,13 @@ s'ouvre.
   ne juge JAMAIS une dépense « inutile » — personne ne peut le savoir à la place de celui
   qui l'a faite ; il rend visibles des totaux que l'addition mentale rate. Aucune marque
   nommée en dur, aucun modèle de langage.
-- **Lot E — import de relevé.** CSV d'abord, avec écran de revue, clé d'unicité documentée
-  et fixtures à IBAN cassé. Le PDF est une décision SÉPARÉE : un CSV a des colonnes, un PDF
-  a une mise en page, et une ligne mal lue devient de l'argent faux.
+- ~~**Lot E/F — import de relevé.**~~ **Fait le 2026-08-20** —
+  `docs/changelog.d/0052-import-releve-csv.md`, conçu sur de vrais relevés de la Caisse
+  d'Épargne. L'analyse de ces fichiers vit dans `docs/analyse-releves-caisse-epargne.md`,
+  y compris ce qu'ils révèlent de manquant dans l'app.
+  **Le PDF reste à trancher** : le texte y est extractible mais POSITIONNÉ, et le CSV
+  contient déjà tout ce qu'il contient. Il n'apporterait que l'historique antérieur à ce
+  que la banque laisse exporter.
 2. **Enveloppes** — chantier découpé en quatre lots, tranché le 2026-08-20 d'après
    `docs/reference-enveloppes-collegue.md`. La règle qui commande tout le reste :
 

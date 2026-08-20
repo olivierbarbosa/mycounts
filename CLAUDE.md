@@ -16,13 +16,15 @@ opérations (créer, modifier, supprimer, détailler) ; période budgétaire de 
 soldes et liste ; amorçage avec solde d'ouverture ; récurrences, matérialisation
 idempotente, calendrier mensuel et file « à confirmer » ; plafonds par catégorie avec leur
 écran et les jauges de l'accueil ; virements ; page Épargne et détail d'un livret ;
-correction du solde par ajustement ; noyau des enveloppes (lot E1).
+correction du solde par ajustement ; enveloppes avec leurs réglages et la préparation
+mensuelle ; statistiques et constats chiffrés ; import de relevé CSV avec écran de revue.
 Interface Liquid Glass sur palette **bleu ardoise**, mobile d'abord, rail latéral au-delà
 de 1024 px. Barre d'onglets à deux capsules (modèle Apple Music) ; écrans ouverts depuis
 une bulle du haut, avec glissement de retour au doigt.
 
-**Manque** : enveloppes au-delà du noyau (lots E2 à E4) ; page Statistiques et coaching ;
-import de relevé (CSV / PDF) ; onglet Foyer et comptes joints ; déploiement VPS.
+**Manque** : couverture des enveloppes par compte et déclaration de virement (lots E2 et
+E4) ; onglet Foyer et comptes joints ; import de relevé au format PDF, non tranché ;
+déploiement VPS.
 
 Le plan d'exécution détaillé vit dans `docs/PLAN.md` — il fixe pour chaque écran ce qu'il
 fait **et ce qu'il ne fait pas**. Cette seconde colonne existe parce que trois écrans ont

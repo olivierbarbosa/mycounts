@@ -245,6 +245,7 @@ def creer_operation(
     est_paie: bool = False,
     est_ouverture: bool = False,
     est_ajustement: bool = False,
+    cle_import: str | None = None,
 ) -> Operation:
     operation = Operation(
         compte_id=compte_id,
@@ -257,6 +258,7 @@ def creer_operation(
         est_paie=est_paie,
         est_ouverture=est_ouverture,
         est_ajustement=est_ajustement,
+        cle_import=cle_import,
     )
     session.add(operation)
     session.flush()
@@ -526,3 +528,18 @@ def dates_de_paie(
             .order_by(Operation.date_operation)
         ).scalars()
     )
+
+
+def cles_deja_importees(session: Session, principal: Principal) -> set[str]:
+    """Les clés des lignes de relevé déjà importées, pour le périmètre de l'appelant.
+
+    Un `set` plutôt qu'une liste : l'import compare chaque ligne du fichier à cet ensemble,
+    et un fichier de deux cents lignes contre un historique de plusieurs milliers ferait
+    autant de parcours linéaires.
+    """
+    lignes = session.execute(
+        select(Operation.cle_import)
+        .join(Compte, Compte.id == Operation.compte_id)
+        .where(Compte.foyer_id == principal.foyer_id, Operation.cle_import.is_not(None))
+    ).scalars()
+    return {cle for cle in lignes if cle is not None}

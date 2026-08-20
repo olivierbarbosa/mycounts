@@ -1,4 +1,4 @@
-import { CalendarDays, ChartColumn, ChartPie, House, PiggyBank, Wallet } from 'lucide-react'
+import { CalendarDays, ChartColumn, ChartPie, FileUp, House, PiggyBank, Wallet } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
@@ -23,6 +23,7 @@ import { DetailEpargne } from './ecrans/DetailEpargne'
 import { Connexion } from './ecrans/Connexion'
 import { Enveloppes } from './ecrans/Enveloppes'
 import { Epargne } from './ecrans/Epargne'
+import { ImportReleve } from './ecrans/ImportReleve'
 import { PremierCompte } from './ecrans/PremierCompte'
 import { Statistiques } from './ecrans/Statistiques'
 import { Parametres } from './ecrans/Parametres'
@@ -66,6 +67,7 @@ export function App() {
   // haut-gauche au lieu de la bulle touchée.
   const [origineCalendrier, setOrigineCalendrier] = useState<Origine | null>(null)
   const [origineStatistiques, setOrigineStatistiques] = useState<Origine | null>(null)
+  const [origineImport, setOrigineImport] = useState<Origine | null>(null)
   const [ajustementOuvert, setAjustementOuvert] = useState(false)
   const [livretChoisi, setLivretChoisi] = useState<string | null>(null)
   const [rafraichissement, setRafraichissement] = useState(0)
@@ -199,6 +201,21 @@ export function App() {
           setOnglet(cle)
         }}
       />
+
+      {/* Troisième bulle, la plus à gauche : l'import est le geste le plus rare des trois,
+          et la place la plus accessible du pouce revient à ce qu'on ouvre le plus. */}
+      <Bulle cote="droite" rang={2} libelle="Importer un relevé" surOuverture={setOrigineImport}>
+        <FileUp size={20} strokeWidth={2} aria-hidden />
+      </Bulle>
+
+      {origineImport !== null && (
+        <ImportReleve
+          origine={origineImport}
+          comptes={comptes}
+          surFermeture={() => setOrigineImport(null)}
+          surImport={apresEcriture}
+        />
+      )}
 
       {origineStatistiques !== null && (
         <Statistiques

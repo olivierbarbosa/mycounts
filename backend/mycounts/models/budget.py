@@ -305,6 +305,13 @@ class Operation(Base):
     # Écart enregistré pour mettre le solde d'accord avec celui de la banque. Compte dans
     # les soldes, jamais dans les dépenses : réparer une erreur de saisie de 20 € n'est
     # pas avoir dépensé 20 €.
+    # Clé de la ligne de relevé dont cette opération est issue, ou NULL si elle a été
+    # saisie à la main. C'est elle qui rend un réimport idempotent : voir
+    # `domain/import_releve.py`, qui explique pourquoi elle ne peut pas être la simple
+    # référence bancaire — celle-ci est vide une fois sur six, et parfois partagée par
+    # deux opérations différentes.
+    cle_import: Mapped[str | None] = mapped_column(String(200), default=None, index=True)
+
     est_ajustement: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false"
     )
