@@ -27,6 +27,9 @@ export type EnveloppePublique = components['schemas']['EnveloppePublique']
 export type DemandeEnveloppe = components['schemas']['DemandeEnveloppe']
 export type ModificationEnveloppe = components['schemas']['ModificationEnveloppe']
 export type PreparationPublique = components['schemas']['PreparationPublique']
+export type StatistiquesPubliques = components['schemas']['StatistiquesPubliques']
+export type PosteDeDepense = components['schemas']['PostePublic']
+export type Constat = components['schemas']['ConstatPublic']
 export type LignePreparation = components['schemas']['LignePreparationPublique']
 export type ChoixDeLigne = components['schemas']['ChoixDeLigne']
 export type Rollover = components['schemas']['Rollover']
@@ -222,6 +225,10 @@ export const api = {
   /** Ce que la période qui s'ouvre PROPOSE. N'écrit rien : c'est `appliquerPreparation`
    *  qui écrit, et seulement les lignes qu'on lui donne. */
   preparation: () => appeler<PreparationPublique>('/enveloppes/preparation'),
+
+  /** Où va l'argent, et ce que l'addition mentale rate. Le serveur est seul auteur des
+   *  seuils qui décident qu'un constat mérite d'être affiché. */
+  statistiques: () => appeler<StatistiquesPubliques>('/statistiques'),
 
   appliquerPreparation: (lignes: readonly ChoixDeLigne[]) =>
     appeler<RepartitionEnveloppes>('/enveloppes/preparation', {

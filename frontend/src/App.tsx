@@ -1,4 +1,4 @@
-import { CalendarDays, ChartPie, House, PiggyBank, Wallet } from 'lucide-react'
+import { CalendarDays, ChartColumn, ChartPie, House, PiggyBank, Wallet } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
@@ -24,6 +24,7 @@ import { Connexion } from './ecrans/Connexion'
 import { Enveloppes } from './ecrans/Enveloppes'
 import { Epargne } from './ecrans/Epargne'
 import { PremierCompte } from './ecrans/PremierCompte'
+import { Statistiques } from './ecrans/Statistiques'
 import { Parametres } from './ecrans/Parametres'
 
 const ONGLETS: readonly Onglet[] = [
@@ -64,6 +65,7 @@ export function App() {
   // aurait pu se contredire — écran ouvert sans origine, et une éclosion partant du coin
   // haut-gauche au lieu de la bulle touchée.
   const [origineCalendrier, setOrigineCalendrier] = useState<Origine | null>(null)
+  const [origineStatistiques, setOrigineStatistiques] = useState<Origine | null>(null)
   const [ajustementOuvert, setAjustementOuvert] = useState(false)
   const [livretChoisi, setLivretChoisi] = useState<string | null>(null)
   const [rafraichissement, setRafraichissement] = useState(0)
@@ -176,6 +178,13 @@ export function App() {
         <CalendarDays size={20} strokeWidth={2} aria-hidden />
       </Bulle>
 
+      {/* À GAUCHE du calendrier, donc au rang 1 : la rangée se compte depuis son bord.
+          Les statistiques se consultent moins souvent que les prélèvements, et la place
+          la plus accessible du pouce revient à ce qu'on ouvre le plus. */}
+      <Bulle cote="droite" rang={1} libelle="Statistiques" surOuverture={setOrigineStatistiques}>
+        <ChartColumn size={20} strokeWidth={2} aria-hidden />
+      </Bulle>
+
       <BarreOnglets
         onglets={ONGLETS}
         actif={onglet}
@@ -190,6 +199,14 @@ export function App() {
           setOnglet(cle)
         }}
       />
+
+      {origineStatistiques !== null && (
+        <Statistiques
+          origine={origineStatistiques}
+          rafraichissement={rafraichissement}
+          surFermeture={() => setOrigineStatistiques(null)}
+        />
+      )}
 
       {origineCalendrier !== null && (
         <Calendrier

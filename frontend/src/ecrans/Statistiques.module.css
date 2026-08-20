@@ -1,0 +1,263 @@
+/* Écran des statistiques, poussé depuis une bulle du haut. Les images clés du mouvement
+   viennent de global.css, seul auteur de ce mouvement. */
+.panneau {
+  position: fixed;
+  inset: 0;
+  z-index: var(--plan-ecran);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: var(--couleur-fond);
+  background-image: var(--fond-degrade-page);
+}
+
+.page {
+  min-height: 100dvh;
+  padding: var(--espace-xl);
+  /* Pas de réserve de bulle : cet écran COUVRE les bulles, leur garder 56 px de vide
+     pousserait le retour et le titre d'une hauteur de pouce sans que rien n'occupe la
+     place. Même valeur que le calendrier et les paramètres. */
+  padding-top: calc(var(--espace-m) + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(var(--espace-xxl) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xl);
+}
+
+.enteteEcran {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+}
+
+.ligneDuTitre {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+}
+
+.titre {
+  margin: 0;
+  font-family: var(--typo-famille-chiffres);
+  font-size: 28px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: -0.02em;
+}
+
+.rond {
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  transition: scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.rond:active {
+  scale: 0.94;
+}
+
+/* Le total de la période, en tête. */
+.chiffres {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+  align-items: center;
+  text-align: center;
+}
+
+.libelle {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+/* La comparaison porte l'information : « 320 € » ne dit pas si c'est beaucoup, « +18 % »
+   si. Les deux sens sont teintés, parce qu'une baisse de dépense est une bonne nouvelle
+   et mérite d'être lue comme telle. */
+.evolution {
+  margin: 0;
+  font-size: 14px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.evolution[data-sens='hausse'] {
+  color: var(--couleur-alerte);
+}
+
+.evolution[data-sens='baisse'] {
+  color: var(--couleur-credit);
+}
+
+.compte {
+  margin: 0;
+  color: var(--couleur-texte-faible);
+  font-size: 13px;
+}
+
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+}
+
+.titreBloc {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+  color: var(--couleur-texte-attenue);
+}
+
+/* Les constats. Sur une surface, contrairement aux postes : ce sont des remarques, et
+   quelques-unes seulement — les poser à plat les ferait disparaître dans la liste. */
+.constats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.constat {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--espace-m);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.icone {
+  color: var(--couleur-accent-clair);
+  margin-top: 2px;
+}
+
+.corpsConstat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sujet {
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+/* Une phrase, pas un slogan : elle explique POURQUOI la ligne s'affiche, ce qui est la
+   seule façon de ne pas la lire comme un reproche. */
+.explication {
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Les postes, en lignes plates : c'est l'alignement des barres sur une même verticale qui
+   permet de les comparer, et une carte par poste le détruirait. */
+.postes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.poste {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--espace-xs) var(--espace-m);
+}
+
+.nomPoste {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.chiffrePoste {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espace-s);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.part {
+  color: var(--couleur-texte-faible);
+  font-size: 12px;
+}
+
+/* La barre occupe toute la largeur, sous les deux colonnes : en colonne, la plus longue
+   étiquette de la liste rétrécirait les barres de toutes les autres. */
+.piste {
+  grid-column: 1 / -1;
+  display: block;
+  height: 8px;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-haute);
+  overflow: hidden;
+}
+
+.remplissage {
+  display: block;
+  height: 100%;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-accent);
+}
+
+.variation {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--couleur-texte-faible);
+}
+
+.variation[data-sens='hausse'] {
+  color: var(--couleur-alerte);
+}
+
+.variation[data-sens='baisse'] {
+  color: var(--couleur-credit);
+}
+
+.attente,
+.vide {
+  margin: 0;
+  padding: var(--espace-xl) 0;
+  color: var(--couleur-texte-faible);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (min-width: 600px) {
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding-left: calc(var(--disposition-largeur-rail) + var(--espace-xxl));
+    padding-right: var(--espace-xxl);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rond {
+    transition: none;
+  }
+  .rond:active {
+    scale: 1;
+  }
+}

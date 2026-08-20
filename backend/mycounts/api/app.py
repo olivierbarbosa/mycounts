@@ -18,6 +18,7 @@ from mycounts.api.auth import routeur as routeur_auth
 from mycounts.api.budget import routeur as routeur_budget
 from mycounts.api.enveloppes import routeur as routeur_enveloppes
 from mycounts.api.plafonds import routeur as routeur_plafonds
+from mycounts.api.statistiques import routeur as routeur_statistiques
 
 _journal = logging.getLogger("mycounts")
 
@@ -74,6 +75,7 @@ app.include_router(routeur_budget, prefix=PREFIXE_API)
 app.include_router(routeur_agenda, prefix=PREFIXE_API)
 app.include_router(routeur_plafonds, prefix=PREFIXE_API)
 app.include_router(routeur_enveloppes, prefix=PREFIXE_API)
+app.include_router(routeur_statistiques, prefix=PREFIXE_API)
 
 
 @app.get("/health")

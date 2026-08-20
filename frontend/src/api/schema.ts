@@ -737,6 +737,30 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/statistiques': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Statistiques
+     * @description Où va l'argent sur la période, et ce que l'addition mentale rate.
+     *
+     *     La période PRÉCÉDENTE est lue elle aussi, et sert uniquement de point de comparaison :
+     *     sans elle, « 320 € de sorties » ne dit pas si c'est beaucoup. C'est la comparaison qui
+     *     porte l'information, pas le chiffre seul.
+     */
+    get: operations['statistiques_api_statistiques_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/health': {
     parameters: {
       query?: never
@@ -849,6 +873,19 @@ export interface components {
       produit_libelle: string
       /** Archive */
       archive: boolean
+    }
+    /**
+     * ConstatPublic
+     * @description Un fait chiffré, jamais un jugement. Voir `domain/statistiques.py`.
+     */
+    ConstatPublic: {
+      motif: components['schemas']['Motif']
+      /** Sujet */
+      sujet: string
+      /** Montant Centimes */
+      montant_centimes: number
+      /** Detail */
+      detail: number
     }
     /**
      * DemandeAdhesion
@@ -1338,6 +1375,12 @@ export interface components {
       /** Aller Retour */
       aller_retour: boolean
     }
+    /**
+     * Motif
+     * @description Les constats que ce module sait faire. Chacun est chiffré et explicable.
+     * @enum {string}
+     */
+    Motif: 'goutte_a_goutte' | 'poste_en_hausse' | 'abonnements'
     /** MouvementPublic */
     MouvementPublic: {
       /**
@@ -1450,6 +1493,19 @@ export interface components {
       /** Depasse Avec Les Echeances */
       depasse_avec_les_echeances: boolean
     }
+    /** PostePublic */
+    PostePublic: {
+      /** Categorie */
+      categorie: string | null
+      /** Montant Centimes */
+      montant_centimes: number
+      /** Part */
+      part: number
+      /** Montant Precedent Centimes */
+      montant_precedent_centimes: number | null
+      /** Variation */
+      variation: number | null
+    }
     /** PreparationPublique */
     PreparationPublique: {
       /** Lignes */
@@ -1559,6 +1615,31 @@ export interface components {
       compte_id: string
       /** Solde Centimes */
       solde_centimes: number
+    }
+    /** StatistiquesPubliques */
+    StatistiquesPubliques: {
+      /**
+       * Debut
+       * Format: date
+       */
+      debut: string
+      /**
+       * Fin
+       * Format: date
+       */
+      fin: string
+      /** Total Centimes */
+      total_centimes: number
+      /** Total Precedent Centimes */
+      total_precedent_centimes: number
+      /** Nombre De Depenses */
+      nombre_de_depenses: number
+      /** Cout Annuel Des Abonnements Centimes */
+      cout_annuel_des_abonnements_centimes: number
+      /** Postes */
+      postes: components['schemas']['PostePublic'][]
+      /** Constats */
+      constats: components['schemas']['ConstatPublic'][]
     }
     /**
      * TeinteCategorie
@@ -3059,6 +3140,37 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['RepartitionPublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  statistiques_api_statistiques_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['StatistiquesPubliques']
         }
       }
       /** @description Validation Error */

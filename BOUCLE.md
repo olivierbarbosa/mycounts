@@ -371,9 +371,12 @@ s'ouvre.
   idempotence se déduit de la formule au lieu d'être gardée par un marqueur. `statut` n'a
   finalement pas été nécessaire : une enveloppe close se règle en retirant sa contribution
   et son objectif, ce qui la fait sortir des propositions sans colonne de plus.
-- **Lot D — Statistiques et coaching.** Consommation de toutes les catégories, KPI et
-  graphiques, et repérage des dépenses évitables (abonnements dormants, livraisons
-  répétées).
+- ~~**Lot D — Statistiques et coaching.**~~ **Fait le 2026-08-20** —
+  `docs/changelog.d/0051-statistiques-et-constats.md`. Toutes les catégories en barres
+  comparables, comparaison à la période précédente, et trois constats chiffrés. Le coaching
+  ne juge JAMAIS une dépense « inutile » — personne ne peut le savoir à la place de celui
+  qui l'a faite ; il rend visibles des totaux que l'addition mentale rate. Aucune marque
+  nommée en dur, aucun modèle de langage.
 - **Lot E — import de relevé.** CSV d'abord, avec écran de revue, clé d'unicité documentée
   et fixtures à IBAN cassé. Le PDF est une décision SÉPARÉE : un CSV a des colonnes, un PDF
   a une mise en page, et une ligne mal lue devient de l'argent faux.

@@ -1186,3 +1186,30 @@ une base de démonstration absente ou injoignable n'est pas une faute, et faire 
 vérification d'un poste qui n'en a pas serait punir ceux qui ne sont pas concernés. Vérifié
 par mutation : contre une base réellement migrée à la révision précédente, il affiche
 l'avertissement et nomme la commande à lancer.
+
+## #040 — Une restauration qui restaure le source mais pas le comportement
+
+**Ce que je croyais.** Qu'après `cp fichier.sauvegarde fichier.py`, le code muté avait
+disparu. Le fichier était bien revenu à son contenu d'origine — `grep` le confirmait,
+Python relisant le fichier le confirmait aussi.
+
+**Ce qu'il s'est passé.** `make verifier` a rougi sur un test que je venais de voir passer.
+Le module importé annonçait `OCCURRENCES_MINIMALES = 2` pendant que le fichier source
+disait `3`, et `__file__` pointait bien sur ce fichier-là.
+
+**La cause.** `cp` donne au fichier restauré le mtime de la SAUVEGARDE, antérieur au `.pyc`
+compilé pendant la mutation. Python compare ces deux dates pour décider si son cache est à
+jour, conclut qu'il l'est, et continue d'exécuter le bytecode muté. Le source et le
+comportement divergent alors sans qu'aucune lecture du fichier ne puisse le montrer.
+
+**Pourquoi c'est plus grave qu'un test rouge.** Toute ma méthode de vérification repose sur
+la séquence muter → voir rouge → restaurer → voir vert. Si la restauration ne restaure que
+le texte, le « voir vert » final ne prouve rien, et surtout : une mutation pouvait rester
+active dans le code livré, invisible à la relecture. C'est arrivé ici dans le sens
+inoffensif — le test a rougi — mais rien ne garantissait qu'il en soit toujours ainsi.
+
+**Le contrôle en place maintenant.** Restaurer en RÉÉCRIVANT le fichier plutôt qu'en le
+copiant : une écriture donne un mtime au présent, postérieur à tout `.pyc`. Le `cp` reste
+acceptable s'il est suivi d'un `touch`. Et au moindre doute entre ce que dit le source et
+ce que fait le code, purger les `__pycache__` avant de conclure quoi que ce soit — le
+désaccord entre les deux est toujours réel, jamais un mirage.
