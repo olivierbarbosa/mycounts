@@ -7,6 +7,23 @@
   box-sizing: border-box;
 }
 
+/* Aucune barre de défilement visible.
+   Le défilement reste entier : seule sa barre disparaît. Ce que ce choix coûte est réel
+   et assumé — sur un grand écran, la barre est le seul indice qu'il reste du contenu plus
+   bas. L'application vise d'abord le téléphone, où la barre est de toute façon une
+   incrustation qui s'efface au repos ; sur ordinateur, la molette et le pavé restent les
+   gestes naturels.
+
+   `scrollbar-width` couvre Firefox, `::-webkit-scrollbar` couvre Safari et Chromium :
+   aucune propriété unique ne les traite tous les deux. */
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
 /* Le dégradé de page, nommé une fois. Le corps le porte, et tout écran qui se superpose
    à lui — le panneau des paramètres — le reprend au lieu d'un aplat : sans quoi ouvrir
    les réglages ferait disparaître le fond de l'application, et l'écran paraîtrait venir

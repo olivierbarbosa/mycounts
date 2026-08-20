@@ -106,3 +106,31 @@ async function connecter(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await expect(page.locator('nav')).toBeVisible()
 }
+
+test('aucune barre de défilement n’est visible, et le défilement fonctionne', async ({ page }) => {
+  // Deux grandeurs qui ne bougent pas ensemble : la barre doit avoir une épaisseur NULLE
+  // pendant que le contenu reste plus haut que la fenêtre. Vérifier seulement la première
+  // ne distinguerait pas une barre masquée d'une page qui ne défile pas.
+  await page.goto('/')
+  await page.locator('nav, form').first().waitFor({ state: 'visible' })
+  if (!(await page.locator('nav').isVisible())) {
+    await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
+    await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
+    await page.getByRole('button', { name: 'Se connecter' }).click()
+  }
+  await expect(page.locator('nav')).toBeVisible()
+
+  const mesure = await page.evaluate(() => {
+    const element = document.scrollingElement as HTMLElement
+    return {
+      epaisseur: window.innerWidth - element.clientWidth,
+      defilable: element.scrollHeight > element.clientHeight,
+      // Une barre masquée par `overflow: hidden` serait un faux positif : le contenu ne
+      // défilerait plus du tout.
+      styleDefilement: getComputedStyle(element).overflowY,
+    }
+  })
+
+  expect(mesure.epaisseur, 'la barre de défilement occupe encore de la place').toBe(0)
+  expect(mesure.styleDefilement).not.toBe('hidden')
+})

@@ -195,6 +195,11 @@ ERREURS.md #024 et #025)*
 > l'épargne c'est pour diviser ton épargne en enveloppe visuel savoir combien tu as de
 > disponible pour quoi
 
+> Pareil dans la webapp on dois pas avoir de scroll bar visible
+
+> Il faut également pour le solde affiché tout en haut de l'accueil soit affiche en rouge
+> ou vert selon si négatif ou positif avec une petit dégradé de couleur.
+
 > Note toi dans la loop les idées que je rajoute :
 >
 > * Le solde d'ouverture ne dois pas être dans l'accueil on veut juste les dépenses des

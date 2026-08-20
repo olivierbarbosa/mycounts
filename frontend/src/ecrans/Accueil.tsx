@@ -81,14 +81,17 @@ export function Accueil({
 
   return (
     <main className={styles.page}>
-      <header className={styles.entete}>
+      <header
+        className={styles.entete}
+        data-signe={resume.solde_projete < 0 ? 'negatif' : 'positif'}
+      >
         <p className={styles.libellePeriode}>Solde projeté</p>
-        <Montant
-          centimes={resume.solde_projete}
-          taille="display"
-          neutre
-          signeExplicitePositif={false}
-        />
+        {/* Coloré par son signe : c'est le chiffre qu'on vient chercher, et savoir s'il
+            est négatif avant même de l'avoir lu vaut mieux que de devoir déchiffrer un
+            « − » de six pixels. La couleur reste PLEINE : un dégradé posé sur le texte
+            passerait par `background-clip`, qui rend la couleur transparente et aveugle
+            la sonde de contraste. Le dégradé est donc dans la lueur, derrière. */}
+        <Montant centimes={resume.solde_projete} taille="display" signeExplicitePositif={false} />
         <p className={styles.borne}>
           jusqu’au {jourEtMois(dateCivile(resume.periode.fin), moisLong)}
           {resume.periode.fin_estimee ? ' (estimé)' : ''}

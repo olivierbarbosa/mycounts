@@ -74,6 +74,11 @@ export const couleursSombres = {
 
   /** Lueurs néon. Décoratives : jamais le seul porteur d'une information. */
   lueurAccent: 'rgba(140, 86, 212, 0.48)',
+  /* Lueurs des deux sens, pour le halo qui éclaire le solde de l'accueil. Elles ne portent
+   *  aucun texte : le chiffre est posé PAR-DESSUS en couleur pleine, et c'est lui que la
+   *  sonde de contraste mesure. */
+  lueurDebit: 'rgba(251, 113, 133, 0.34)',
+  lueurCredit: 'rgba(52, 211, 153, 0.30)',
   lueurNeon: 'rgba(255, 190, 251, 0.28)',
 
   /** Halos de fond. Ils passent DERRIÈRE le contenu et ne portent jamais de texte :
@@ -169,6 +174,8 @@ export const couleursClaires = {
   verreOpaque: '#FFFFFF',
 
   lueurAccent: 'rgba(140, 86, 212, 0.22)',
+  lueurDebit: 'rgba(190, 18, 60, 0.16)',
+  lueurCredit: 'rgba(4, 120, 87, 0.16)',
   lueurNeon: 'rgba(220, 149, 255, 0.20)',
 
   haloHaut: 'rgba(220, 149, 255, 0.18)',

@@ -13,6 +13,7 @@
 }
 
 .entete {
+  --lueur-du-solde: var(--couleur-lueur-accent);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -32,7 +33,11 @@
   width: min(420px, 90%);
   height: 200px;
   transform: translateX(-50%);
-  background: radial-gradient(closest-side, var(--couleur-lueur-accent), transparent);
+  /* La lueur prend la teinte du solde : c'est là que vit le dégradé demandé. Le poser
+     sur le chiffre lui-même passerait par `background-clip: text`, qui rend la couleur du
+     texte transparente — la sonde de contraste lirait alors 1:1 et ne pourrait plus rien
+     garantir. Ici le dégradé est DERRIÈRE, sous un texte de couleur pleine. */
+  background: radial-gradient(closest-side, var(--lueur-du-solde), transparent);
   filter: blur(20px);
   z-index: -1;
   pointer-events: none;
@@ -410,4 +415,14 @@
   .detailAction:active {
     scale: 1;
   }
+}
+
+/* Deux teintes seulement, celles des montants : la lueur ne peut pas dire autre chose que
+   le chiffre qu'elle éclaire. */
+.entete[data-signe='negatif'] {
+  --lueur-du-solde: var(--couleur-lueur-debit);
+}
+
+.entete[data-signe='positif'] {
+  --lueur-du-solde: var(--couleur-lueur-credit);
 }
