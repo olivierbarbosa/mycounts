@@ -976,3 +976,32 @@ toute animation en cours sur l'élément AVANT de mesurer.
 un `backdrop-filter` plein écran refait son flou à chaque image tant que ce qu'il recouvre
 bouge — et les halos voyagent. Figer les halos pendant qu'un écran les recouvre l'a
 ramené à 55. Sans mesure, l'effet aurait été livré saccadé sur téléphone.
+
+## #032 — Un module CSS renomme aussi les noms d'animation
+
+**Ce que je croyais.** Qu'il suffisait de déplacer des `@keyframes` dans `global.css` pour
+les partager entre plusieurs modules. Le code compilait, les types passaient, la suite
+restait verte.
+
+**Ce que j'ai mesuré.** `getAnimations()` sur la sous-page : **tableau vide**. Aucune
+animation ne jouait. Un module CSS ne renomme pas seulement ses classes : il renomme aussi
+les `animation-name` qu'il rencontre. Mes modules pointaient donc vers un nom qui n'existe
+nulle part, et le navigateur ignorait la déclaration en silence — ni erreur, ni
+avertissement, ni style visiblement cassé.
+
+**Pourquoi rien ne l'a vu.** Olivier, lui, l'a vu tout de suite : « pour l'ouverture des
+sous-menus il doit y avoir le motion ». Aucun test ne regardait si une animation existait,
+et une animation absente ne casse rien — elle rend seulement l'interface plus pauvre, ce
+qu'aucun contrôle du projet ne mesurait.
+
+**Une seconde faute, indépendante et mesurable.** Le panneau animait `clip-path`, que le
+compositeur ne sait pas jouer : chaque image forçait une repeinte plein écran, sous un
+verre qui refaisait son flou. **33,3 ms par image, soit trente par seconde.** Passé à
+`scale` et `opacity`, et le verre suspendu le temps du mouvement : **16,7 ms**, soit
+soixante.
+
+**Le contrôle en place.** `e2e/mouvement.spec.ts` vérifie que chaque écran anime QUELQUE
+CHOSE, et que ce quelque chose fait partie des propriétés que le compositeur joue sans
+repeindre. Il ne chronomètre rien — une mesure de temps serait instable en intégration
+continue — il vérifie les deux causes, qui elles sont déterministes. Vérifié par mutation
+sur chacune.

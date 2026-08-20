@@ -55,7 +55,32 @@ export function Parametres({
   origine,
 }: Props) {
   const [sousMenu, setSousMenu] = useState<Cle | null>(null)
+  // La sous-page reste montée le temps de sortir : la démonter tout de suite la ferait
+  // disparaître d'un coup, sans le mouvement qui dit où elle repart.
+  const [sortant, setSortant] = useState(false)
   const [ferme, setFerme] = useState(false)
+  // Le verre est SUSPENDU pendant chaque mouvement, pas seulement au premier. Une
+  // sous-page qui glisse par-dessus oblige le panneau à refaire son flou à chaque image :
+  // mesuré à 33,3 ms par image, soit trente par seconde, contre 16,7 sans.
+  const [pose, setPose] = useState(false)
+
+  function naviguer(vers: Cle | null) {
+    setPose(false)
+    if (vers === null) setSortant(true)
+    else setSousMenu(vers)
+  }
+
+  /** Fin du mouvement de la sous-page : c'est elle qui décide du démontage, et non un
+   *  délai recopié depuis la feuille de style. Deux durées à tenir d'accord finissent
+   *  toujours par diverger, et l'écart se voit — un saut, ou une page qui s'attarde. */
+  function finDuMouvement(evenement: { target: EventTarget; currentTarget: EventTarget }) {
+    if (evenement.target !== evenement.currentTarget) return
+    if (sortant) {
+      setSousMenu(null)
+      setSortant(false)
+    }
+    setPose(true)
+  }
   const [code, setCode] = useState<string | null>(null)
   const avatar = useRef<HTMLSpanElement>(null)
   useSuperposition()
@@ -191,7 +216,17 @@ export function Parametres({
 
   return (
     <div
-      className={`${styles.panneau} ${ferme ? styles.sortant : ''}`}
+      className={[
+        styles.panneau,
+        ferme ? 'mouvement-repli' : 'mouvement-eclosion',
+        // Le verre n'est posé qu'après le mouvement : voir `.pose`.
+        pose ? styles.pose : '',
+      ].join(' ')}
+      onAnimationEnd={(evenement) => {
+        // Seule l'animation DU PANNEAU compte : celles de ses enfants remontent aussi,
+        // et poser le verre à la première d'entre elles le remettrait dans le mouvement.
+        if (evenement.target === evenement.currentTarget && !ferme) setPose(true)
+      }}
       style={
         {
           '--origine-x': `${origine.x}px`,
@@ -225,7 +260,7 @@ export function Parametres({
                 <button
                   type="button"
                   className={styles.entree}
-                  onClick={() => setSousMenu(cle)}
+                  onClick={() => naviguer(cle)}
                   // Le sous-menu n'est atteignable que depuis la racine : masquer la
                   // racine à l'assistance vocale ne suffit pas à empêcher le clavier d'y
                   // revenir, il faut aussi retirer ses boutons du parcours.
@@ -252,12 +287,17 @@ export function Parametres({
         </section>
 
         {page !== null && (
-          <section className={styles.sousPage}>
+          <section
+            className={`${styles.sousPage} ${
+              sortant ? 'mouvement-sortie-droite' : 'mouvement-entree-droite'
+            }`}
+            onAnimationEnd={finDuMouvement}
+          >
             <header className={styles.entete}>
               <button
                 type="button"
                 className={styles.rond}
-                onClick={() => setSousMenu(null)}
+                onClick={() => naviguer(null)}
                 aria-label="Retour"
               >
                 <ChevronLeft size={20} strokeWidth={2} aria-hidden />

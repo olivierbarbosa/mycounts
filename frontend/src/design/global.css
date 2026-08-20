@@ -116,11 +116,15 @@ body::before {
   animation-play-state: paused;
 }
 
-/* Mouvement des pages poussées, défini une seule fois.
-   Les paramètres et les budgets entrent tous deux par la droite : deux jeux d'images clés
-   auraient fini par diverger, et deux écrans qui glissent différemment se lisent comme
-   deux applications. Les `@keyframes` d'un module CSS sont renommés à la compilation,
-   d'où leur place ici plutôt que dans l'un des deux. */
+/* Mouvement des écrans, défini une seule fois — et exposé en CLASSES GLOBALES.
+   Les `@keyframes` seuls ne suffisaient pas : un module CSS renomme aussi les
+   `animation-name` qu'il rencontre, si bien qu'un module référençant une image clé
+   globale pointait vers un nom inexistant. Les sous-menus n'avaient alors aucune
+   animation — le code la décrivait, le navigateur ne la jouait pas.
+
+   Une classe globale n'est pas renommée : c'est le seul moyen fiable de partager un
+   mouvement entre plusieurs modules sans le recopier dans chacun. */
+
 @keyframes entree-par-la-droite {
   from {
     transform: translateX(100%);
@@ -140,6 +144,59 @@ body::before {
   to {
     transform: translateX(100%);
     opacity: 0.4;
+  }
+}
+
+/* Éclosion depuis un point : `scale` et `opacity` seulement, jamais `clip-path`.
+   Mesuré : `clip-path` n'est pas composité, il force une repeinte plein écran à chaque
+   image — 33,3 ms par image, soit 30 par seconde, sous un verre qui refait son flou.
+   `scale` est joué par le compositeur. */
+@keyframes eclosion-depuis-un-point {
+  from {
+    scale: 0.55;
+    opacity: 0;
+  }
+  to {
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+@keyframes repli-vers-un-point {
+  from {
+    scale: 1;
+    opacity: 1;
+  }
+  to {
+    scale: 0.7;
+    opacity: 0;
+  }
+}
+
+.mouvement-entree-droite {
+  animation: entree-par-la-droite 260ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.mouvement-sortie-droite {
+  animation: sortie-vers-la-droite 260ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.mouvement-eclosion {
+  transform-origin: var(--origine-x) var(--origine-y);
+  animation: eclosion-depuis-un-point 320ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.mouvement-repli {
+  transform-origin: var(--origine-x) var(--origine-y);
+  animation: repli-vers-un-point 240ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mouvement-entree-droite,
+  .mouvement-sortie-droite,
+  .mouvement-eclosion,
+  .mouvement-repli {
+    animation: none;
   }
 }
 

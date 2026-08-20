@@ -89,7 +89,7 @@ export function Budget({ categories, rafraichissement, surFermeture }: Props) {
 
   return (
     <div
-      className={`${styles.panneau} ${ferme ? styles.sortant : ''}`}
+      className={`${styles.panneau} ${ferme ? 'mouvement-sortie-droite' : 'mouvement-entree-droite'}`}
       role="dialog"
       aria-modal="true"
       aria-label="Budgets"

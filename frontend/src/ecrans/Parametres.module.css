@@ -1,8 +1,11 @@
 /* Panneau des paramètres.
-   Il entre par la droite, comme les écrans poussés d'iOS : le mouvement dit d'où la page
-   vient et où le retour la renverra. C'est la seule information que porte l'animation —
-   le bouton de retour, lui, est toujours visible, parce qu'une navigation ne peut pas
-   reposer sur un geste que l'utilisateur n'a pas vu. */
+   Il éclôt depuis la bulle d'avatar et l'avatar y migre — le mouvement dit d'où la page
+   vient et où le retour la renverra. C'est la seule information qu'il porte : le bouton
+   de retour reste toujours visible, une navigation ne pouvant pas reposer sur un geste
+   que l'utilisateur n'a pas vu.
+
+   Les classes de mouvement elles-mêmes vivent dans `global.css` : un module CSS renomme
+   les `animation-name`, donc une image clé partagée n'y est pas référençable. */
 .panneau {
   position: fixed;
   inset: 0;
@@ -16,46 +19,20 @@
      À 94 %, le flou se voit et le fond effectif reste celui que la sonde mesure. */
   background-color: color-mix(in srgb, var(--couleur-fond) 94%, transparent);
   background-image: var(--fond-degrade-page);
+}
+
+/* Le verre n'apparaît qu'une fois le mouvement terminé. Un `backdrop-filter` refait son
+   flou à chaque image ; pendant une animation, il double le coût de chaque image alors
+   qu'il n'est même pas regardé — l'écran bouge. Mesuré : 33,3 ms par image avec, contre
+   16,7 sans. */
+.pose {
   backdrop-filter: blur(28px) saturate(120%);
   -webkit-backdrop-filter: blur(28px) saturate(120%);
-
-  /* Le panneau naît du disque de la bulle et s'ouvre jusqu'à couvrir l'écran. Le rayon
-     final est en `vmax` et non en pourcentage : un pourcentage de `circle()` se rapporte
-     à la diagonale, ce qui laisse un coin découvert sur les écrans très allongés. */
-  animation: eclosion-depuis-la-bulle 380ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 @supports not (backdrop-filter: blur(1px)) {
   .panneau {
     background-color: var(--couleur-fond);
-  }
-}
-
-@keyframes eclosion-depuis-la-bulle {
-  from {
-    clip-path: circle(var(--origine-rayon) at var(--origine-x) var(--origine-y));
-    opacity: 0.6;
-  }
-  to {
-    clip-path: circle(150vmax at var(--origine-x) var(--origine-y));
-    opacity: 1;
-  }
-}
-
-.sortant {
-  /* La sortie referme le disque là où il s'était ouvert : elle raccompagne le regard vers
-     la bulle, qui est aussi l'endroit où l'on rouvrira. */
-  animation: repli-vers-la-bulle 260ms cubic-bezier(0.4, 0, 1, 1) both;
-}
-
-@keyframes repli-vers-la-bulle {
-  from {
-    clip-path: circle(150vmax at var(--origine-x) var(--origine-y));
-    opacity: 1;
-  }
-  to {
-    clip-path: circle(var(--origine-rayon) at var(--origine-x) var(--origine-y));
-    opacity: 0.4;
   }
 }
 
@@ -82,7 +59,6 @@
   min-height: 100dvh;
   background-color: var(--couleur-fond);
   background-image: var(--fond-degrade-page);
-  animation: entree-par-la-droite 220ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .entete {
@@ -254,8 +230,6 @@
 /* Une glissade est de l'ambiance, jamais de l'information : le panneau reste atteignable
    à l'identique quand le système demande moins de mouvement. */
 @media (prefers-reduced-motion: reduce) {
-  .panneau,
-  .sortant,
   .sousPage {
     animation: none;
   }
