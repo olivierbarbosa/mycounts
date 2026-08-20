@@ -206,6 +206,17 @@ ERREURS.md #024 et #025)*
 *(document joint, recopié dans `docs/reference-enveloppes-collegue.md`. Périmètre tranché
 en choix multiples : **tout, préparation mensuelle comprise**.)*
 
+> Je pense qu'il faudrait aussi ajouter l'import de relevé de compte pour rattraper des
+> erreurs comme :
+>
+> CSV ou PDF
+
+*(question du format posée en choix multiples, écartée sans réponse — reste ouverte)*
+
+> Il faudrait aussi ajouter une bulle en haut a droite avec un logo de stats pour afficher
+> une page dédié aux budgets et la ou on vois la consommation de toutes les catégorie
+> rentrer dans les dépenses pas que les budgets qu'on a set dans la page d'accueil
+
 > Note toi dans la loop les idées que je rajoute :
 >
 > * Le solde d'ouverture ne dois pas être dans l'accueil on veut juste les dépenses des
@@ -308,7 +319,25 @@ mouvement des écrans mesuré à 60 images/s.
    - la case **« c'est ma paie » disparaît du mode Virement**, où elle n'a aucun sens ;
    - en mode **Revenu**, c'est la catégorie **Salaire** qui dit que c'est la paie ;
    - plus d'**écart** entre le sélecteur de compte et les deux boutons, en mode Dépense.
-5. **Onglet Foyer** — membres, codes d'invitation (aujourd'hui enfouis dans un sous-menu),
+5. **Page Statistiques**, demandée le 2026-08-20 — bulle en haut à droite, au format de
+   celle du profil. Consommation de **TOUTES** les catégories de dépense sur la période,
+   pas seulement celles qui ont un plafond : l'accueil montre les budgets fixés, cette
+   page montre où l'argent va réellement.
+
+   *Ce qu'elle ne fait pas* : pas de camembert — au-delà de six parts les secteurs
+   deviennent indistinguables, et le foyer en a neuf par défaut. Barres triées par montant
+   décroissant, et une ligne « sans catégorie » qui n'est jamais masquée : c'est souvent
+   la plus grosse, et la cacher donnerait une répartition fausse.
+
+6. **Import de relevé bancaire**, demandé le 2026-08-20 — format à trancher (voir Points
+   ouverts). Trois contraintes non négociables, quel que soit le format :
+   - **rien ne s'écrit sans revue** : l'import propose, l'utilisateur valide ;
+   - **clé d'unicité explicite et documentée**, sans quoi réimporter un mois qui se
+     chevauche duplique de l'argent ;
+   - **les fixtures de test portent des IBAN au checksum CASSÉ** : le garde-fou n°1 refuse
+     un IBAN valide dans le dépôt, et il a raison de le faire.
+
+7. **Onglet Foyer** — membres, codes d'invitation (aujourd'hui enfouis dans un sous-menu),
    comptes joints, plafonds partagés. C'est le lot 5 du séquencement d'origine.
 3. **Logos des prélèvements**, sur le modèle KeePassXC : bouton explicite, requête faite
    par le serveur, mise en cache, repli sur la pastille.
@@ -334,6 +363,18 @@ tranché, et de ce qui reste ouvert.
 | D3 | Les montants peuvent-ils être posés sur du verre, maintenant que la DA néon l'étend aux cartes ? | **Oui, mais sous condition mesurée** : tout texte sur verre ou dégradé doit passer un contraste AA (4,5:1), vérifié automatiquement dans les trois positions du réglage de transparence. La règle « jamais de montant sur du verre » du lot 1 est donc remplacée, pas abandonnée. | Revenir à des cartes opaques = plus sûr en lisibilité, mais on perd l'essentiel de l'effet demandé. | `frontend/src/design/tokens.ts`, `frontend/e2e/contraste.spec.ts` |
 
 ## Points ouverts
+
+- **Format de l'import bancaire** — CSV, OFX/QIF, ou PDF. Ce qui les sépare n'est pas la
+  lecture du fichier mais la capacité à dire « cette ligne, je l'ai déjà importée ». OFX
+  et QIF portent un identifiant de transaction fourni par la banque : le doublon devient
+  impossible par construction. Le CSV n'en a pas, il faut déduire la clé de
+  date + montant + libellé. Le PDF n'a ni identifiant ni structure garantie, et une
+  virgule mal lue transforme 1 234,56 en 123 456 sans que rien ne le signale. Posé en
+  choix multiples le 2026-08-20, écarté sans réponse.
+- **Trois bulles autour du contenu** — avatar à gauche, Calendrier et Statistiques à
+  droite. Sur 430 px, c'est beaucoup de chrome permanent au-dessus du solde. À regarder
+  une fois posé : si l'en-tête devient chargé, l'une des deux peut descendre dans la page
+  qu'elle concerne.
 
 - ~~Ce qu'est une « Enveloppe »~~ — **TRANCHÉ le 2026-08-20** : une enveloppe découpe
   l'ÉPARGNE, pas le budget. Elle est rattachée à une catégorie de dépense et répond à
