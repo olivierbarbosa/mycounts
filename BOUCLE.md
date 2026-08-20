@@ -179,6 +179,25 @@ ERREURS.md #024 et #025)*
 > donne moi la boucle pour pouvoir avancé en autonomie
 
 
+### 2026-08-20 — retours pendant la boucle autonome
+
+> Il faut reprenser le bouton + pour moi il doit être accessible soit en haut a droite sous
+> le même format que la bulle du profil ou sinon centrer dasn la navbar pour un ajout rapide
+
+*(question posée en choix multiples, écartée sans réponse — reste ouverte, voir « Points
+ouverts »)*
+
+> Note toi dans la loop les idées que je rajoute :
+>
+> * Le solde d'ouverture ne dois pas être dans l'accueil on veut juste les dépenses des
+>   comptes chèques et le solde
+> * Le virement dois être rapide a faire aussi et on peut enlever le c'est ma paie qui n'es
+>   pas utile du coup dans la partie virement
+> * Dans revenue ce qui dira que c'est ma paie c'est la catégorie Salaire
+> * Dans la partie Dépense il faut mettre un peu plus d'écart entre le compte et les deux
+>   boutton en dessous.
+
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -231,10 +250,14 @@ mouvement des écrans mesuré à 60 images/s.
 
 **Reste à faire**, dans cet ordre :
 
-1. **Détail d'un compte d'épargne** — évolution du solde, versé et repris par mois, pour
-   répondre à « est-ce que je place trop tôt dans le mois et dois me resservir ». Demandé
-   le 2026-08-20.
-2. **Onglet Foyer** — membres, codes d'invitation (aujourd'hui enfouis dans un sous-menu),
+1. ~~Détail d'un compte d'épargne~~ — **fait le 2026-08-20**.
+2. **Retouches de la saisie et de l'accueil**, demandées le 2026-08-20 :
+   - le **solde d'ouverture** ne doit pas figurer dans la liste de l'accueil : on y veut
+     les dépenses des comptes chèques et le solde, pas la ligne d'amorçage ;
+   - la case **« c'est ma paie » disparaît du mode Virement**, où elle n'a aucun sens ;
+   - en mode **Revenu**, c'est la catégorie **Salaire** qui dit que c'est la paie ;
+   - plus d'**écart** entre le sélecteur de compte et les deux boutons, en mode Dépense.
+3. **Onglet Foyer** — membres, codes d'invitation (aujourd'hui enfouis dans un sous-menu),
    comptes joints, plafonds partagés. C'est le lot 5 du séquencement d'origine.
 3. **Logos des prélèvements**, sur le modèle KeePassXC : bouton explicite, requête faite
    par le serveur, mise en cache, repli sur la pastille.
@@ -260,6 +283,19 @@ tranché, et de ce qui reste ouvert.
 | D3 | Les montants peuvent-ils être posés sur du verre, maintenant que la DA néon l'étend aux cartes ? | **Oui, mais sous condition mesurée** : tout texte sur verre ou dégradé doit passer un contraste AA (4,5:1), vérifié automatiquement dans les trois positions du réglage de transparence. La règle « jamais de montant sur du verre » du lot 1 est donc remplacée, pas abandonnée. | Revenir à des cartes opaques = plus sûr en lisibilité, mais on perd l'essentiel de l'effet demandé. | `frontend/src/design/tokens.ts`, `frontend/e2e/contraste.spec.ts` |
 
 ## Points ouverts
+
+- **Où placer le bouton +** — en haut à droite au format de la bulle d'avatar, ou centré
+  dans la barre d'onglets. Posé en choix multiples le 2026-08-20, écarté sans réponse. Les
+  deux ne coûtent pas la même chose au pouce : le coin haut-droit est le point le plus
+  éloigné sur un écran de 430 × 932, et l'ajout est le geste le plus fréquent de
+  l'application. À trancher avant de coder.
+- **« C'est la catégorie Salaire qui dit que c'est la paie » contredit une règle écrite.**
+  `models/budget.py` dit noir sur blanc : « Le déduire d'une catégorie nommée *Salaire*
+  rendrait la règle invisible et cassable en renommant. » Une paie ouvre la période
+  budgétaire ; si renommer une catégorie déplaçait les périodes, des mois clos
+  changeraient de bornes après coup. Proposition de compromis à valider : garder le
+  marqueur explicite en base, mais le **pré-cocher automatiquement** quand la catégorie
+  choisie est Salaire — l'utilisateur n'y pense plus, la donnée reste explicite.
 
 - **Période budgétaire quand les comptes joints arriveront** : les plafonds du foyer
   auront besoin d'une période commune, alors que chaque membre aura la sienne (sa paie).
