@@ -18,20 +18,24 @@ from mycounts.api.dependances import PrincipalCourant, SessionBase
 from mycounts.api.enveloppes_schemas import (
     DemandeEnveloppe,
     DemandeMouvement,
+    DemandePreparation,
     EnveloppePublique,
+    LignePreparationPublique,
     ModificationEnveloppe,
     MouvementPublic,
+    PreparationPublique,
     RepartitionPublique,
 )
 from mycounts.domain.agregats import Agregat, calculer
 from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.enveloppes import Enveloppe as EnveloppeCalcul
-from mycounts.domain.enveloppes import Mouvement, repartir
+from mycounts.domain.enveloppes import Mouvement, TypeMouvement, preparer_la_periode, repartir
 from mycounts.domain.montants import Cents
 from mycounts.models.budget import Enveloppe
 from mycounts.repository import budget as depot_budget
 from mycounts.repository import enveloppes as depot
+from mycounts.repository import plafonds as depot_plafonds
 
 routeur = APIRouter(tags=["enveloppes"])
 
@@ -44,6 +48,14 @@ def _en_calcul(enveloppe: Enveloppe) -> EnveloppeCalcul:
             for m in enveloppe.mouvements
         ),
         cible=None if enveloppe.cible_centimes is None else Cents(enveloppe.cible_centimes),
+        usage=enveloppe.usage,
+        rollover=enveloppe.rollover,
+        priorite=enveloppe.priorite,
+        contribution_mensuelle=(
+            None
+            if enveloppe.contribution_mensuelle_centimes is None
+            else Cents(enveloppe.contribution_mensuelle_centimes)
+        ),
     )
 
 
@@ -67,6 +79,20 @@ def _epargne_totale(session: SessionBase, principal: PrincipalCourant) -> Cents:
 
 
 def _repartition(session: SessionBase, principal: PrincipalCourant) -> RepartitionPublique:
+    """L'état actuel des enveloppes — et « actuel » est ici une promesse, pas une figure
+    de style.
+
+    `session.expire_all()` d'abord, parce que les sessions du projet sont créées avec
+    `expire_on_commit=False` : après une écriture, les objets déjà chargés gardent l'état
+    qu'ils avaient AVANT. Une route qui ajoutait un mouvement puis renvoyait cette
+    répartition annonçait donc le solde d'avant son propre travail — mesuré le 20 août
+    2026 : allouer 200 € renvoyait un solde de 0, et l'écran l'affichait tel quel jusqu'au
+    rechargement suivant.
+
+    Le défaut existait depuis le lot E1 et aucun test ne le voyait : tous relisaient l'état
+    par un second appel, c'est-à-dire précisément par le chemin qui contourne le cache.
+    """
+    session.expire_all()
     enveloppes = depot.enveloppes_du_foyer(session, principal)
     calculs = [_en_calcul(e) for e in enveloppes]
     etat = repartir(_epargne_totale(session, principal), calculs)
@@ -256,3 +282,110 @@ def journal(
         )
         for m in sorted(enveloppe.mouvements, key=lambda m: (m.date_mouvement, m.cree_le))
     ]
+
+
+def _plafonds_par_enveloppe(
+    session: SessionBase, principal: PrincipalCourant, enveloppes: list[Enveloppe]
+) -> dict[str, Cents]:
+    """Le plafond de la catégorie de chaque enveloppe, indexé par NOM d'enveloppe.
+
+    Par nom et non par identifiant de catégorie : le domaine ne connaît pas les
+    identifiants de la base, et lui en passer ferait entrer un détail de persistance dans
+    une fonction de calcul. Le nom d'enveloppe est unique par foyer — une contrainte
+    d'unicité le garantit.
+    """
+    par_enveloppe: dict[str, Cents] = {}
+    for enveloppe in enveloppes:
+        if enveloppe.categorie_id is None:
+            continue
+        plafond = depot_plafonds.plafond_pour_categorie(session, principal, enveloppe.categorie_id)
+        if plafond is not None:
+            par_enveloppe[enveloppe.nom] = Cents(plafond.montant_centimes)
+    return par_enveloppe
+
+
+@routeur.get("/enveloppes/preparation", response_model=PreparationPublique)
+def preparation(session: SessionBase, principal: PrincipalCourant) -> PreparationPublique:
+    """Ce que la période qui s'ouvre propose de faire. N'ÉCRIT RIEN.
+
+    Olivier a choisi que le passage de période ne touche à l'argent qu'après validation
+    explicite : cette route calcule, `POST` applique. La séparation n'est pas une politesse
+    — elle est ce qui permet de voir avant que ça bouge.
+
+    Rejouer cette route est sans effet, et rejouer le `POST` qui la suit ne double rien
+    non plus : le calcul part de l'état réel des enveloppes, si bien qu'une préparation
+    déjà appliquée produit une proposition vide.
+    """
+    enveloppes = depot.enveloppes_du_foyer(session, principal)
+    calculs = [_en_calcul(e) for e in enveloppes]
+    etat = repartir(_epargne_totale(session, principal), calculs)
+
+    proposition = preparer_la_periode(
+        etat.non_affecte, calculs, _plafonds_par_enveloppe(session, principal, enveloppes)
+    )
+    par_nom = {e.nom: e.id for e in enveloppes}
+
+    return PreparationPublique(
+        lignes=[
+            LignePreparationPublique(
+                enveloppe_id=par_nom[ligne.nom],
+                nom=ligne.nom,
+                a_liberer_centimes=int(ligne.a_liberer),
+                demande_un_choix=ligne.demande_un_choix,
+                recommande_centimes=int(ligne.recommande),
+                place_centimes=None if ligne.place is None else int(ligne.place),
+                limitee_par_le_disponible=ligne.limitee_par_le_disponible,
+            )
+            for ligne in proposition.lignes
+        ],
+        disponible_avant_centimes=int(proposition.disponible_avant),
+        disponible_apres_centimes=int(proposition.disponible_apres),
+        total_recommande_centimes=int(proposition.total_recommande),
+        total_libere_centimes=int(proposition.total_libere),
+        attend_des_choix=proposition.attend_des_choix,
+    )
+
+
+@routeur.post("/enveloppes/preparation", response_model=RepartitionPublique)
+def appliquer_la_preparation(
+    demande: DemandePreparation, session: SessionBase, principal: PrincipalCourant
+) -> RepartitionPublique:
+    """Applique les lignes retenues. SEULE écriture du passage de période.
+
+    Les montants viennent de la demande et non d'un recalcul côté serveur : la proposition
+    est une proposition, et l'utilisateur peut en retenir d'autres chiffres. Recalculer ici
+    reviendrait à lui reprendre la décision qu'on vient de lui donner.
+
+    La libération est écrite AVANT l'allocation, pour la même raison qu'elle la précède
+    dans le calcul : sur une enveloppe qui libère puis reçoit, l'ordre inverse produirait
+    un solde intermédiaire faux dans le journal — lisible six mois plus tard comme une
+    erreur qui n'a jamais eu lieu.
+    """
+    for choix in demande.lignes:
+        enveloppe = depot.enveloppe_visible(session, principal, choix.enveloppe_id)
+        if enveloppe is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Enveloppe introuvable."
+            )
+
+        if choix.liberer_centimes > 0:
+            depot.ajouter_mouvement(
+                session,
+                enveloppe,
+                type=TypeMouvement.LIBERATION,
+                montant_centimes=Cents(choix.liberer_centimes),
+                date_mouvement=aujourd_hui(),
+                libelle="Fin de période",
+            )
+        if choix.allouer_centimes > 0:
+            depot.ajouter_mouvement(
+                session,
+                enveloppe,
+                type=TypeMouvement.ALLOCATION,
+                montant_centimes=Cents(choix.allouer_centimes),
+                date_mouvement=aujourd_hui(),
+                libelle="Préparation du mois",
+            )
+
+    session.commit()
+    return _repartition(session, principal)

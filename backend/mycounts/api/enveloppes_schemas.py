@@ -114,3 +114,60 @@ class RepartitionPublique(BaseModel):
 
     decouvert: bool
     enveloppes: list[EnveloppePublique]
+
+
+class LignePreparationPublique(BaseModel):
+    """Une ligne de la proposition. Rien n'est écrit tant qu'elle n'est pas validée."""
+
+    enveloppe_id: uuid.UUID
+    nom: str
+    a_liberer_centimes: int
+    demande_un_choix: bool
+    recommande_centimes: int
+    place_centimes: int | None
+    limitee_par_le_disponible: bool
+    """Vrai quand l'argent a manqué pour servir cette enveloppe entièrement. Exposé plutôt
+    que déduit à l'écran : « 40 € » et « 40 € parce qu'il ne restait que ça » ne disent pas
+    la même chose, et seul le calcul sait laquelle des deux est vraie."""
+
+
+class PreparationPublique(BaseModel):
+    lignes: list[LignePreparationPublique]
+    disponible_avant_centimes: int
+    disponible_apres_centimes: int
+    total_recommande_centimes: int
+    total_libere_centimes: int
+    attend_des_choix: bool
+
+
+class ChoixDeLigne(BaseModel):
+    """Ce que l'utilisateur retient d'une ligne, après l'avoir vue."""
+
+    enveloppe_id: uuid.UUID
+    allouer_centimes: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Montant réellement alloué. Peut différer de la recommandation : c'est une "
+            "proposition, pas un ordre."
+        ),
+    )
+    liberer_centimes: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Reliquat réellement libéré. Pour une enveloppe en mode « demander », zéro "
+            "signifie que l'utilisateur a répondu « garder »."
+        ),
+    )
+
+
+class DemandePreparation(BaseModel):
+    """Application de la préparation. SEULE écriture du passage de période.
+
+    Les lignes absentes ne sont pas appliquées : ne rien envoyer n'écrit rien. C'est ce
+    qui permet de valider une partie de la proposition et de revenir plus tard sur le
+    reste, sans que le calcul ait à se souvenir de quoi que ce soit.
+    """
+
+    lignes: list[ChoixDeLigne]

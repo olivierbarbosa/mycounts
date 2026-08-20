@@ -26,6 +26,9 @@ export type RepartitionEnveloppes = components['schemas']['RepartitionPublique']
 export type EnveloppePublique = components['schemas']['EnveloppePublique']
 export type DemandeEnveloppe = components['schemas']['DemandeEnveloppe']
 export type ModificationEnveloppe = components['schemas']['ModificationEnveloppe']
+export type PreparationPublique = components['schemas']['PreparationPublique']
+export type LignePreparation = components['schemas']['LignePreparationPublique']
+export type ChoixDeLigne = components['schemas']['ChoixDeLigne']
 export type Rollover = components['schemas']['Rollover']
 export type UsageEnveloppe = components['schemas']['UsageEnveloppe']
 export type DemandeMouvementEnveloppe = components['schemas']['DemandeMouvement']
@@ -214,6 +217,16 @@ export const api = {
     appeler<RepartitionEnveloppes>(`/enveloppes/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(demande),
+    }),
+
+  /** Ce que la période qui s'ouvre PROPOSE. N'écrit rien : c'est `appliquerPreparation`
+   *  qui écrit, et seulement les lignes qu'on lui donne. */
+  preparation: () => appeler<PreparationPublique>('/enveloppes/preparation'),
+
+  appliquerPreparation: (lignes: readonly ChoixDeLigne[]) =>
+    appeler<RepartitionEnveloppes>('/enveloppes/preparation', {
+      method: 'POST',
+      body: JSON.stringify({ lignes }),
     }),
 
   supprimerEnveloppe: (id: string) => appeler<void>(`/enveloppes/${id}`, { method: 'DELETE' }),

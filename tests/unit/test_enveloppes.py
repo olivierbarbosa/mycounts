@@ -21,7 +21,9 @@ from mycounts.domain.enveloppes import (
     Rollover,
     TypeMouvement,
     UsageEnveloppe,
+    budget_mensuel,
     ordre_de_service,
+    preparer_la_periode,
     reliquat_au_changement_de_periode,
     repartir,
     solde_de,
@@ -266,3 +268,180 @@ class TestValeursParDefaut:
         assert enveloppe.usage is UsageEnveloppe.FONCTIONNEMENT
         assert enveloppe.priorite == 0
         assert enveloppe.contribution_mensuelle is None
+
+
+def _enveloppe(
+    nom: str,
+    solde: int = 0,
+    cible: int | None = None,
+    contribution: int | None = None,
+    rollover: Rollover = Rollover.REPORT,
+    priorite: int = 0,
+) -> Enveloppe:
+    """Une enveloppe dont le solde vaut exactement `solde`, par un seul mouvement."""
+    mouvements = (
+        ()
+        if solde == 0
+        else (
+            Mouvement(
+                type=TypeMouvement.ALLOCATION if solde > 0 else TypeMouvement.REPRISE,
+                montant=Cents(abs(solde)),
+            ),
+        )
+    )
+    return Enveloppe(
+        nom=nom,
+        mouvements=mouvements,
+        cible=None if cible is None else Cents(cible),
+        contribution_mensuelle=None if contribution is None else Cents(contribution),
+        rollover=rollover,
+        priorite=priorite,
+    )
+
+
+class TestBudgetMensuel:
+    """Ce qu'on prévoit de mettre, et d'où le chiffre vient."""
+
+    def test_la_contribution_de_lenveloppe_prime_sur_le_plafond(self) -> None:
+        """Le particulier l'emporte sur le général : une contribution est une décision
+        prise POUR cette enveloppe, un plafond vaut pour toute la catégorie."""
+        enveloppe = _enveloppe("Courses", contribution=30_000)
+        assert budget_mensuel(enveloppe, plafond_de_la_categorie=Cents(40_000)) == Cents(30_000)
+
+    def test_le_plafond_sert_a_defaut_de_contribution(self) -> None:
+        enveloppe = _enveloppe("Courses")
+        assert budget_mensuel(enveloppe, plafond_de_la_categorie=Cents(40_000)) == Cents(40_000)
+
+    def test_sans_lun_ni_lautre_il_ny_a_PAS_de_budget(self) -> None:
+        """`None` et non zéro : la préparation ne doit rien recommander plutôt que zéro."""
+        assert budget_mensuel(_enveloppe("Courses")) is None
+
+
+class TestPreparerLaPeriode:
+    """La proposition faite au passage de période. Elle n'écrit rien."""
+
+    def test_elle_recommande_le_budget_sans_depasser_la_place(self) -> None:
+        # Cible 400, déjà 350 dedans : il n'en manque que 50, quoi que dise le budget.
+        enveloppes = [_enveloppe("Courses", solde=35_000, cible=40_000, contribution=30_000)]
+        preparation = preparer_la_periode(Cents(100_000), enveloppes)
+        assert preparation.lignes[0].recommande == Cents(5_000)
+
+    def test_elle_recommande_la_place_sans_depasser_le_budget(self) -> None:
+        # L'autre borne du `min` : sans elle, une enveloppe vide à cible lointaine
+        # avalerait tout le disponible du mois.
+        enveloppes = [_enveloppe("Vacances", cible=150_000, contribution=10_000)]
+        preparation = preparer_la_periode(Cents(100_000), enveloppes)
+        assert preparation.lignes[0].recommande == Cents(10_000)
+
+    def test_sans_budget_ni_cible_elle_ne_recommande_rien(self) -> None:
+        preparation = preparer_la_periode(Cents(100_000), [_enveloppe("Divers")])
+        assert preparation.lignes[0].recommande == Cents(0)
+
+    def test_le_disponible_borne_la_derniere_servie(self) -> None:
+        """Et la ligne DIT qu'elle a été rognée : « 40 € » et « 40 € parce qu'il ne restait
+        que ça » ne s'interprètent pas pareil, et seul le calcul sait laquelle est vraie."""
+        enveloppes = [
+            _enveloppe("Impots", cible=100_000, contribution=60_000, priorite=1),
+            _enveloppe("Vacances", cible=100_000, contribution=60_000, priorite=2),
+        ]
+        preparation = preparer_la_periode(Cents(80_000), enveloppes)
+        premiere, seconde = preparation.lignes
+        assert premiere.recommande == Cents(60_000)
+        assert premiere.limitee_par_le_disponible is False
+        assert seconde.recommande == Cents(20_000)
+        assert seconde.limitee_par_le_disponible is True
+        assert preparation.disponible_apres == Cents(0)
+
+    def test_la_priorite_decide_qui_est_servi_en_premier(self) -> None:
+        """Le témoin qui distingue un ordre CALCULÉ de l'ordre reçu : les enveloppes sont
+        passées dans l'ordre inverse de leur priorité."""
+        enveloppes = [
+            _enveloppe("Tardive", cible=100_000, contribution=60_000, priorite=9),
+            _enveloppe("Urgente", cible=100_000, contribution=60_000, priorite=1),
+        ]
+        preparation = preparer_la_periode(Cents(60_000), enveloppes)
+        servie = next(ligne for ligne in preparation.lignes if ligne.recommande > Cents(0))
+        assert servie.nom == "Urgente"
+
+    def test_un_reliquat_libere_finance_la_periode(self) -> None:
+        # Courses libère 120, ce qui porte le disponible à 220 et permet de servir Vacances.
+        enveloppes = [
+            _enveloppe("Courses", solde=12_000, rollover=Rollover.LIBERATION, priorite=1),
+            _enveloppe("Vacances", cible=100_000, contribution=20_000, priorite=2),
+        ]
+        preparation = preparer_la_periode(Cents(10_000), enveloppes)
+        assert preparation.disponible_avant == Cents(22_000)
+        vacances = next(ligne for ligne in preparation.lignes if ligne.nom == "Vacances")
+        assert vacances.recommande == Cents(20_000)
+
+    def test_un_reliquat_EN_ATTENTE_ne_finance_rien(self) -> None:
+        """La différence avec le test précédent tient au seul mode de fin de mois.
+
+        Tant que la question n'a pas de réponse, cet argent peut aussi bien rester où il
+        est : le compter d'avance ferait promettre à d'autres enveloppes de l'argent qu'un
+        « non » reprendrait aussitôt.
+        """
+        enveloppes = [
+            _enveloppe("Courses", solde=12_000, rollover=Rollover.DEMANDER, priorite=1),
+            _enveloppe("Vacances", cible=100_000, contribution=20_000, priorite=2),
+        ]
+        preparation = preparer_la_periode(Cents(10_000), enveloppes)
+        assert preparation.disponible_avant == Cents(10_000)
+        vacances = next(ligne for ligne in preparation.lignes if ligne.nom == "Vacances")
+        assert vacances.recommande == Cents(10_000)
+        assert preparation.attend_des_choix is True
+
+    def test_la_place_tient_compte_de_ce_qui_vient_detre_libere(self) -> None:
+        """Une enveloppe qui rend 120 € puis en redemande a 400 € de place, pas 280."""
+        enveloppes = [
+            _enveloppe(
+                "Courses",
+                solde=12_000,
+                cible=40_000,
+                contribution=40_000,
+                rollover=Rollover.LIBERATION,
+            )
+        ]
+        preparation = preparer_la_periode(Cents(100_000), enveloppes)
+        assert preparation.lignes[0].place == Cents(40_000)
+        assert preparation.lignes[0].recommande == Cents(40_000)
+
+    def test_rejouer_la_preparation_ne_double_rien(self) -> None:
+        """L'idempotence, obtenue par construction et non par un verrou.
+
+        C'est la propriété qui permet de se passer d'un marqueur « période déjà préparée »,
+        c'est-à-dire d'un second état à tenir d'accord avec le premier. On simule ici
+        l'application de la première proposition, puis on recalcule.
+        """
+        enveloppes = [_enveloppe("Vacances", cible=100_000, contribution=20_000)]
+        premiere = preparer_la_periode(Cents(100_000), enveloppes)
+        assert premiere.lignes[0].recommande == Cents(20_000)
+
+        # La proposition est appliquée : le solde monte d'autant.
+        apres_application = [
+            _enveloppe("Vacances", solde=20_000, cible=100_000, contribution=20_000)
+        ]
+        seconde = preparer_la_periode(Cents(80_000), apres_application)
+        # Elle recommande le budget du mois SUIVANT, pas une seconde fois celui-ci : le
+        # doublement se verrait ici sous la forme d'une place qui n'aurait pas bougé.
+        assert seconde.lignes[0].place == Cents(80_000)
+
+    def test_rejouer_apres_une_liberation_ne_libere_pas_deux_fois(self) -> None:
+        """Le cas où un doublement coûterait le plus cher : libérer deux fois le même
+        reliquat ferait apparaître de l'argent qui n'existe pas."""
+        libere = _enveloppe("Courses", solde=12_000, rollover=Rollover.LIBERATION)
+        premiere = preparer_la_periode(Cents(0), [libere])
+        assert premiere.lignes[0].a_liberer == Cents(12_000)
+
+        vide = _enveloppe("Courses", solde=0, rollover=Rollover.LIBERATION)
+        seconde = preparer_la_periode(Cents(12_000), [vide])
+        assert seconde.lignes[0].a_liberer == Cents(0)
+        assert seconde.disponible_avant == Cents(12_000)
+
+    def test_une_enveloppe_en_decouvert_ne_libere_rien_et_reste_listee(self) -> None:
+        """Listée quand même : une enveloppe dans le rouge est précisément celle qu'on veut
+        voir au moment de répartir."""
+        enveloppes = [_enveloppe("Courses", solde=-5_000, rollover=Rollover.LIBERATION)]
+        preparation = preparer_la_periode(Cents(100_000), enveloppes)
+        assert preparation.lignes[0].a_liberer == Cents(0)
+        assert len(preparation.lignes) == 1

@@ -1,9 +1,10 @@
-import { Check, ChevronDown, Pencil, Plus, Settings2, Trash2, X } from 'lucide-react'
+import { CalendarCheck, Check, ChevronDown, Pencil, Plus, Settings2, Trash2, X } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 
 import type { CategoriePublique, EnveloppePublique, RepartitionEnveloppes } from '../api/client'
 import { ErreurApi, api } from '../api/client'
 import { ChoixCategorie } from '../composants/ChoixCategorie'
+import { FeuillePreparation } from '../composants/FeuillePreparation'
 import { FeuilleReglagesEnveloppe } from '../composants/FeuilleReglagesEnveloppe'
 import { Montant } from '../composants/Montant'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
@@ -47,6 +48,7 @@ export function Enveloppes({ categories, rafraichissement, surReferentielsChange
    *  est fréquent, régler la fin de mois est rare — les deux ne s'ouvrent pas au même
    *  endroit ni pour les mêmes raisons. */
   const [enReglage, setEnReglage] = useState<EnveloppePublique | null>(null)
+  const [preparationOuverte, setPreparationOuverte] = useState(false)
   const [nom, setNom] = useState('')
   const [categorieId, setCategorieId] = useState('')
   const [montant, setMontant] = useState('')
@@ -295,6 +297,20 @@ export function Enveloppes({ categories, rafraichissement, surReferentielsChange
         </p>
       )}
 
+      {/* La préparation du mois, avant la liste : c'est le geste qu'on vient faire quand
+          la paie vient de tomber, et il commande tout ce qui suit. Il n'apparaît pas s'il
+          n'y a rien à répartir — un bouton qui ouvre une feuille vide est une déception. */}
+      {etat.enveloppes.length > 0 && (
+        <button
+          type="button"
+          className={styles.preparer}
+          onClick={() => setPreparationOuverte(true)}
+        >
+          <CalendarCheck size={18} strokeWidth={2.2} aria-hidden />
+          Préparer le mois
+        </button>
+      )}
+
       {etat.enveloppes.length === 0 && !ajout ? (
         <div className={styles.vide}>
           <p>
@@ -430,6 +446,16 @@ export function Enveloppes({ categories, rafraichissement, surReferentielsChange
         <p className={styles.erreur} role="alert">
           {erreur}
         </p>
+      )}
+
+      {preparationOuverte && (
+        <FeuillePreparation
+          surFermeture={() => setPreparationOuverte(false)}
+          surApplication={() => {
+            setPreparationOuverte(false)
+            void charger()
+          }}
+        />
       )}
 
       {enReglage !== null && (

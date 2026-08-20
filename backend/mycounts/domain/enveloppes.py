@@ -263,3 +263,155 @@ def solde_de(mouvements: Iterable[Mouvement]) -> Cents:
 
 def repartir(epargne_totale: Cents, enveloppes: Sequence[Enveloppe]) -> Repartition:
     return Repartition(epargne_totale=epargne_totale, enveloppes=tuple(enveloppes))
+
+
+@dataclass(frozen=True)
+class LignePreparation:
+    """Ce que la préparation propose pour UNE enveloppe. Une proposition, pas un ordre."""
+
+    nom: str
+    a_liberer: Cents
+    """Reliquat que le mode de fin de mois rend au disponible. Zéro s'il reporte."""
+
+    demande_un_choix: bool
+    """Vrai en mode « demander » : la ligne attend une réponse avant d'être appliquée."""
+
+    recommande: Cents
+    """Ce qu'il est proposé d'allouer. Jamais plus que la place, jamais plus que le
+    disponible restant à ce rang de service."""
+
+    place: Cents | None
+    """Ce qu'il manquerait pour atteindre la cible. `None` sans cible."""
+
+    limitee_par_le_disponible: bool
+    """Vrai quand l'argent a manqué pour servir cette enveloppe entièrement.
+
+    Exposé plutôt que déduit d'une comparaison à l'écran : « on vous propose 40 € » et
+    « on vous propose 40 € parce qu'il ne restait que ça » ne disent pas la même chose, et
+    seul le calcul sait laquelle des deux est vraie.
+    """
+
+
+@dataclass(frozen=True)
+class Preparation:
+    """La proposition complète, avant toute écriture."""
+
+    lignes: tuple[LignePreparation, ...]
+    disponible_avant: Cents
+    disponible_apres: Cents
+
+    @property
+    def total_recommande(self) -> Cents:
+        return Cents(sum(int(ligne.recommande) for ligne in self.lignes))
+
+    @property
+    def total_libere(self) -> Cents:
+        return Cents(
+            sum(
+                int(ligne.a_liberer)
+                for ligne in self.lignes
+                if not ligne.demande_un_choix
+            )
+        )
+
+    @property
+    def attend_des_choix(self) -> bool:
+        return any(ligne.demande_un_choix for ligne in self.lignes)
+
+
+def budget_mensuel(
+    enveloppe: Enveloppe, plafond_de_la_categorie: Cents | None = None
+) -> Cents | None:
+    """Ce qu'on prévoit de mettre dans cette enveloppe à chaque période.
+
+    Deux sources, dans cet ordre : la contribution propre à l'enveloppe si elle est fixée,
+    sinon le plafond de sa catégorie. L'ordre n'est pas arbitraire — une contribution
+    écrite sur l'enveloppe est une décision PRISE POUR ELLE, alors qu'un plafond de
+    catégorie vaut pour toutes les dépenses de cette catégorie, enveloppe ou non. Le
+    particulier l'emporte sur le général.
+
+    `None` quand ni l'une ni l'autre n'existe : la préparation ne recommandera alors rien
+    plutôt que zéro. Inventer un montant là où l'utilisateur n'en a fixé aucun serait une
+    décision prise à sa place — c'est déjà la règle de `place`.
+    """
+    if enveloppe.contribution_mensuelle is not None:
+        return enveloppe.contribution_mensuelle
+    return plafond_de_la_categorie
+
+
+def preparer_la_periode(
+    disponible: Cents,
+    enveloppes: Sequence[Enveloppe],
+    plafonds: dict[str, Cents] | None = None,
+) -> Preparation:
+    """Calcule la répartition proposée pour la période qui s'ouvre.
+
+    **Elle n'écrit rien.** Olivier a choisi que le passage de période ne touche à l'argent
+    qu'après validation explicite : cette fonction produit donc une proposition, et
+    l'appelant décide ce qu'il en fait.
+
+    **Elle est idempotente par construction, et non par un verrou.** Le calcul part de
+    l'état RÉEL des enveloppes : une fois la préparation appliquée, les soldes ont monté,
+    la place restante a diminué d'autant, et les reliquats libérés valent zéro. Rejouer
+    produit donc une proposition vide au lieu de doubler les montants. C'est ce qui permet
+    de se passer d'un marqueur « période déjà préparée », c'est-à-dire d'un second état à
+    tenir d'accord avec le premier.
+
+    **Un reliquat en attente de choix ne finance rien.** Les enveloppes en mode
+    « demander » proposent leur reliquat mais il n'entre PAS dans le disponible : tant que
+    la question n'a pas de réponse, cet argent peut aussi bien rester où il est. Le compter
+    d'avance ferait promettre à d'autres enveloppes de l'argent qu'un « non » reprendrait.
+
+    `plafonds` associe un identifiant de catégorie au plafond de la période — la seconde
+    source de budget mensuel, quand l'enveloppe n'a pas de contribution propre. La clé est
+    laissée à l'appelant : le domaine ne connaît pas les identifiants de la base.
+    """
+    plafonds = plafonds or {}
+    reliquats = {e.nom: reliquat_au_changement_de_periode(e) for e in enveloppes}
+
+    # Seuls les reliquats DÉCIDÉS financent la période qui s'ouvre.
+    restant = Cents(
+        int(disponible)
+        + sum(
+            int(r.a_liberer) for r in reliquats.values() if not r.demande_un_choix
+        )
+    )
+    disponible_apres_liberations = restant
+
+    lignes: list[LignePreparation] = []
+    for enveloppe in ordre_de_service(enveloppes):
+        reliquat = reliquats[enveloppe.nom]
+        budget = budget_mensuel(enveloppe, plafonds.get(enveloppe.nom))
+
+        # Le solde de départ tient compte de ce qui vient d'être libéré : une enveloppe qui
+        # rend 120 € puis en redemande 400 a bien 400 € de place, pas 280.
+        solde_apres_liberation = Cents(int(enveloppe.solde) - int(reliquat.a_liberer))
+        place = (
+            None
+            if enveloppe.cible is None
+            else Cents(max(0, int(enveloppe.cible) - int(solde_apres_liberation)))
+        )
+
+        if budget is None:
+            souhaite = Cents(0) if place is None else place
+        else:
+            souhaite = budget if place is None else Cents(min(int(budget), int(place)))
+
+        recommande = Cents(max(0, min(int(souhaite), int(restant))))
+        lignes.append(
+            LignePreparation(
+                nom=enveloppe.nom,
+                a_liberer=reliquat.a_liberer,
+                demande_un_choix=reliquat.demande_un_choix,
+                recommande=recommande,
+                place=place,
+                limitee_par_le_disponible=recommande < souhaite,
+            )
+        )
+        restant = Cents(int(restant) - int(recommande))
+
+    return Preparation(
+        lignes=tuple(lignes),
+        disponible_avant=disponible_apres_liberations,
+        disponible_apres=restant,
+    )

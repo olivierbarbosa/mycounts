@@ -293,3 +293,172 @@ def test_les_reglages_se_posent_des_la_creation(
     assert enveloppe["usage"] == "reserve"
     assert enveloppe["rollover"] == "demander"
     assert enveloppe["priorite"] == 2
+
+
+def test_la_preparation_propose_sans_rien_ecrire(
+    client: TestClient, session_bd: Session
+) -> None:
+    """La séparation calculer / appliquer, mesurée là où elle compte : après un GET, les
+    soldes doivent être exactement ce qu'ils étaient."""
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creer_enveloppe(
+        client,
+        "Vacances",
+        cible_centimes=100_000,
+        contribution_mensuelle_centimes=20_000,
+    )
+
+    avant = client.get("/api/enveloppes").json()
+    preparation = client.get("/api/enveloppes/preparation").json()
+    apres = client.get("/api/enveloppes").json()
+
+    assert preparation["total_recommande_centimes"] == 20_000
+    assert apres["reserve_centimes"] == avant["reserve_centimes"]
+    assert apres["non_affecte_centimes"] == avant["non_affecte_centimes"]
+
+
+def test_appliquer_la_preparation_alloue_reellement(
+    client: TestClient, session_bd: Session
+) -> None:
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(
+        client, "Vacances", cible_centimes=100_000, contribution_mensuelle_centimes=20_000
+    )
+    identifiant = enveloppe_nommee(creee, "Vacances")["id"]
+
+    reponse = client.post(
+        "/api/enveloppes/preparation",
+        json={"lignes": [{"enveloppe_id": identifiant, "allouer_centimes": 20_000}]},
+    )
+    assert reponse.status_code == 200, reponse.text
+    assert enveloppe_nommee(reponse.json(), "Vacances")["solde_centimes"] == 20_000
+
+
+def test_rejouer_la_preparation_ne_double_pas_les_allocations(
+    client: TestClient, session_bd: Session
+) -> None:
+    """L'idempotence, mesurée sur le CHEMIN COMPLET et non seulement dans le domaine.
+
+    Elle ne vient d'aucun verrou : le calcul repart de l'état réel, si bien qu'une
+    enveloppe déjà servie n'a plus la place de l'être une seconde fois. C'est ce qui permet
+    de se passer d'un marqueur « période déjà préparée », donc d'un second état à tenir
+    d'accord avec le premier.
+    """
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(
+        client, "Impots", cible_centimes=30_000, contribution_mensuelle_centimes=30_000
+    )
+    identifiant = enveloppe_nommee(creee, "Impots")["id"]
+
+    premiere = client.get("/api/enveloppes/preparation").json()
+    assert premiere["total_recommande_centimes"] == 30_000
+    client.post(
+        "/api/enveloppes/preparation",
+        json={"lignes": [{"enveloppe_id": identifiant, "allouer_centimes": 30_000}]},
+    )
+
+    # L'enveloppe a atteint sa cible : la seconde préparation n'a plus rien à proposer.
+    seconde = client.get("/api/enveloppes/preparation").json()
+    assert seconde["total_recommande_centimes"] == 0
+
+    # Et l'appliquer quand même n'écrit rien, puisqu'il n'y a rien à écrire.
+    client.post("/api/enveloppes/preparation", json={"lignes": []})
+    impots = enveloppe_nommee(client.get("/api/enveloppes").json(), "Impots")
+    assert impots["solde_centimes"] == 30_000
+
+
+def test_une_liberation_rend_largent_au_non_affecte(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Deux grandeurs en sens opposés, et une troisième qui ne bouge pas : le solde des
+    comptes. Libérer un reliquat ne déplace aucun argent en banque."""
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(
+        client, "Courses", allocation_initiale_centimes=12_000, rollover="liberation"
+    )
+    identifiant = enveloppe_nommee(creee, "Courses")["id"]
+
+    avant = client.get("/api/enveloppes").json()
+    resume_avant = client.get("/api/resume").json()
+
+    preparation = client.get("/api/enveloppes/preparation").json()
+    assert preparation["total_libere_centimes"] == 12_000
+
+    client.post(
+        "/api/enveloppes/preparation",
+        json={"lignes": [{"enveloppe_id": identifiant, "liberer_centimes": 12_000}]},
+    )
+
+    apres = client.get("/api/enveloppes").json()
+    assert apres["reserve_centimes"] - avant["reserve_centimes"] == -12_000
+    assert apres["non_affecte_centimes"] - avant["non_affecte_centimes"] == 12_000
+    assert client.get("/api/resume").json()["solde_reel"] == resume_avant["solde_reel"]
+
+
+def test_le_mode_demander_signale_quil_attend_une_reponse(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Et son reliquat ne finance PAS la période tant que la réponse manque."""
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 20_000)
+    creer_enveloppe(
+        client, "Courses", allocation_initiale_centimes=12_000, rollover="demander"
+    )
+
+    preparation = client.get("/api/enveloppes/preparation").json()
+    assert preparation["attend_des_choix"] is True
+    ligne = next(ligne for ligne in preparation["lignes"] if ligne["nom"] == "Courses")
+    assert ligne["demande_un_choix"] is True
+    assert ligne["a_liberer_centimes"] == 12_000
+    # Le disponible n'a PAS été gonflé par un reliquat non décidé.
+    assert preparation["total_libere_centimes"] == 0
+
+
+def test_le_plafond_de_la_categorie_sert_de_budget_a_defaut_de_contribution(
+    client: TestClient, session_bd: Session
+) -> None:
+    """La seconde source de budget mensuel, et le lien entre les deux modules."""
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    categorie = client.post(
+        "/api/categories", json={"nom": "Courses", "nature": "depense", "teinte": "vert"}
+    )
+    assert categorie.status_code == 201, categorie.text
+    categorie_id = categorie.json()["id"]
+    client.put(
+        "/api/plafonds", json={"categorie_id": categorie_id, "montant_centimes": 40_000}
+    )
+
+    creer_enveloppe(client, "Courses", categorie_id=categorie_id, cible_centimes=100_000)
+
+    preparation = client.get("/api/enveloppes/preparation").json()
+    ligne = next(ligne for ligne in preparation["lignes"] if ligne["nom"] == "Courses")
+    assert ligne["recommande_centimes"] == 40_000
+
+
+def test_la_reponse_dune_ecriture_montre_letat_dapres(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Sur la RÉPONSE elle-même, et non par une relecture.
+
+    Toutes les vérifications de ce module relisaient l'état par un second appel — donc par
+    le seul chemin qui contourne le cache de session. Le défaut a vécu depuis le lot E1 :
+    `expire_on_commit=False` laisse les objets déjà chargés dans leur état d'avant, si bien
+    qu'allouer 200 € renvoyait un solde de 0, affiché tel quel à l'écran.
+    """
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(client, "Vacances")
+    identifiant = enveloppe_nommee(creee, "Vacances")["id"]
+
+    reponse = client.post(
+        f"/api/enveloppes/{identifiant}/mouvements",
+        json={"type": "allocation", "montant_centimes": 20_000},
+    )
+    assert reponse.status_code == 201, reponse.text
+    assert enveloppe_nommee(reponse.json(), "Vacances")["solde_centimes"] == 20_000
+    assert reponse.json()["reserve_centimes"] == 20_000

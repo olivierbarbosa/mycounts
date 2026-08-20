@@ -365,8 +365,12 @@ s'ouvre.
 - ~~**Lot C — le modèle des enveloppes.**~~ **Fait le 2026-08-20** —
   `docs/changelog.d/0049-reglages-des-enveloppes.md`. Trois modes de rollover, écrits
   seulement par la préparation mensuelle validée ; usage, priorité, contribution ; une
-  feuille de réglages qui permet enfin de renommer une enveloppe. `statut` est laissé à E3,
-  qui sera le premier à le consommer — une colonne morte ment sur ce que le modèle sait.
+  feuille de réglages qui permet enfin de renommer une enveloppe.
+- ~~**Lot C (suite) — la préparation mensuelle.**~~ **Fait le 2026-08-20** —
+  `docs/changelog.d/0050-preparation-mensuelle.md`. Elle montre avant d'écrire, et son
+  idempotence se déduit de la formule au lieu d'être gardée par un marqueur. `statut` n'a
+  finalement pas été nécessaire : une enveloppe close se règle en retirant sa contribution
+  et son objectif, ce qui la fait sortir des propositions sans colonne de plus.
 - **Lot D — Statistiques et coaching.** Consommation de toutes les catégories, KPI et
   graphiques, et repérage des dépenses évitables (abonnements dormants, livraisons
   répétées).

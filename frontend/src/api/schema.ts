@@ -696,6 +696,47 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/enveloppes/preparation': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Preparation
+     * @description Ce que la période qui s'ouvre propose de faire. N'ÉCRIT RIEN.
+     *
+     *     Olivier a choisi que le passage de période ne touche à l'argent qu'après validation
+     *     explicite : cette route calcule, `POST` applique. La séparation n'est pas une politesse
+     *     — elle est ce qui permet de voir avant que ça bouge.
+     *
+     *     Rejouer cette route est sans effet, et rejouer le `POST` qui la suit ne double rien
+     *     non plus : le calcul part de l'état réel des enveloppes, si bien qu'une préparation
+     *     déjà appliquée produit une proposition vide.
+     */
+    get: operations['preparation_api_enveloppes_preparation_get']
+    put?: never
+    /**
+     * Appliquer La Preparation
+     * @description Applique les lignes retenues. SEULE écriture du passage de période.
+     *
+     *     Les montants viennent de la demande et non d'un recalcul côté serveur : la proposition
+     *     est une proposition, et l'utilisateur peut en retenir d'autres chiffres. Recalculer ici
+     *     reviendrait à lui reprendre la décision qu'on vient de lui donner.
+     *
+     *     La libération est écrite AVANT l'allocation, pour la même raison qu'elle la précède
+     *     dans le calcul : sur une enveloppe qui libère puis reçoit, l'ordre inverse produirait
+     *     un solde intermédiaire faux dans le journal — lisible six mois plus tard comme une
+     *     erreur qui n'a jamais eu lieu.
+     */
+    post: operations['appliquer_la_preparation_api_enveloppes_preparation_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/health': {
     parameters: {
       query?: never
@@ -754,6 +795,29 @@ export interface components {
       nom: string
       nature: components['schemas']['NatureCategorie']
       teinte: components['schemas']['TeinteCategorie']
+    }
+    /**
+     * ChoixDeLigne
+     * @description Ce que l'utilisateur retient d'une ligne, après l'avoir vue.
+     */
+    ChoixDeLigne: {
+      /**
+       * Enveloppe Id
+       * Format: uuid
+       */
+      enveloppe_id: string
+      /**
+       * Allouer Centimes
+       * @description Montant réellement alloué. Peut différer de la recommandation : c'est une proposition, pas un ordre.
+       * @default 0
+       */
+      allouer_centimes: number
+      /**
+       * Liberer Centimes
+       * @description Reliquat réellement libéré. Pour une enveloppe en mode « demander », zéro signifie que l'utilisateur a répondu « garder ».
+       * @default 0
+       */
+      liberer_centimes: number
     }
     /** CompteEpargne */
     CompteEpargne: {
@@ -939,6 +1003,18 @@ export interface components {
        */
       montant_centimes: number
     }
+    /**
+     * DemandePreparation
+     * @description Application de la préparation. SEULE écriture du passage de période.
+     *
+     *     Les lignes absentes ne sont pas appliquées : ne rien envoyer n'écrit rien. C'est ce
+     *     qui permet de valider une partie de la proposition et de revenir plus tard sur le
+     *     reste, sans que le calcul ait à se souvenir de quoi que ce soit.
+     */
+    DemandePreparation: {
+      /** Lignes */
+      lignes: components['schemas']['ChoixDeLigne'][]
+    }
     /** DemandeRecurrence */
     DemandeRecurrence: {
       /**
@@ -1120,6 +1196,29 @@ export interface components {
        * Format: date-time
        */
       expire_le: string
+    }
+    /**
+     * LignePreparationPublique
+     * @description Une ligne de la proposition. Rien n'est écrit tant qu'elle n'est pas validée.
+     */
+    LignePreparationPublique: {
+      /**
+       * Enveloppe Id
+       * Format: uuid
+       */
+      enveloppe_id: string
+      /** Nom */
+      nom: string
+      /** A Liberer Centimes */
+      a_liberer_centimes: number
+      /** Demande Un Choix */
+      demande_un_choix: boolean
+      /** Recommande Centimes */
+      recommande_centimes: number
+      /** Place Centimes */
+      place_centimes: number | null
+      /** Limitee Par Le Disponible */
+      limitee_par_le_disponible: boolean
     }
     /**
      * ModificationCategorie
@@ -1350,6 +1449,21 @@ export interface components {
       depasse: boolean
       /** Depasse Avec Les Echeances */
       depasse_avec_les_echeances: boolean
+    }
+    /** PreparationPublique */
+    PreparationPublique: {
+      /** Lignes */
+      lignes: components['schemas']['LignePreparationPublique'][]
+      /** Disponible Avant Centimes */
+      disponible_avant_centimes: number
+      /** Disponible Apres Centimes */
+      disponible_apres_centimes: number
+      /** Total Recommande Centimes */
+      total_recommande_centimes: number
+      /** Total Libere Centimes */
+      total_libere_centimes: number
+      /** Attend Des Choix */
+      attend_des_choix: boolean
     }
     /** ProduitPublic */
     ProduitPublic: {
@@ -2879,6 +2993,72 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['MouvementPublic'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  preparation_api_enveloppes_preparation_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PreparationPublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  appliquer_la_preparation_api_enveloppes_preparation_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandePreparation']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RepartitionPublique']
         }
       }
       /** @description Validation Error */

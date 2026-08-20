@@ -245,3 +245,96 @@ test('chaque mode de fin de mois s’explique en une phrase', async ({ page }) =
   await feuille.getByRole('button', { name: 'Demander', exact: true }).click()
   await expect(feuille.getByText(/posera la question/)).toBeVisible()
 })
+
+test('la préparation montre avant d’écrire', async ({ page }) => {
+  /* La décision d'Olivier, mesurée là où elle compte : ouvrir la feuille ne doit RIEN
+   * déplacer. C'est toute la différence entre une préparation qu'on valide et un
+   * automatisme qu'on découvre après coup. */
+  const nom = `Prepa ${Date.now()}`
+  await ouvrirEnveloppes(page)
+  await creerEnveloppe(page, nom, '0,00')
+
+  const ligne = page.locator('li', { hasText: nom }).first()
+  await ligne.getByRole('button', { name: `Ajuster l’enveloppe ${nom}` }).click()
+  await ligne.getByRole('button', { name: `Réglages de ${nom}` }).click()
+  const reglages = page.getByRole('dialog', { name: `Réglages de ${nom}` })
+  await reglages.getByLabel('Objectif').fill('1000,00')
+  await reglages.getByLabel('Chaque mois').fill('200,00')
+  await reglages.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+  await expect(reglages).toHaveCount(0)
+
+  const avant = await lire(page)
+  await page.getByRole('button', { name: 'Préparer le mois' }).click()
+  const feuille = page.getByRole('dialog', { name: 'Préparer le mois' })
+  await expect(feuille.getByText(nom)).toBeVisible()
+  await expect(feuille.getByText('200,00 €').first()).toBeVisible()
+
+  // Rien n'a bougé tant qu'on n'a pas validé.
+  expect((await lire(page)).reserve_centimes).toBe(avant.reserve_centimes)
+
+  await feuille.getByRole('button', { name: /Valider la répartition/ }).click()
+  await expect(feuille).toHaveCount(0)
+
+  const apres = await lire(page)
+  expect(apres.reserve_centimes - avant.reserve_centimes).toBe(20_000)
+  // Et l'argent n'a pas quitté les comptes : c'est la règle du module.
+  expect(apres.solde_reel).toBe(avant.solde_reel)
+})
+
+test('une enveloppe qui demande attend une réponse, et « garder » ne libère rien', async ({
+  page,
+}) => {
+  // Le défaut est « garder » : ne rien répondre ne doit rien déplacer.
+  const nom = `Demande ${Date.now()}`
+  await ouvrirEnveloppes(page)
+  await creerEnveloppe(page, nom, '120,00')
+
+  const ligne = page.locator('li', { hasText: nom }).first()
+  await ligne.getByRole('button', { name: `Ajuster l’enveloppe ${nom}` }).click()
+  await ligne.getByRole('button', { name: `Réglages de ${nom}` }).click()
+  const reglages = page.getByRole('dialog', { name: `Réglages de ${nom}` })
+  await reglages.getByRole('button', { name: 'Demander', exact: true }).click()
+  await reglages.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+  await expect(reglages).toHaveCount(0)
+
+  const avant = await lire(page)
+  await page.getByRole('button', { name: 'Préparer le mois' }).click()
+  const feuille = page.getByRole('dialog', { name: 'Préparer le mois' })
+  await expect(feuille.getByRole('group', { name: `Reliquat de ${nom}` })).toBeVisible()
+
+  await feuille.getByRole('button', { name: /Valider la répartition/ }).click()
+  await expect(feuille).toHaveCount(0)
+
+  // « Garder » par défaut : le réservé n'a pas bougé.
+  expect((await lire(page)).reserve_centimes).toBe(avant.reserve_centimes)
+})
+
+test('répondre « libérer » rend le reliquat au non-affecté', async ({ page }) => {
+  // L'autre sens, sans lequel un « garder » codé en dur passerait le test précédent.
+  const nom = `Liberer ${Date.now()}`
+  await ouvrirEnveloppes(page)
+  await creerEnveloppe(page, nom, '120,00')
+
+  const ligne = page.locator('li', { hasText: nom }).first()
+  await ligne.getByRole('button', { name: `Ajuster l’enveloppe ${nom}` }).click()
+  await ligne.getByRole('button', { name: `Réglages de ${nom}` }).click()
+  const reglages = page.getByRole('dialog', { name: `Réglages de ${nom}` })
+  await reglages.getByRole('button', { name: 'Demander', exact: true }).click()
+  await reglages.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+  await expect(reglages).toHaveCount(0)
+
+  const avant = await lire(page)
+  await page.getByRole('button', { name: 'Préparer le mois' }).click()
+  const feuille = page.getByRole('dialog', { name: 'Préparer le mois' })
+  await feuille
+    .getByRole('group', { name: `Reliquat de ${nom}` })
+    .getByRole('button', { name: 'Libérer' })
+    .click()
+  await feuille.getByRole('button', { name: /Valider la répartition/ }).click()
+  await expect(feuille).toHaveCount(0)
+
+  const apres = await lire(page)
+  expect(apres.reserve_centimes - avant.reserve_centimes).toBe(-12_000)
+  expect(apres.non_affecte_centimes - avant.non_affecte_centimes).toBe(12_000)
+  expect(apres.solde_reel).toBe(avant.solde_reel)
+})

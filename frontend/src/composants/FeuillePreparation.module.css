@@ -1,0 +1,207 @@
+/* Feuille de préparation du mois. Même matériau que les autres feuilles — c'est la même
+   nature d'objet : un panneau modal qui demande une décision. */
+.voile {
+  position: fixed;
+  inset: 0;
+  z-index: var(--plan-feuille);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--couleur-verre-bord-sombre);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.feuille {
+  width: min(560px, 100%);
+  max-height: 88dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-l);
+  padding: var(--espace-xl);
+  padding-bottom: calc(var(--espace-xl) + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--rayon-grand) var(--rayon-grand) 0 0;
+  background: var(--couleur-surface-opaque);
+  box-shadow: 0 -8px 40px var(--couleur-verre-bord-sombre);
+}
+
+@media (min-width: 600px) {
+  .voile {
+    align-items: center;
+  }
+
+  .feuille {
+    border-radius: var(--rayon-grand);
+  }
+}
+
+.titre {
+  margin: 0;
+  font-family: var(--typo-famille-chiffres);
+  font-size: 22px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: -0.02em;
+}
+
+/* Le chiffre à répartir, en tête : c'est la grandeur qui commande toutes les autres. */
+.resume {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-size: 15px;
+  color: var(--couleur-texte);
+}
+
+.precision {
+  color: var(--couleur-texte-faible);
+  font-size: 13px;
+}
+
+.liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Une enveloppe par ligne, en grille : le nom à gauche, le montant à droite, et les
+   mentions dessous sur toute la largeur. Les mettre en colonnes rétrécirait le montant
+   de toutes les lignes pour loger la phrase la plus longue d'une seule d'entre elles. */
+.ligne {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--espace-xs) var(--espace-m);
+  padding-bottom: var(--espace-m);
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+.nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.montants {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Encre atténuée : « rien à ajouter » est une information, pas une alerte. */
+.rien {
+  font-size: 13px;
+  color: var(--couleur-texte-faible);
+}
+
+.limite {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--couleur-alerte);
+}
+
+/* La question posée par le mode « demander ». Elle occupe toute la largeur : c'est une
+   décision, pas une mention. */
+.question {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-s);
+  margin-top: var(--espace-xs);
+}
+
+.questionTexte {
+  font-size: 13px;
+  color: var(--couleur-texte-attenue);
+}
+
+.bascule {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.choix {
+  min-height: 32px;
+  padding: 0 var(--espace-m);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.choix[aria-pressed='true'] {
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+}
+
+.total {
+  margin: 0;
+  font-size: 13px;
+  color: var(--couleur-texte-attenue);
+}
+
+.attente,
+.vide {
+  margin: 0;
+  padding: var(--espace-l) 0;
+  color: var(--couleur-texte-faible);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--espace-s);
+  justify-content: flex-end;
+}
+
+.annuler {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 15px;
+}
+
+.valider {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.valider:disabled {
+  opacity: 0.55;
+}
