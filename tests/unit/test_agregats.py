@@ -15,6 +15,7 @@ import pytest
 from mycounts.domain.agregats import (
     COMPTE_LES_ANNULEES,
     CONTRIBUTIONS,
+    INCLUT_AJUSTEMENTS,
     INCLUT_OUVERTURES,
     INCLUT_VIREMENTS,
     SIGNE_RETENU,
@@ -61,6 +62,7 @@ def test_aucun_agregat_ne_manque_dans_la_table() -> None:
     assert set(INCLUT_OUVERTURES) == set(Agregat), "un agrégat sans règle d'ouverture"
     assert set(COMPTE_LES_ANNULEES) == set(Agregat), "un agrégat sans règle d'annulation"
     assert set(INCLUT_VIREMENTS) == set(Agregat), "un agrégat sans règle de virement"
+    assert set(INCLUT_AJUSTEMENTS) == set(Agregat), "un agrégat sans règle d'ajustement"
 
 
 def test_une_operation_annulee_nentre_dans_aucun_agregat() -> None:
@@ -332,3 +334,25 @@ def test_les_deux_moities_dun_virement_slannulent_dans_le_total_du_foyer() -> No
     assert somme(Agregat.SOLDE_REEL, [entree, sortie]) == 0
     assert somme(Agregat.SOLDE_REEL, [sortie]) == -20_000
     assert somme(Agregat.SOLDE_REEL, [entree]) == 20_000
+
+
+def test_un_ajustement_corrige_le_solde_sans_creer_de_depense() -> None:
+    """Réparer une erreur de saisie de 20 € n'est pas avoir dépensé 20 €.
+
+    Deux grandeurs qui ne doivent PAS bouger ensemble : le solde suit l'ajustement, les
+    dépenses l'ignorent. Sans cette séparation, corriger un écart ferait sauter un plafond
+    pour une erreur qu'on vient précisément de réparer.
+    """
+    depense = operation(-5_000)
+    correction = OperationCalcul(
+        montant=Cents(-2_000),
+        date_operation=AUJOURD_HUI,
+        etat=EtatOperation.CONFIRMEE,
+        est_ajustement=True,
+    )
+
+    assert somme(Agregat.SOLDE_REEL, [depense, correction]) == -7_000
+    assert somme(Agregat.DEPENSES_DE_PERIODE, [depense, correction]) == -5_000
+    # Le témoin : sans la dépense, un total nul se lirait aussi bien comme « l'ajustement
+    # est exclu » que comme « le calcul est cassé ».
+    assert somme(Agregat.DEPENSES_DE_PERIODE, [correction]) == 0

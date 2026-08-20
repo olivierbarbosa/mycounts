@@ -143,3 +143,80 @@ def test_les_soldes_sont_rendus_par_compte(client: TestClient, session_bd: Sessi
     soldes = {s["compte_id"]: s["solde_centimes"] for s in rendus}
     assert soldes[a["id"]] == 30_000
     assert soldes[b["id"]] == 12_000
+
+
+def solde_de(client: TestClient, compte_id: str) -> int:
+    rendus = client.get("/api/comptes/soldes").json()
+    return int(next(s["solde_centimes"] for s in rendus if s["compte_id"] == compte_id))
+
+
+def test_ajuster_le_solde_enregistre_lecart_sans_creer_de_depense(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Corriger un solde n'est pas dépenser.
+
+    Trois grandeurs : le solde doit rejoindre EXACTEMENT la valeur demandée, l'écart doit
+    être celui qu'on attend, et les dépenses de période ne doivent pas bouger d'un
+    centime. Sans la troisième, une correction de 20 € ferait sauter un plafond de 20 €.
+    """
+    session_ouverte(client, session_bd)
+    compte = creer(client, "Courant")
+    client.post(
+        "/api/operations",
+        json={
+            "compte_id": compte["id"],
+            "libelle": "Courses",
+            "montant_centimes": -3_000,
+            "date_operation": dt.date.today().isoformat(),
+        },
+    )
+    depenses_avant = int(client.get("/api/resume").json()["depenses_de_periode"])
+    assert solde_de(client, compte["id"]) == -3_000
+
+    reponse = client.post(
+        f"/api/comptes/{compte['id']}/ajustement", json={"solde_reel_centimes": -5_000}
+    )
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["ecart_centimes"] == -2_000
+    assert reponse.json()["solde_centimes"] == -5_000
+
+    assert solde_de(client, compte["id"]) == -5_000, "le solde doit valoir ce qui a été demandé"
+    assert (
+        int(client.get("/api/resume").json()["depenses_de_periode"]) == depenses_avant
+    ), "un ajustement compté en dépense ferait sauter les plafonds"
+
+
+def test_ajuster_un_solde_deja_juste_ne_cree_rien(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Écrire un ajustement de zéro remplirait l'historique de lignes qui ne disent rien."""
+    session_ouverte(client, session_bd)
+    compte = creer(client, "Courant")
+
+    avant = len(client.get("/api/operations?periode_courante=false").json())
+    reponse = client.post(
+        f"/api/comptes/{compte['id']}/ajustement", json={"solde_reel_centimes": 0}
+    )
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["ecart_centimes"] == 0
+    assert len(client.get("/api/operations?periode_courante=false").json()) == avant
+
+
+def test_lecart_est_calcule_par_le_serveur_pas_recu(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Deux corrections successives ne se doublent pas.
+
+    Le client envoie le solde CONSTATÉ, jamais l'écart : s'il envoyait l'écart, la seconde
+    demande le calculerait sur une valeur déjà périmée et l'ajouterait une seconde fois.
+    Rejouer la même demande doit donc être sans effet.
+    """
+    session_ouverte(client, session_bd)
+    compte = creer(client, "Courant")
+
+    for _ in range(3):
+        client.post(
+            f"/api/comptes/{compte['id']}/ajustement", json={"solde_reel_centimes": 12_345}
+        )
+
+    assert solde_de(client, compte["id"]) == 12_345

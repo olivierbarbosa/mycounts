@@ -113,6 +113,7 @@ class OperationPublique(BaseModel):
     # comme telle plutôt que comme une dépense, et pour proposer de retirer les deux
     # moitiés ensemble.
     virement_id: uuid.UUID | None = None
+    est_ajustement: bool = False
 
 
 class PeriodePublique(BaseModel):
@@ -305,3 +306,24 @@ class ProduitPublic(BaseModel):
 class SoldeDeCompte(BaseModel):
     compte_id: uuid.UUID
     solde_centimes: int
+
+
+class DemandeAjustement(BaseModel):
+    """Met le solde d'un compte d'accord avec celui de la banque.
+
+    On envoie le solde CONSTATÉ, pas l'écart. Le serveur calcule la différence : lui seul
+    connaît le solde courant à l'instant où il écrit, et laisser le client faire la
+    soustraction ouvrirait la porte à un écart calculé sur une valeur périmée — deux
+    saisies concurrentes finiraient par se doubler.
+    """
+
+    solde_reel_centimes: int
+    date_operation: dt.date | None = None
+
+
+class AjustementFait(BaseModel):
+    ecart_centimes: int
+    """Écart réellement enregistré. Nul si les deux soldes concordaient déjà."""
+
+    solde_centimes: int
+    """Solde du compte après l'ajustement. Doit valoir celui qui a été demandé."""

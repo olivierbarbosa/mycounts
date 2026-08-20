@@ -7,9 +7,11 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, status
 
 from mycounts.api.budget_schemas import (
+    AjustementFait,
     CategoriePublique,
     CompteEpargne,
     ComptePublic,
+    DemandeAjustement,
     DemandeCategorie,
     DemandeCompte,
     DemandeOperation,
@@ -197,6 +199,57 @@ def supprimer_compte(
 
     depot.supprimer_compte(session, compte)
     session.commit()
+
+
+@routeur.post("/comptes/{compte_id}/ajustement", response_model=AjustementFait)
+def ajuster_le_solde(
+    compte_id: uuid.UUID,
+    demande: DemandeAjustement,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> AjustementFait:
+    """Met le solde d'un compte d'accord avec celui de la banque.
+
+    Un solde est une SOMME d'opérations, jamais une valeur qu'on écrit : la mise d'accord
+    passe donc par une opération de plus, qui porte l'écart. Elle compte dans les soldes —
+    c'est son objet — et jamais dans les dépenses, sans quoi réparer une erreur de saisie
+    de 20 € ferait sauter un plafond de 20 €.
+
+    L'écart est calculé ICI et non par le client : seul le serveur connaît le solde à
+    l'instant où il écrit. Un écart calculé par le client le serait sur une valeur déjà
+    périmée, et deux corrections concurrentes se doubleraient.
+
+    Concordance parfaite : aucune opération. Écrire un ajustement de zéro remplirait
+    l'historique de lignes qui ne disent rien.
+    """
+    compte = depot.compte_visible(session, principal, compte_id)
+    if compte is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
+
+    jour = demande.date_operation or aujourd_hui()
+    actuel = int(
+        calculer(
+            Agregat.SOLDE_REEL,
+            depot.operations_pour_calcul(session, principal, comptes=[compte_id]),
+            aujourd_hui=jour,
+            fin_de_fenetre=jour,
+        )
+    )
+    ecart = demande.solde_reel_centimes - actuel
+
+    if ecart != 0:
+        depot.creer_operation(
+            session,
+            principal,
+            compte_id=compte_id,
+            libelle="Ajustement de solde",
+            montant_centimes=Cents(ecart),
+            date_operation=jour,
+            est_ajustement=True,
+        )
+        session.commit()
+
+    return AjustementFait(ecart_centimes=ecart, solde_centimes=actuel + ecart)
 
 
 @routeur.get("/categories", response_model=list[CategoriePublique])

@@ -24,6 +24,8 @@ export type DemandeCompte = components['schemas']['DemandeCompte']
 export type ModificationCompte = components['schemas']['ModificationCompte']
 export type ProduitPublic = components['schemas']['ProduitPublic']
 export type SoldeDeCompte = components['schemas']['SoldeDeCompte']
+export type DemandeAjustement = components['schemas']['DemandeAjustement']
+export type AjustementFait = components['schemas']['AjustementFait']
 export type UniteRecurrence = components['schemas']['UniteRecurrence']
 export type PlafondPublic = components['schemas']['PlafondPublic']
 
@@ -121,6 +123,14 @@ export const api = {
     }),
 
   supprimerCompte: (id: string) => appeler<void>(`/comptes/${id}`, { method: 'DELETE' }),
+
+  /** Met le solde d'accord avec celui de la banque. On envoie le solde CONSTATÉ : le
+   *  serveur calcule l'écart, lui seul connaissant le solde à l'instant où il écrit. */
+  ajusterLeSolde: (compteId: string, demande: DemandeAjustement) =>
+    appeler<AjustementFait>(`/comptes/${compteId}/ajustement`, {
+      method: 'POST',
+      body: JSON.stringify(demande),
+    }),
 
   categories: () => appeler<CategoriePublique[]>('/categories'),
 

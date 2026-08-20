@@ -359,3 +359,55 @@
   font-weight: var(--typo-gras-moyen);
   color: var(--couleur-debit);
 }
+
+/* Un bloc vide doit proposer l'action, pas seulement constater le vide. */
+.videBudgets {
+  margin: 0;
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Le solde réel est un bouton : même géométrie que les deux autres détails, plus un
+   libellé qui dit ce qu'il fait. Un chiffre cliquable sans mention se découvre par hasard,
+   ou jamais. */
+.detailAction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--espace-xs) var(--espace-s);
+  border: 1px solid transparent;
+  border-radius: var(--rayon-moyen);
+  background: transparent;
+  color: inherit;
+  transition:
+    border-color 160ms ease-out,
+    scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.detailAction:hover {
+  border-color: var(--couleur-bordure);
+}
+
+.detailAction:active {
+  scale: 0.96;
+}
+
+.corriger {
+  font-size: 12px;
+  color: var(--couleur-texte-attenue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detailAction {
+    transition: none;
+  }
+  .detailAction:active {
+    scale: 1;
+  }
+}

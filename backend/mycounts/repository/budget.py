@@ -244,6 +244,7 @@ def creer_operation(
     etat: EtatOperation = EtatOperation.CONFIRMEE,
     est_paie: bool = False,
     est_ouverture: bool = False,
+    est_ajustement: bool = False,
 ) -> Operation:
     operation = Operation(
         compte_id=compte_id,
@@ -255,6 +256,7 @@ def creer_operation(
         etat=etat,
         est_paie=est_paie,
         est_ouverture=est_ouverture,
+        est_ajustement=est_ajustement,
     )
     session.add(operation)
     session.flush()
@@ -493,6 +495,7 @@ def operations_pour_calcul(
             # toute opération arriverait avec `est_virement=False`, et les virements
             # entreraient dans les dépenses malgré la table qui dit le contraire.
             est_virement=operation.virement_id is not None,
+            est_ajustement=operation.est_ajustement,
         )
         for operation in operations_visibles(session, principal, comptes=comptes)
     ]

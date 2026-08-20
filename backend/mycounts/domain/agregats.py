@@ -161,6 +161,21 @@ INCLUT_VIREMENTS: Final[dict[Agregat, bool]] = {
 }
 
 
+# Sixième dimension : les ajustements de solde.
+#
+# Un solde est une SOMME d'opérations, jamais une valeur qu'on écrit. Le mettre d'accord
+# avec celui de la banque passe donc par une opération de plus, qui porte l'écart. Elle
+# compte dans les soldes — c'est tout son objet — mais jamais dans les dépenses : corriger
+# un écart de 20 € n'est pas avoir dépensé 20 €, et l'y compter ferait sauter un plafond
+# pour une erreur de saisie qu'on vient précisément de réparer.
+INCLUT_AJUSTEMENTS: Final[dict[Agregat, bool]] = {
+    Agregat.SOLDE_REEL: True,
+    Agregat.SOLDE_A_CONFIRMER: True,
+    Agregat.SOLDE_PROJETE: True,
+    Agregat.DEPENSES_DE_PERIODE: False,
+}
+
+
 # Quatrième dimension. Contrairement aux trois autres, elle ne varie PAS selon l'agrégat :
 # une opération annulée n'entre nulle part. Elle est écrite comme une table quand même,
 # pour la même raison que les précédentes — le jour où un agrégat voudrait les compter
@@ -187,6 +202,7 @@ class OperationCalcul:
     est_ouverture: bool = False
     annulee: bool = False
     est_virement: bool = False
+    est_ajustement: bool = False
 
 
 def contribue(agregat: Agregat, etat: EtatOperation) -> Borne | None:
@@ -217,6 +233,7 @@ def calculer(
     inclut_ouvertures = INCLUT_OUVERTURES[agregat]
     compte_les_annulees = COMPTE_LES_ANNULEES[agregat]
     inclut_virements = INCLUT_VIREMENTS[agregat]
+    inclut_ajustements = INCLUT_AJUSTEMENTS[agregat]
     total = 0
     for operation in operations:
         borne = contribue(agregat, operation.etat)
@@ -227,6 +244,8 @@ def calculer(
         if operation.est_ouverture and not inclut_ouvertures:
             continue
         if operation.est_virement and not inclut_virements:
+            continue
+        if operation.est_ajustement and not inclut_ajustements:
             continue
         if signe is Signe.SORTIES and operation.montant >= 0:
             continue

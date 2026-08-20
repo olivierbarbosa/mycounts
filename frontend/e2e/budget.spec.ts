@@ -41,7 +41,9 @@ async function saisirDepense(page: Page, libelle: string, montant: string, categ
 }
 
 async function ouvrirBudgets(page: Page) {
-  await page.getByRole('button', { name: 'Gérer' }).click()
+  // Le libellé du lien change selon qu'il existe déjà un plafond ou non : « Gérer » quand
+  // il y en a, « Fixer un plafond » quand le bloc est vide. Les deux mènent au même écran.
+  await page.getByRole('button', { name: /Gérer|Fixer un plafond/ }).click()
   await expect(page.getByRole('dialog', { name: 'Budgets' })).toBeVisible()
 }
 
@@ -134,4 +136,22 @@ test('un plafond négatif est refusé avant tout envoi', async ({ page }) => {
 
   await expect(page.getByRole('alert')).toContainText('limite')
   await expect(page.locator('li', { hasText: categorie })).toHaveCount(0)
+})
+
+test('l’écran des budgets reste atteignable sans aucun plafond', async ({ page }) => {
+  // Le bloc ne s'affichait qu'une fois un plafond posé : la seule porte vers l'écran qui
+  // permet d'en poser un ne s'ouvrait donc qu'à ceux qui en avaient déjà. Une fonction
+  // livrée que personne ne pouvait atteindre.
+  await connecter(page)
+
+  // On retire tous les plafonds pour retrouver l'état d'un foyer qui n'en a jamais eu.
+  const plafonds = (await (await page.request.get('/api/plafonds')).json()) as { id: string }[]
+  for (const plafond of plafonds) await page.request.delete(`/api/plafonds/${plafond.id}`)
+  await page.reload()
+
+  const bloc = page.getByRole('heading', { name: 'Budgets' }).locator('..')
+  await expect(bloc, 'un bloc vide doit proposer l’action').toContainText('Fixer un plafond')
+
+  await page.getByRole('button', { name: 'Fixer un plafond' }).click()
+  await expect(page.getByRole('dialog', { name: 'Budgets' })).toBeVisible()
 })

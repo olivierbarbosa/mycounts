@@ -13,6 +13,7 @@ import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
 import { BulleAvatar, type Origine } from './composants/BulleAvatar'
 import { FeuilleOperation } from './composants/FeuilleOperation'
 import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
+import { FeuilleAjustement } from './composants/FeuilleAjustement'
 import { FeuilleSaisie } from './composants/FeuilleSaisie'
 import { Accueil } from './ecrans/Accueil'
 import { Budget } from './ecrans/Budget'
@@ -53,6 +54,7 @@ export function App() {
   // origine, et une transition partant du coin haut-gauche de l'écran.
   const [origineParametres, setOrigineParametres] = useState<Origine | null>(null)
   const [budgetsOuverts, setBudgetsOuverts] = useState(false)
+  const [ajustementOuvert, setAjustementOuvert] = useState(false)
   const [rafraichissement, setRafraichissement] = useState(0)
 
   const chargerReferentiels = useCallback(async () => {
@@ -111,6 +113,7 @@ export function App() {
             rafraichissement={rafraichissement}
             surSaisie={() => setSaisieOuverte(true)}
             surBudgets={() => setBudgetsOuverts(true)}
+            surAjustement={() => setAjustementOuvert(true)}
             surOperationChoisie={setOperationChoisie}
           />
         )}
@@ -156,6 +159,17 @@ export function App() {
           setOnglet(cle)
         }}
       />
+
+      {ajustementOuvert && (
+        <FeuilleAjustement
+          comptes={comptes}
+          surFermeture={() => setAjustementOuvert(false)}
+          surEnregistrement={() => {
+            setAjustementOuvert(false)
+            void apresEcriture()
+          }}
+        />
+      )}
 
       {budgetsOuverts && (
         <Budget

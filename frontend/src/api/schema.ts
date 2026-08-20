@@ -300,6 +300,38 @@ export interface paths {
     patch: operations['modifier_compte_api_comptes__compte_id__patch']
     trace?: never
   }
+  '/api/comptes/{compte_id}/ajustement': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Ajuster Le Solde
+     * @description Met le solde d'un compte d'accord avec celui de la banque.
+     *
+     *     Un solde est une SOMME d'opérations, jamais une valeur qu'on écrit : la mise d'accord
+     *     passe donc par une opération de plus, qui porte l'écart. Elle compte dans les soldes —
+     *     c'est son objet — et jamais dans les dépenses, sans quoi réparer une erreur de saisie
+     *     de 20 € ferait sauter un plafond de 20 €.
+     *
+     *     L'écart est calculé ICI et non par le client : seul le serveur connaît le solde à
+     *     l'instant où il écrit. Un écart calculé par le client le serait sur une valeur déjà
+     *     périmée, et deux corrections concurrentes se doubleraient.
+     *
+     *     Concordance parfaite : aucune opération. Écrire un ajustement de zéro remplirait
+     *     l'historique de lignes qui ne disent rien.
+     */
+    post: operations['ajuster_le_solde_api_comptes__compte_id__ajustement_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/epargne': {
     parameters: {
       query?: never
@@ -571,6 +603,13 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
+    /** AjustementFait */
+    AjustementFait: {
+      /** Ecart Centimes */
+      ecart_centimes: number
+      /** Solde Centimes */
+      solde_centimes: number
+    }
     /**
      * BornesDuMois
      * @description Premier et dernier jour du mois **civil** courant, bornes incluses.
@@ -646,6 +685,21 @@ export interface components {
       mot_de_passe: string
       /** Nom Affichage */
       nom_affichage: string
+    }
+    /**
+     * DemandeAjustement
+     * @description Met le solde d'un compte d'accord avec celui de la banque.
+     *
+     *     On envoie le solde CONSTATÉ, pas l'écart. Le serveur calcule la différence : lui seul
+     *     connaît le solde courant à l'instant où il écrit, et laisser le client faire la
+     *     soustraction ouvrirait la porte à un écart calculé sur une valeur périmée — deux
+     *     saisies concurrentes finiraient par se doubler.
+     */
+    DemandeAjustement: {
+      /** Date Operation */
+      date_operation?: string | null
+      /** Solde Reel Centimes */
+      solde_reel_centimes: number
     }
     /** DemandeCategorie */
     DemandeCategorie: {
@@ -945,6 +999,11 @@ export interface components {
        * Format: date
        */
       date_operation: string
+      /**
+       * Est Ajustement
+       * @default false
+       */
+      est_ajustement: boolean
       /** Est Ouverture */
       est_ouverture: boolean
       /** Est Paie */
@@ -1688,6 +1747,43 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['ComptePublic']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  ajuster_le_solde_api_comptes__compte_id__ajustement_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        compte_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeAjustement']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AjustementFait']
         }
       }
       /** @description Validation Error */

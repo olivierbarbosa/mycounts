@@ -16,6 +16,7 @@ import styles from './Accueil.module.css'
 type Props = {
   readonly surSaisie: () => void
   readonly surBudgets: () => void
+  readonly surAjustement: () => void
   readonly surOperationChoisie: (operation: OperationPublique) => void
   readonly comptes: readonly ComptePublic[]
   readonly categories: readonly CategoriePublique[]
@@ -52,6 +53,7 @@ function dateCivile(iso: string): Date {
 export function Accueil({
   surSaisie,
   surBudgets,
+  surAjustement,
   surOperationChoisie,
   comptes,
   categories,
@@ -93,7 +95,10 @@ export function Accueil({
         </p>
 
         <div className={styles.detailSoldes}>
-          <div className={styles.detail}>
+          {/* Le réel est le seul chiffre qui se compare à la banque : c'est donc lui qui
+              se corrige, et il s'annonce comme actionnable plutôt que d'attendre qu'on
+              devine qu'on peut le toucher. */}
+          <button type="button" className={styles.detailAction} onClick={surAjustement}>
             <span className={styles.detailLibelle}>Réel aujourd’hui</span>
             <Montant
               centimes={resume.solde_reel}
@@ -101,7 +106,8 @@ export function Accueil({
               neutre
               signeExplicitePositif={false}
             />
-          </div>
+            <span className={styles.corriger}>Corriger</span>
+          </button>
           {resume.solde_a_confirmer !== 0 && (
             <div className={styles.detail}>
               <span className={styles.detailLibelle}>À confirmer</span>
@@ -119,15 +125,25 @@ export function Accueil({
           l'application, c'est « est-ce que ça tient », pas « qu'ai-je acheté ». Le bloc
           n'apparaît que si des plafonds existent — une section vide n'apprend rien et
           repousse la liste vers le bas. */}
-      {plafonds.length > 0 && (
-        <section className={styles.budgets}>
-          <button type="button" className={styles.enteteBudgets} onClick={surBudgets}>
-            <h2 className={styles.titreListe}>Budgets</h2>
-            <span className={styles.lien}>
-              Gérer
-              <ChevronRight size={16} strokeWidth={2} aria-hidden />
-            </span>
-          </button>
+      {/* Le bloc s'affiche TOUJOURS, même sans plafond. Ne le montrer qu'une fois un
+          plafond posé fermait la seule porte vers l'écran qui permet d'en poser un :
+          une fonction livrée que personne ne pouvait atteindre. */}
+      <section className={styles.budgets}>
+        <button type="button" className={styles.enteteBudgets} onClick={surBudgets}>
+          <h2 className={styles.titreListe}>Budgets</h2>
+          <span className={styles.lien}>
+            {plafonds.length === 0 ? 'Fixer un plafond' : 'Gérer'}
+            <ChevronRight size={16} strokeWidth={2} aria-hidden />
+          </span>
+        </button>
+
+        {plafonds.length === 0 && (
+          <p className={styles.videBudgets}>
+            Aucun plafond. En fixer un sur une catégorie permet de savoir, en cours de mois, si la
+            trajectoire tient.
+          </p>
+        )}
+        {plafonds.length > 0 && (
           <ul className={styles.jauges}>
             {plafonds.map((plafond) => (
               <li key={plafond.id} className={styles.ligneJauge}>
@@ -160,8 +176,8 @@ export function Accueil({
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+      </section>
 
       <section>
         <h2 className={styles.titreListe}>

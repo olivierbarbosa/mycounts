@@ -228,7 +228,14 @@ class Operation(Base):
             # les combinerait sans que rien ne proteste — et le virement ouvrirait alors
             # une période budgétaire, ou compterait comme un revenu.
             "not (virement_id is not null and (est_paie or est_ouverture))",
-            name="ck_operation_virement_ni_paie_ni_ouverture"
+            name="ck_operation_virement_ni_paie_ni_ouverture",
+        ),
+        CheckConstraint(
+            # Un ajustement n'est rien d'autre qu'un ajustement : ni paie, ni ouverture,
+            # ni moitié de virement. Les combiner ferait ouvrir une période budgétaire ou
+            # compter un revenu là où il n'y a qu'une correction.
+            "not (est_ajustement and (est_paie or est_ouverture or virement_id is not null))",
+            name="ck_operation_ajustement_seul"
         ),
         Index("ix_operation_compte_date", "compte_id", "date_operation"),
         Index("ix_operation_paie", "compte_id", "date_operation", postgresql_where="est_paie"),
@@ -291,6 +298,13 @@ class Operation(Base):
     # seconde source pour le montant et la date, qui pourrait diverger des lignes.
     virement_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True), default=None, index=True
+    )
+
+    # Écart enregistré pour mettre le solde d'accord avec celui de la banque. Compte dans
+    # les soldes, jamais dans les dépenses : réparer une erreur de saisie de 20 € n'est
+    # pas avoir dépensé 20 €.
+    est_ajustement: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
     )
 
     compte: Mapped[Compte] = relationship()
