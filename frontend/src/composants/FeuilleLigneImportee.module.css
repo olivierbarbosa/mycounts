@@ -1,0 +1,137 @@
+/* Feuille de réglages d'une ligne importée. Même matériau que les autres feuilles. */
+.voile {
+  position: fixed;
+  inset: 0;
+  z-index: var(--plan-confirmation);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--couleur-verre-bord-sombre);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.feuille {
+  width: min(460px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-l);
+  padding: var(--espace-xl);
+  padding-bottom: calc(var(--espace-xl) + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--rayon-grand) var(--rayon-grand) 0 0;
+  background: var(--couleur-surface-opaque);
+  box-shadow: 0 -8px 40px var(--couleur-verre-bord-sombre);
+}
+
+@media (min-width: 600px) {
+  .voile {
+    align-items: center;
+  }
+  .feuille {
+    border-radius: var(--rayon-grand);
+  }
+}
+
+.entete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-m);
+}
+
+.libelle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 17px;
+  font-weight: var(--typo-gras-fort);
+}
+
+/* Un avertissement, pas une erreur : c'est une question posée, et la réponse appartient à
+   la personne qui a fait la dépense. */
+.avertissement {
+  margin: 0;
+  padding: var(--espace-m);
+  border-radius: var(--rayon-moyen);
+  background: color-mix(in srgb, var(--couleur-alerte) 12%, transparent);
+  color: var(--couleur-alerte);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+}
+
+.etiquette {
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.bascule {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.choix {
+  flex: 1;
+  min-height: var(--cible-tactile);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.choix[aria-pressed='true'] {
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+}
+
+.selecteur {
+  min-height: var(--cible-tactile);
+  padding: var(--espace-s) var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  /* 16 px au moins : en dessous, iOS agrandit la page à la mise au point du champ. */
+  font-size: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--espace-s);
+}
+
+.ignorer {
+  flex: 1;
+  min-height: var(--cible-tactile);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 15px;
+}
+
+.valider {
+  flex: 1;
+  min-height: var(--cible-tactile);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}

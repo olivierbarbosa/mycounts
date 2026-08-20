@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { jourLocal } from './dates'
+
 /**
  * Import d'un relevé, à l'écran.
  *
@@ -47,11 +49,32 @@ async function ouvrirImport(page: Page) {
   await expect(page.getByRole('dialog', { name: 'Importer un relevé' })).toBeVisible()
 }
 
-async function deposer(page: Page, contenu: Buffer, nom = 'releve.csv') {
-  await page
+/** Déplie le bloc des lignes prêtes.
+ *
+ *  Elles sont repliées par défaut, et c'est tout le principe de l'écran : une ligne qui
+ *  n'attend aucune décision ne doit pas occuper de place. Les tests qui veulent lire un
+ *  libellé ordinaire doivent donc l'ouvrir, comme un humain le ferait. */
+async function deplierLesPretes(page: Page) {
+  // Sur `aria-expanded` et non sur la simple visibilité : le bouton est là dans les deux
+  // états, et cliquer sans regarder REPLIERAIT un bloc déjà ouvert. Le helper doit pouvoir
+  // être appelé deux fois de suite sans rien casser.
+  const repli = page
     .getByRole('dialog', { name: 'Importer un relevé' })
+    .getByRole('button', { name: /prêtes? à importer/, expanded: false })
+  if (await repli.count()) await repli.click()
+}
+
+async function deposer(page: Page, contenu: Buffer, nom = 'releve.csv') {
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await ecran
     .getByLabel('Relevé au format CSV')
     .setInputFiles({ name: nom, mimeType: 'text/csv', buffer: contenu })
+  // Attendre que l'analyse ait rendu sa revue. `setInputFiles` rend la main dès le fichier
+  // choisi, avant l'aller-retour serveur : sans cette attente, tout ce qui suit s'exécute
+  // sur un écran encore vide, et l'échec ressemble à un défaut d'affichage.
+  await expect(
+    ecran.getByText(/lignes? lues?|ligne lue/).or(ecran.getByRole('alert')),
+  ).toBeVisible()
 }
 
 test('déposer un relevé montre ce qu’il contient SANS rien écrire', async ({ page }) => {
@@ -65,8 +88,9 @@ test('déposer un relevé montre ce qu’il contient SANS rien écrire', async (
   await deposer(page, releve(ligne(libelle, '-12,40', `r-${Date.now()}`)))
 
   const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await expect(ecran.getByText(/1 à importer/)).toBeVisible()
+  await deplierLesPretes(page)
   await expect(ecran.getByText(libelle)).toBeVisible()
-  await expect(ecran.getByText(/1 nouvelle/)).toBeVisible()
 
   // Rien n'a été écrit tant qu'on n'a pas validé.
   const apres = (await (await page.request.get('/api/operations?periode_courante=false')).json())
@@ -83,7 +107,7 @@ test('valider écrit les lignes retenues, et elles apparaissent dans les comptes
   await deposer(page, releve(ligne(libelle, '-33,50', `r-${Date.now()}`)))
 
   const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
-  await ecran.getByRole('button', { name: /Importer 1 opération/ }).click()
+  await ecran.getByRole('button', { name: /^Importer 1$/ }).click()
   await expect(ecran.getByText(/1 opération importée/)).toBeVisible()
 
   const operations = (await (
@@ -105,15 +129,14 @@ test('réimporter le même fichier ne propose plus rien', async ({ page }) => {
   await ouvrirImport(page)
   await deposer(page, contenu)
   const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
-  await ecran.getByRole('button', { name: /Importer 1 opération/ }).click()
+  await ecran.getByRole('button', { name: /^Importer 1$/ }).click()
   await expect(ecran.getByText(/1 opération importée/)).toBeVisible()
 
   // Second dépôt du MÊME fichier.
   await deposer(page, contenu)
-  await expect(ecran.getByText(/1 déjà importée/)).toBeVisible()
-  // La ligne reste visible — la taire ferait croire à un fichier incomplet.
-  await expect(ecran.getByText(`Doublon ${marque}`)).toBeVisible()
-  await expect(ecran.getByRole('button', { name: /Importer 0 opération/ })).toBeDisabled()
+  // La ligne n'est pas tue : l'écran dit qu'elle a déjà été importée.
+  await expect(ecran.getByText(/déjà été importée/)).toBeVisible()
+  await expect(ecran.getByRole('button', { name: /^Importer 0$/ })).toBeDisabled()
 })
 
 test('un fichier illisible est refusé en disant ce qui manque', async ({ page }) => {
@@ -135,6 +158,7 @@ test('les accents d’un relevé Latin-1 survivent à l’import', async ({ page
   await ouvrirImport(page)
   await deposer(page, releve(ligne(libelle, '-4,20', `r-${Date.now()}`)))
 
+  await deplierLesPretes(page)
   await expect(
     page.getByRole('dialog', { name: 'Importer un relevé' }).getByText(libelle),
   ).toBeVisible()
@@ -158,13 +182,24 @@ test('le rangement s’apprend d’un import à l’autre', async ({ page }) => 
   const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
   await deposer(page, releve(ligne(commercant, '-18,00', `a-${Date.now()}`)))
 
-  await ecran.getByLabel(`Catégorie de ${commercant}`).selectOption(depense.id)
-  await ecran.getByRole('button', { name: /Importer 1 opération/ }).click()
+  await ecran.getByRole('button', { name: /prête à importer/ }).click()
+  await ecran.getByRole('button', { name: `Régler ${commercant}` }).click()
+  const feuille = page.getByRole('dialog', { name: `Réglages de ${commercant}` })
+  await feuille.getByLabel('Catégorie').selectOption(depense.id)
+  await feuille.getByRole('button', { name: 'Terminé' }).click()
+  await ecran.getByRole('button', { name: /^Importer 1$/ }).click()
   await expect(ecran.getByText(/1 opération importée/)).toBeVisible()
 
-  // Second relevé, même commerçant, autre montant : la catégorie est proposée d'office.
+  /* Second relevé, même commerçant, autre montant : la catégorie est PRÉ-REMPLIE.
+   *
+   * L'assertion porte sur la valeur du champ et non sur le texte de la ligne : c'est le
+   * pré-remplissage qui est le sujet, et le lire dans le champ le prouve sans dépendre de
+   * la façon dont la ligne résume son contenu. */
   await deposer(page, releve(ligne(commercant, '-24,50', `b-${Date.now()}`)))
-  await expect(ecran.getByLabel(`Catégorie de ${commercant}`)).toHaveValue(depense.id)
+  await deplierLesPretes(page)
+  await ecran.getByRole('button', { name: `Régler ${commercant}` }).click()
+  const relue = page.getByRole('dialog', { name: `Réglages de ${commercant}` })
+  await expect(relue.getByLabel('Catégorie')).toHaveValue(depense.id)
 })
 
 test('un prélèvement déjà enregistré est signalé et décoché', async ({ page }) => {
@@ -189,7 +224,7 @@ test('un prélèvement déjà enregistré est signalé et décoché', async ({ p
 
   // Le libellé n'a pas besoin de se ressembler : c'est le montant et la date qui parlent.
   await expect(ecran.getByText(/ressemble à/)).toBeVisible()
-  await expect(ecran.getByRole('button', { name: /Importer 0 opération/ })).toBeDisabled()
+  await expect(ecran.getByRole('button', { name: /^Importer 0$/ })).toBeDisabled()
 })
 
 test('les prélèvements réguliers du relevé sont proposés, jamais créés', async ({ page }) => {
@@ -246,11 +281,13 @@ test('une ligne peut être reclassée en virement entre comptes', async ({ page 
     ),
   )
 
-  await ecran.getByLabel(`Nature de ${libelle}`).selectOption('virement')
-  const autre = ecran.getByLabel(`Autre compte pour ${libelle}`)
-  await expect(autre).toBeVisible()
-  await autre.selectOption({ label: nomDeLaContrepartie })
-  await ecran.getByRole('button', { name: /Importer 1 opération/ }).click()
+  await ecran.getByRole('button', { name: /prête à importer/ }).click()
+  await ecran.getByRole('button', { name: `Régler ${libelle}` }).click()
+  const feuille = page.getByRole('dialog', { name: `Réglages de ${libelle}` })
+  await feuille.getByRole('button', { name: 'Virement', exact: true }).click()
+  await feuille.getByLabel('De quel compte').selectOption({ label: nomDeLaContrepartie })
+  await feuille.getByRole('button', { name: 'Terminé' }).click()
+  await ecran.getByRole('button', { name: /^Importer 1$/ }).click()
   await expect(ecran.getByText(/1 opération importée/)).toBeVisible()
 
   // Deux moitiés de signes opposés : l'argent a changé de poche sans entrer dans le foyer.
@@ -279,6 +316,76 @@ test('on peut n’importer qu’à partir d’une date', async ({ page }) => {
     ),
   )
 
+  await deplierLesPretes(page)
   await expect(ecran.getByText(`RECENT ${marque}`)).toBeVisible()
   await expect(ecran.getByText(`ANCIEN ${marque}`)).toHaveCount(0)
+})
+
+test('seules les EXCEPTIONS sont dépliées, le reste est replié', async ({ page }) => {
+  /* Le principe qui gouverne tout l'écran, et il vient d'un échec : la première version
+   * affichait les deux cents lignes à l'identique, chacune avec deux menus déroulants.
+   * Olivier l'a essayée sur son téléphone et l'a trouvée illisible.
+   *
+   * Une ligne ordinaire ne doit donc rien demander : elle est repliée. Seule celle qui
+   * changerait le résultat — ici un doublon probable — est mise en avant. */
+  const marque = Date.now()
+  await connecter(page)
+
+  const comptes = (await (await page.request.get('/api/comptes')).json()) as { id: string }[]
+  await page.request.post('/api/operations', {
+    data: {
+      compte_id: comptes[0].id,
+      libelle: `Deja la ${marque}`,
+      montant_centimes: -8_137,
+      date_operation: jourLocal(),
+    },
+  })
+
+  await ouvrirImport(page)
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await deposer(
+    page,
+    releve(
+      ligne(`Ordinaire A ${marque}`, '-12,00', `oa-${marque}`),
+      ligne(`Ordinaire B ${marque}`, '-13,00', `ob-${marque}`),
+      ligne(`Suspecte ${marque}`, '-81,37', `su-${marque}`, jourLocal()),
+    ),
+  )
+
+  // L'exception est visible d'emblée, avec sa raison.
+  await expect(ecran.getByText('À vérifier (1)')).toBeVisible()
+  await expect(ecran.getByText(/ressemble à/)).toBeVisible()
+
+  // Les ordinaires sont repliées : leur libellé n'est pas affiché tant qu'on n'ouvre pas.
+  await expect(ecran.getByText(`Ordinaire A ${marque}`)).toHaveCount(0)
+  await expect(ecran.getByRole('button', { name: /2 prêtes à importer/ })).toBeVisible()
+
+  await ecran.getByRole('button', { name: /2 prêtes à importer/ }).click()
+  await expect(ecran.getByText(`Ordinaire A ${marque}`)).toBeVisible()
+
+  // Le doublon est décoché : seules les deux ordinaires partent.
+  await expect(ecran.getByRole('button', { name: /^Importer 2$/ })).toBeVisible()
+})
+
+test('toucher une ligne ouvre sa feuille de réglages', async ({ page }) => {
+  // Une ligne MONTRE, elle ne demande rien. Qui veut la corriger la touche : c'est ce qui
+  // permet d'en aligner deux cents sans les rendre illisibles.
+  const libelle = `Reglage ${Date.now()}`
+  await connecter(page)
+  await ouvrirImport(page)
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await deposer(page, releve(ligne(libelle, '-9,99', `rg-${Date.now()}`)))
+
+  await ecran.getByRole('button', { name: /prête à importer/ }).click()
+  await ecran.getByRole('button', { name: `Régler ${libelle}` }).click()
+
+  const feuille = page.getByRole('dialog', { name: `Réglages de ${libelle}` })
+  await expect(feuille).toBeVisible()
+  await expect(feuille.getByRole('button', { name: 'Dépense' })).toBeVisible()
+  await expect(feuille.getByLabel('Catégorie')).toBeVisible()
+
+  // « Ne pas importer » écarte la ligne sans la faire disparaître.
+  await feuille.getByRole('button', { name: 'Ne pas importer' }).click()
+  await expect(feuille).toHaveCount(0)
+  await expect(ecran.getByRole('button', { name: /^Importer 0$/ })).toBeDisabled()
 })

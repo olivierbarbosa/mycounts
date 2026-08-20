@@ -1,5 +1,5 @@
-import { ChevronLeft, FileUp } from 'lucide-react'
-import { useState } from 'react'
+import { AlertTriangle, ArrowLeftRight, ChevronDown, ChevronLeft, FileUp } from 'lucide-react'
+import { useMemo, useState } from 'react'
 
 import type {
   CategoriePublique,
@@ -11,6 +11,7 @@ import type {
 import { ErreurApi, api } from '../api/client'
 import { teinteLaMoinsEmployee } from '../composants/ChoixCategorie'
 import { type Origine, useEcranDeBulle } from '../composants/EcranDeBulle'
+import { FeuilleLigneImportee, type ReglagesDeLigne } from '../composants/FeuilleLigneImportee'
 import { Montant } from '../composants/Montant'
 import styles from './ImportReleve.module.css'
 
@@ -22,10 +23,6 @@ type Props = {
   readonly surFermeture: () => void
   readonly surImport: () => void
 }
-
-/** La teinte d'une catégorie créée ici : la moins employée, comme partout ailleurs. Le
- *  nom n'entre pas dans le calcul — deux catégories créées à la suite doivent différer. */
-const teinteSuggeree = (_nom: string) => teinteLaMoinsEmployee([])
 
 const jourEtMois = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
 
@@ -39,22 +36,21 @@ function dateCivile(iso: string): Date {
 /**
  * Import d'un relevé bancaire.
  *
- * **Rien ne s'écrit sans revue.** L'écran analyse le fichier, montre ce qu'il propose, et
- * n'écrit qu'à la validation. C'est la contrainte que `BOUCLE.md` posait comme non
- * négociable, et elle tient à une raison simple : un import qui écrit directement met dans
- * les comptes des opérations que personne n'a lues, et le premier faux positif fait perdre
- * confiance à tout le reste.
+ * **Rien ne s'écrit sans revue.** L'écran analyse, montre, et n'écrit qu'à la validation.
  *
- * **Les lignes déjà importées sont MONTRÉES**, barrées et décochées. Les taire ferait
- * croire à un fichier incomplet à qui réimporte un mois entier pour rattraper deux oublis.
+ * **Seules les EXCEPTIONS sont dépliées.** C'est le principe qui gouverne toute la mise en
+ * page, et il vient d'un échec : la première version affichait les deux cents lignes à
+ * l'identique, chacune avec deux menus déroulants. Olivier l'a essayée sur son téléphone
+ * et l'a trouvée illisible. Il avait raison — sur un relevé, la plupart des lignes ne
+ * demandent AUCUNE décision, et faire payer à toutes le coût des quelques-unes qui en
+ * demandent une est exactement ce qui rend un écran impraticable.
  *
- * **La catégorie de la banque est affichée, jamais appliquée.** Ce ne sont pas les mêmes
- * catégories que celles du foyer, et se tromper silencieusement de rangement est pire que
- * de ne rien ranger. Elle sert d'indice à la lecture, rien de plus.
+ * Ce qui mérite d'être déplié est donc restreint à ce qui CHANGE LE RÉSULTAT :
+ *  - un doublon probable, qui compterait une dépense deux fois ;
+ *  - un virement sans compte de contrepartie, qui serait écrit comme un revenu.
  *
- * Ce que cet écran ne fait PAS : il ne modifie ni le libellé ni le montant d'une ligne. Ce
- * qui vient de la banque reste tel quel — une opération importée qu'on aurait retouchée à
- * l'import ne se rapprocherait plus jamais de son relevé d'origine.
+ * Une ligne simplement dépourvue de catégorie n'y figure pas : elle s'importe très bien
+ * sans, et il y en a quarante. Elle reste corrigeable d'un toucher dans la liste repliée.
  */
 export function ImportReleve({
   origine,
@@ -66,22 +62,11 @@ export function ImportReleve({
 }: Props) {
   const { proprietes, poigneeDeRetour, fermer } = useEcranDeBulle(origine, surFermeture)
   const [revue, setRevue] = useState<RevueImport | null>(null)
-  const [retenues, setRetenues] = useState<Set<string>>(new Set())
+  const [reglages, setReglages] = useState<Record<string, ReglagesDeLigne>>({})
   const [compteId, setCompteId] = useState(comptes[0]?.id ?? '')
-  /** Catégorie retenue pour chaque ligne, indexée par clé. Initialisée avec ce que le
-   *  foyer a appris des imports précédents — l'utilisateur n'a plus qu'à corriger les
-   *  exceptions au lieu de tout ranger. */
-  const [categories, setCategories] = useState<Record<string, string>>({})
-  /** Sens corrigé par l'utilisateur, quand la banque n'a pas marqué le mouvement. Un
-   *  virement d'un LEP vers un compte chèques arrive parfois comme un simple crédit, et
-   *  sans correction il gonflerait les revenus d'un argent jamais entré dans le foyer. */
-  const [sens, setSens] = useState<Record<string, string>>({})
-  const [contreparties, setContreparties] = useState<Record<string, string>>({})
-  /** Ne lire le relevé qu'à partir de ce jour. Vide = tout le fichier. Sert à n'importer
-   *  que depuis la dernière paie, pour ne pas faire doublon avec ce qui est déjà saisi. */
   const [depuis, setDepuis] = useState('')
-  /** Catégories suggérées déjà créées, pour ne pas les proposer deux fois. Le nom suffit :
-   *  une catégorie ne peut pas exister en double dans un foyer. */
+  const [ouverte, setOuverte] = useState<LigneImport | null>(null)
+  const [pretesDepliees, setPretesDepliees] = useState(false)
   const [creees, setCreees] = useState<Set<string>>(new Set())
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
@@ -94,25 +79,24 @@ export function ImportReleve({
     try {
       const analyse = await api.analyserReleve(fichier, depuis || undefined)
       setRevue(analyse)
-      // Tout ce qui est nouveau est coché d'emblée : le cas courant est « je veux tout »,
-      // et faire cocher deux cents lignes à la main serait une corvée qui ferait renoncer.
-      setRetenues(
-        new Set(
-          analyse.lignes
-            // Un doublon probable est DÉCOCHÉ : une opération en double fausse le solde,
-            // les budgets et les statistiques d'un coup, alors qu'une ligne oubliée se
-            // rattrape en la recochant. Le signalement dit pourquoi, l'utilisateur décide.
-            .filter((ligne) => !ligne.deja_importee && ligne.doublon_probable === null)
-            .map((ligne) => ligne.cle),
-        ),
-      )
-      setSens(Object.fromEntries(analyse.lignes.map((ligne) => [ligne.cle, ligne.sens])))
-      setContreparties({})
-      setCategories(
+      // Un nouveau fichier repart replié. Sans cette remise à zéro, un second dépôt
+      // héritait de l'état du premier et s'ouvrait déjà déplié — ce qui n'est pas grave
+      // en soi, mais rend l'écran imprévisible : le même geste donne deux résultats.
+      setPretesDepliees(false)
+      setReglages(
         Object.fromEntries(
-          analyse.lignes
-            .filter((ligne) => ligne.categorie_proposee_id !== null)
-            .map((ligne) => [ligne.cle, ligne.categorie_proposee_id as string]),
+          analyse.lignes.map((ligne) => [
+            ligne.cle,
+            {
+              categorieId: ligne.categorie_proposee_id ?? '',
+              sens: ligne.sens,
+              contrepartieId: '',
+              // Un doublon probable est DÉCOCHÉ d'emblée : une opération en double fausse
+              // le solde, les budgets et les statistiques d'un coup, alors qu'une ligne
+              // oubliée se rattrape en la recochant.
+              retenue: !ligne.deja_importee && ligne.doublon_probable === null,
+            },
+          ]),
         ),
       )
     } catch (cause) {
@@ -128,7 +112,7 @@ export function ImportReleve({
     try {
       // Une catégorie de DÉPENSE : les suggestions ne portent que sur des sorties, et la
       // nature n'est pas modifiable après coup — se tromper ici serait irréversible.
-      await api.creerCategorie(nom, 'depense', teinteSuggeree(nom))
+      await api.creerCategorie(nom, 'depense', teinteLaMoinsEmployee(categoriesDuFoyer))
       setCreees((actuel) => new Set(actuel).add(nom))
       await surReferentielsChanges()
     } catch (cause) {
@@ -136,33 +120,50 @@ export function ImportReleve({
     }
   }
 
-  function basculer(cle: string) {
-    setRetenues((actuel) => {
-      const suivant = new Set(actuel)
-      if (suivant.has(cle)) suivant.delete(cle)
-      else suivant.add(cle)
-      return suivant
-    })
-  }
+  /* Le tri qui porte tout l'écran.
+   *
+   * `useMemo` parce qu'il parcourt deux cents lignes et que l'ouverture d'une feuille
+   * relance le rendu : sans lui, chaque toucher recalculerait trois listes. */
+  const { aVerifier, pretes, deja } = useMemo(() => {
+    const lignes = revue?.lignes ?? []
+    const aVerifier: LigneImport[] = []
+    const pretes: LigneImport[] = []
+    const deja: LigneImport[] = []
+    for (const ligne of lignes) {
+      if (ligne.deja_importee) {
+        deja.push(ligne)
+        continue
+      }
+      const reglage = reglages[ligne.cle]
+      const virementSansCompte = reglage?.sens === 'virement' && !reglage.contrepartieId
+      if (ligne.doublon_probable !== null || virementSansCompte) aVerifier.push(ligne)
+      else pretes.push(ligne)
+    }
+    return { aVerifier, pretes, deja }
+  }, [revue, reglages])
+
+  const retenues = [...aVerifier, ...pretes].filter((ligne) => reglages[ligne.cle]?.retenue)
+  const sansCategorie = pretes.filter(
+    (ligne) => !reglages[ligne.cle]?.categorieId && reglages[ligne.cle]?.sens !== 'virement',
+  ).length
 
   async function valider() {
     if (revue === null) return
     setEnCours(true)
     setErreur(null)
-    const lignes: LigneAValider[] = revue.lignes
-      .filter((ligne) => retenues.has(ligne.cle))
-      .map((ligne) => ({
+    const lignes: LigneAValider[] = retenues.map((ligne) => {
+      const reglage = reglages[ligne.cle]
+      return {
         cle: ligne.cle,
         date_operation: ligne.date_operation,
         libelle: ligne.libelle,
         montant_centimes: ligne.montant_centimes,
-        categorie_id: categories[ligne.cle] ?? null,
-        sens: (sens[ligne.cle] ?? ligne.sens) as LigneAValider['sens'],
-        contrepartie_id: contreparties[ligne.cle] ?? null,
-        // Renvoyée pour que le rangement s'APPRENNE : sans elle, le choix ne servirait
-        // qu'à cette ligne et tout serait à refaire au prochain import.
+        categorie_id: reglage.categorieId || null,
+        sens: reglage.sens,
+        contrepartie_id: reglage.contrepartieId || null,
         categorie_banque: ligne.categorie_banque,
-      }))
+      }
+    })
 
     try {
       const resultat = await api.validerImport(compteId, lignes)
@@ -172,7 +173,7 @@ export function ImportReleve({
         }.`,
       )
       setRevue(null)
-      setRetenues(new Set())
+      setReglages({})
       surImport()
     } catch (cause) {
       setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
@@ -181,8 +182,50 @@ export function ImportReleve({
     }
   }
 
-  const nouvelles = revue?.lignes.filter((ligne) => !ligne.deja_importee) ?? []
-  const deja = revue?.lignes.filter((ligne) => ligne.deja_importee) ?? []
+  const nomDeLaCategorie = (id: string) =>
+    categoriesDuFoyer.find((categorie) => categorie.id === id)?.nom
+
+  /** Une ligne de la liste. Elle MONTRE, elle ne demande rien : qui veut la corriger la
+   *  touche. C'est ce qui permet d'en aligner deux cents sans les rendre illisibles. */
+  const ligneCompacte = (ligne: LigneImport, exception: boolean) => {
+    const reglage = reglages[ligne.cle]
+    const virementSansCompte = reglage?.sens === 'virement' && !reglage.contrepartieId
+    return (
+      <li key={ligne.cle}>
+        <button
+          type="button"
+          className={reglage?.retenue ? styles.ligne : styles.ligneEcartee}
+          onClick={() => setOuverte(ligne)}
+          aria-label={`Régler ${ligne.libelle}`}
+        >
+          <span className={styles.corps}>
+            <span className={styles.libelle}>{ligne.libelle}</span>
+            <span className={styles.meta}>
+              {jourEtMois.format(dateCivile(ligne.date_operation))}
+              {reglage?.sens === 'virement'
+                ? ' · virement'
+                : reglage?.categorieId
+                  ? ` · ${nomDeLaCategorie(reglage.categorieId) ?? ''}`
+                  : ' · sans catégorie'}
+            </span>
+            {exception && ligne.doublon_probable !== null && (
+              <span className={styles.alerte}>
+                <AlertTriangle size={13} strokeWidth={2.2} aria-hidden />
+                ressemble à « {ligne.doublon_probable} »
+              </span>
+            )}
+            {exception && virementSansCompte && (
+              <span className={styles.alerte}>
+                <ArrowLeftRight size={13} strokeWidth={2.2} aria-hidden />
+                vers quel compte ?
+              </span>
+            )}
+          </span>
+          <Montant centimes={ligne.montant_centimes} taille="ligne" />
+        </button>
+      </li>
+    )
+  }
 
   return (
     <div
@@ -224,7 +267,6 @@ export function ImportReleve({
                 doubler ce que vous avez déjà saisi.
               </span>
             </label>
-
             <label className={styles.bouton}>
               <FileUp size={18} strokeWidth={2.2} aria-hidden />
               Choisir un fichier
@@ -252,20 +294,13 @@ export function ImportReleve({
         {revue !== null && (
           <>
             <p className={styles.resume}>
-              {revue.total} ligne{revue.total > 1 ? 's' : ''} lue{revue.total > 1 ? 's' : ''}, dont{' '}
-              <strong>{revue.nouvelles}</strong> nouvelle
-              {revue.nouvelles > 1 ? 's' : ''}
-              {revue.deja_importees > 0 && (
-                <>
-                  {' '}
-                  et {revue.deja_importees} déjà importée{revue.deja_importees > 1 ? 's' : ''}
-                </>
-              )}
-              .
+              <strong>{revue.total}</strong> ligne{revue.total > 1 ? 's' : ''} lue
+              {revue.total > 1 ? 's' : ''} · <strong>{retenues.length}</strong> à importer
+              {revue.deja_importees > 0 && ` · ${revue.deja_importees} déjà là`}
             </p>
 
             {comptes.length > 1 && (
-              <label className={styles.champ}>
+              <label className={styles.champDate}>
                 <span className={styles.etiquette}>Vers le compte</span>
                 <select
                   className={styles.choix}
@@ -282,16 +317,15 @@ export function ImportReleve({
             )}
 
             {revue.categories_manquantes.length > 0 && (
-              <section className={styles.recurrences}>
+              <section className={styles.bloc}>
                 <h2 className={styles.titreBloc}>Catégories qui vous manquent</h2>
-                <p className={styles.explicationBloc}>
-                  Plusieurs opérations de ce relevé n’entrent dans aucune de vos catégories. Rien
-                  n’est créé sans vous.
-                </p>
-                <ul className={styles.listeRecurrences}>
+                <ul className={styles.listeCourte}>
                   {revue.categories_manquantes.map((manquante) => (
-                    <li key={manquante.nom}>
-                      <span className={styles.nomRecurrence}>{manquante.nom}</span>
+                    <li key={manquante.nom} className={styles.suggestion}>
+                      <span className={styles.nomSuggestion}>{manquante.nom}</span>
+                      <span className={styles.metaSuggestion}>
+                        {manquante.libelles.length} opérations
+                      </span>
                       <button
                         type="button"
                         className={styles.creer}
@@ -300,29 +334,69 @@ export function ImportReleve({
                       >
                         {creees.has(manquante.nom) ? 'Créée' : 'Créer'}
                       </button>
-                      <span className={styles.metaRecurrence}>
-                        {manquante.libelles.length} opérations : {manquante.libelles.join(', ')}
-                      </span>
                     </li>
                   ))}
                 </ul>
               </section>
             )}
 
+            {aVerifier.length > 0 && (
+              <section className={styles.bloc}>
+                <h2 className={styles.titreBloc}>À vérifier ({aVerifier.length})</h2>
+                <p className={styles.explicationBloc}>
+                  Ces lignes changeraient le résultat. Touchez-les pour décider.
+                </p>
+                <ul className={styles.liste}>
+                  {aVerifier.map((ligne) => ligneCompacte(ligne, true))}
+                </ul>
+              </section>
+            )}
+
+            {pretes.length > 0 && (
+              <section className={styles.bloc}>
+                {/* Repliées par défaut : elles n'attendent rien de personne. Le compteur
+                    des lignes sans catégorie est affiché pour que le repli ne cache pas
+                    une information dont on pourrait vouloir s'occuper. */}
+                <button
+                  type="button"
+                  className={styles.repli}
+                  onClick={() => setPretesDepliees((ouvert) => !ouvert)}
+                  aria-expanded={pretesDepliees}
+                >
+                  <span>
+                    {pretes.length} prête{pretes.length > 1 ? 's' : ''} à importer
+                    {sansCategorie > 0 && `, dont ${sansCategorie} sans catégorie`}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden
+                    className={pretesDepliees ? styles.chevronOuvert : styles.chevron}
+                  />
+                </button>
+                {pretesDepliees && (
+                  <ul className={styles.liste}>
+                    {pretes.map((ligne) => ligneCompacte(ligne, false))}
+                  </ul>
+                )}
+              </section>
+            )}
+
             {revue.recurrences_proposees.length > 0 && (
-              <section className={styles.recurrences}>
+              <section className={styles.bloc}>
                 <h2 className={styles.titreBloc}>Prélèvements réguliers repérés</h2>
                 <p className={styles.explicationBloc}>
                   Ils reviennent dans ce relevé et ne sont pas encore dans votre calendrier. Rien
-                  n’est créé : à vous de les ajouter si vous le souhaitez, depuis le calendrier.
+                  n’est créé : à vous de les ajouter depuis le calendrier.
                 </p>
-                <ul className={styles.listeRecurrences}>
+                <ul className={styles.listeCourte}>
                   {revue.recurrences_proposees.map((candidate) => (
-                    <li key={`${candidate.libelle}-${candidate.montant_centimes}`}>
-                      <span className={styles.nomRecurrence}>{candidate.libelle}</span>
-                      <span className={styles.metaRecurrence}>
-                        {candidate.occurrences} fois · par {candidate.cadence}
-                      </span>
+                    <li
+                      key={`${candidate.libelle}-${candidate.montant_centimes}`}
+                      className={styles.suggestion}
+                    >
+                      <span className={styles.nomSuggestion}>{candidate.libelle}</span>
+                      <span className={styles.metaSuggestion}>par {candidate.cadence}</span>
                       <Montant centimes={candidate.montant_centimes} taille="ligne" />
                     </li>
                   ))}
@@ -330,117 +404,14 @@ export function ImportReleve({
               </section>
             )}
 
-            <ul className={styles.liste}>
-              {[...nouvelles, ...deja].map((ligne: LigneImport) => (
-                <li
-                  key={ligne.cle}
-                  className={ligne.deja_importee ? styles.ligneDeja : styles.ligne}
-                >
-                  <label className={styles.coche}>
-                    <input
-                      type="checkbox"
-                      checked={retenues.has(ligne.cle)}
-                      disabled={ligne.deja_importee}
-                      onChange={() => basculer(ligne.cle)}
-                      aria-label={`Importer ${ligne.libelle} du ${ligne.date_operation}`}
-                    />
-                  </label>
-                  <span className={styles.corps}>
-                    <span className={styles.libelle}>{ligne.libelle}</span>
-                    <span className={styles.meta}>
-                      {jourEtMois.format(dateCivile(ligne.date_operation))}
-                      {ligne.categorie_banque !== '' && ` · ${ligne.categorie_banque}`}
-                      {ligne.sens === 'virement' && ' · virement interne'}
-                      {ligne.deja_importee && ' · déjà importée'}
-                    </span>
-                    {/* Signalé, jamais décidé : deux dépenses du même montant à trois
-                        jours d'intervalle existent, et seule la personne qui les a faites
-                        peut trancher. */}
-                    {ligne.doublon_probable !== null && (
-                      <span className={styles.doublon}>
-                        ressemble à « {ligne.doublon_probable} », déjà enregistré
-                      </span>
-                    )}
-                    {!ligne.deja_importee && (
-                      <span className={styles.reglages}>
-                        <select
-                          className={styles.categorie}
-                          value={sens[ligne.cle] ?? ligne.sens}
-                          aria-label={`Nature de ${ligne.libelle}`}
-                          onChange={(evenement) =>
-                            setSens((actuel) => ({
-                              ...actuel,
-                              [ligne.cle]: evenement.target.value,
-                            }))
-                          }
-                        >
-                          <option value={ligne.montant_centimes < 0 ? 'depense' : 'revenu'}>
-                            {ligne.montant_centimes < 0 ? 'Dépense' : 'Revenu'}
-                          </option>
-                          <option value="virement">Virement entre comptes</option>
-                        </select>
-
-                        {(sens[ligne.cle] ?? ligne.sens) === 'virement' ? (
-                          // Le relevé ne dit jamais l'autre compte : il montre ce qui est
-                          // sorti, pas où c'est allé. Sans lui, la ligne serait écrite
-                          // comme une opération ordinaire.
-                          <select
-                            className={styles.categorie}
-                            value={contreparties[ligne.cle] ?? ''}
-                            aria-label={`Autre compte pour ${ligne.libelle}`}
-                            onChange={(evenement) =>
-                              setContreparties((actuel) => ({
-                                ...actuel,
-                                [ligne.cle]: evenement.target.value,
-                              }))
-                            }
-                          >
-                            <option value="">
-                              {ligne.montant_centimes < 0
-                                ? 'Vers quel compte ?'
-                                : 'De quel compte ?'}
-                            </option>
-                            {comptes
-                              .filter((compte) => compte.id !== compteId)
-                              .map((compte) => (
-                                <option key={compte.id} value={compte.id}>
-                                  {compte.nom}
-                                </option>
-                              ))}
-                          </select>
-                        ) : (
-                          <select
-                            className={styles.categorie}
-                            value={categories[ligne.cle] ?? ''}
-                            aria-label={`Catégorie de ${ligne.libelle}`}
-                            onChange={(evenement) =>
-                              setCategories((actuel) => ({
-                                ...actuel,
-                                [ligne.cle]: evenement.target.value,
-                              }))
-                            }
-                          >
-                            <option value="">Sans catégorie</option>
-                            {categoriesDuFoyer
-                              .filter((categorie) =>
-                                ligne.montant_centimes < 0
-                                  ? categorie.nature === 'depense'
-                                  : categorie.nature === 'revenu',
-                              )
-                              .map((categorie) => (
-                                <option key={categorie.id} value={categorie.id}>
-                                  {categorie.nom}
-                                </option>
-                              ))}
-                          </select>
-                        )}
-                      </span>
-                    )}
-                  </span>
-                  <Montant centimes={ligne.montant_centimes} taille="ligne" />
-                </li>
-              ))}
-            </ul>
+            {deja.length > 0 && (
+              <p className={styles.dejaLa}>
+                {deja.length} ligne{deja.length > 1 ? 's' : ''} de ce fichier{' '}
+                {deja.length > 1 ? 'ont' : 'a'} déjà été importée{deja.length > 1 ? 's' : ''} et{' '}
+                {deja.length > 1 ? 'sont' : 'est'} ignorée
+                {deja.length > 1 ? 's' : ''}.
+              </p>
+            )}
 
             <div className={styles.actions}>
               <button
@@ -448,7 +419,7 @@ export function ImportReleve({
                 className={styles.annuler}
                 onClick={() => {
                   setRevue(null)
-                  setRetenues(new Set())
+                  setReglages({})
                 }}
               >
                 Annuler
@@ -457,14 +428,28 @@ export function ImportReleve({
                 type="button"
                 className={styles.valider}
                 onClick={() => void valider()}
-                disabled={enCours || retenues.size === 0 || compteId === ''}
+                disabled={enCours || retenues.length === 0 || compteId === ''}
               >
-                Importer {retenues.size} opération{retenues.size > 1 ? 's' : ''}
+                Importer {retenues.length}
               </button>
             </div>
           </>
         )}
       </main>
+
+      {ouverte !== null && (
+        <FeuilleLigneImportee
+          ligne={ouverte}
+          reglages={reglages[ouverte.cle]}
+          categories={categoriesDuFoyer}
+          comptes={comptes}
+          compteDuReleve={compteId}
+          surChangement={(nouveaux) =>
+            setReglages((actuel) => ({ ...actuel, [ouverte.cle]: nouveaux }))
+          }
+          surFermeture={() => setOuverte(null)}
+        />
+      )}
     </div>
   )
 }

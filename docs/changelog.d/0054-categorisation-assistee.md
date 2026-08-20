@@ -100,3 +100,33 @@ ceux trop longs pour tenir dans une pastille.
 Éprouvé sur les orphelins réels du relevé d'Olivier : « Soins Animaux » couvrant ses trois
 lignes vétérinaires, « Meubles » couvrant deux achats de mobilier, et rien pour le libellé
 isolé.
+
+## L'écran d'import, refait
+
+Olivier l'a essayé sur son téléphone : « c'est tellement compliqué à lire ». Il avait
+raison. La version précédente affichait les deux cents lignes à l'identique, chacune avec
+une case à cocher, un libellé, une date, une catégorie bancaire, **deux menus déroulants**
+et un montant. Sur 390 px, c'est illisible.
+
+Le principe de la refonte : **sur un relevé, la plupart des lignes ne demandent aucune
+décision**, et faire payer à toutes le coût des quelques-unes qui en demandent une est
+exactement ce qui rend un écran impraticable.
+
+Ne sont donc dépliées que les lignes qui CHANGENT LE RÉSULTAT :
+
+- un doublon probable, qui compterait une dépense deux fois ;
+- un virement sans compte de contrepartie, qui serait écrit comme un revenu.
+
+Une ligne simplement dépourvue de catégorie n'y figure pas : elle s'importe très bien sans,
+et il y en a quarante. Le compteur du repli l'indique — « 42 prêtes, dont 12 sans
+catégorie » — pour que le repli ne cache pas une information dont on pourrait vouloir
+s'occuper.
+
+Les menus déroulants ont disparu des lignes. Une ligne MONTRE ce qu'elle est ; qui veut la
+corriger la touche, et une feuille s'ouvre. Toute la ligne est une cible tactile : viser un
+petit contrôle au sein d'une ligne est le meilleur moyen de rater son geste sur téléphone.
+
+Deux défauts trouvés en refaisant les tests : le dépôt d'un fichier ne réinitialisait pas
+l'état de dépliage, si bien qu'un second dépôt s'ouvrait déjà déplié — le même geste
+donnant deux résultats ; et le helper de test cliquait sans regarder `aria-expanded`, donc
+repliait ce qu'il devait déplier.

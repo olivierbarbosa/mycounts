@@ -113,23 +113,11 @@
   outline-offset: 2px;
 }
 
-.resume {
-  margin: 0;
-  font-size: 15px;
-  color: var(--couleur-texte);
-}
-
 .bilan {
   margin: 0;
   color: var(--couleur-credit);
   font-size: 14px;
   font-weight: var(--typo-gras-moyen);
-}
-
-.champ {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-xs);
 }
 
 .etiquette {
@@ -145,39 +133,73 @@
   border: 1px solid var(--couleur-bordure);
   background: var(--couleur-surface-haute);
   color: var(--couleur-texte);
+  /* 16 px au moins : en dessous, iOS agrandit la page à la mise au point du champ et ne
+     la réduit jamais ensuite. */
   font-size: 16px;
 }
 
-.liste {
+.resume {
+  margin: 0;
+  font-size: 15px;
+  color: var(--couleur-texte);
+}
+
+.bloc {
   display: flex;
   flex-direction: column;
-  gap: var(--espace-xs);
+  gap: var(--espace-s);
+}
+
+.titreBloc {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.explicationBloc {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.liste,
+.listeCourte {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+/* Une ligne MONTRE, elle ne demande rien. Toute la ligne est une cible tactile : sur
+   téléphone, viser un petit contrôle au sein d'une ligne est le meilleur moyen de rater
+   son geste — et c'est exactement ce que faisaient les deux menus déroulants qu'elle
+   portait avant. */
 .ligne,
-.ligneDeja {
+.ligneEcartee {
   display: flex;
   align-items: center;
   gap: var(--espace-m);
-  padding: var(--espace-s) 0;
-  border-bottom: 1px solid var(--couleur-bordure);
-}
-
-/* Les lignes déjà importées restent LISIBLES, seulement atténuées : les cacher ferait
-   croire à un fichier incomplet à qui réimporte un mois entier pour deux oublis. */
-.ligneDeja {
-  opacity: 0.5;
-}
-
-.coche {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  min-width: var(--cible-tactile);
+  width: 100%;
   min-height: var(--cible-tactile);
+  padding: var(--espace-s) 0;
+  border: none;
+  border-bottom: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+/* Écartée : lisible mais estompée, et barrée sur son libellé. La cacher ferait croire à
+   un fichier incomplet. */
+.ligneEcartee {
+  opacity: 0.45;
+}
+
+.ligneEcartee .libelle {
+  text-decoration: line-through;
 }
 
 .corps {
@@ -204,6 +226,109 @@
   font-size: 12px;
 }
 
+/* L'alerte dit CE QU'IL FAUT DÉCIDER, pas qu'il y a une erreur. */
+.alerte {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--couleur-alerte);
+  font-size: 12px;
+}
+
+/* Le repli des lignes prêtes. Bordure tiretée : il annonce qu'il y a autre chose dessous
+   sans se donner le poids d'un champ à remplir. */
+.repli {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-m);
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: 1px dashed var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  text-align: left;
+}
+
+.repli:hover {
+  border-color: var(--couleur-accent-clair);
+  color: var(--couleur-texte);
+}
+
+.chevron,
+.chevronOuvert {
+  flex: 0 0 auto;
+  transition: rotate 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.chevronOuvert {
+  rotate: 180deg;
+}
+
+/* Les suggestions — catégories manquantes, prélèvements repérés — en trois colonnes. */
+.suggestion {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--espace-s) var(--espace-m);
+  min-height: var(--cible-tactile);
+}
+
+.nomSuggestion {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.metaSuggestion {
+  color: var(--couleur-texte-faible);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Bordé et non plein : créer une catégorie est une décision du foyer, pas l'action
+   principale de cet écran — qui reste d'importer. */
+.creer {
+  min-height: 32px;
+  padding: 0 var(--espace-m);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.creer:hover:not(:disabled) {
+  border-color: var(--couleur-accent-clair);
+}
+
+.creer:disabled {
+  opacity: 0.55;
+}
+
+.dejaLa {
+  margin: 0;
+  color: var(--couleur-texte-faible);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 13px;
+}
+
+/* Les actions restent au bas du flux : une barre fixe volerait de la hauteur sur un
+   écran où l'on fait défiler beaucoup, et le bouton se retrouve de toute façon sous le
+   pouce à la fin du parcours. */
 .actions {
   display: flex;
   gap: var(--espace-s);
@@ -223,7 +348,7 @@
 
 .valider {
   min-height: var(--cible-tactile);
-  padding: 0 var(--espace-l);
+  padding: 0 var(--espace-xl);
   border: none;
   border-radius: var(--rayon-pilule);
   background: var(--couleur-degrade-accent);
@@ -235,12 +360,6 @@
 
 .valider:disabled {
   opacity: 0.55;
-}
-
-.erreur {
-  margin: 0;
-  color: var(--couleur-debit);
-  font-size: 13px;
 }
 
 @media (min-width: 600px) {
@@ -269,36 +388,12 @@
 
 /* Signalement d'un doublon probable. En encre d'alerte et non de débit : ce n'est pas une
    erreur, c'est une question posée à l'utilisateur. */
-.doublon {
-  color: var(--couleur-alerte);
-  font-size: 12px;
-}
 
 /* Le sélecteur de catégorie, dans la ligne. Compact : il y en a un par ligne, et deux
    cents champs pleine largeur feraient une page qu'on ne peut plus parcourir. */
-.categorie {
-  min-height: 32px;
-  max-width: 100%;
-  margin-top: 2px;
-  padding: 0 var(--espace-s);
-  border-radius: var(--rayon-petit);
-  border: 1px solid var(--couleur-bordure);
-  background: var(--couleur-surface);
-  color: var(--couleur-texte-attenue);
-  font-size: 13px;
-}
 
 /* Les prélèvements repérés, avant la liste : c'est une information sur l'ENSEMBLE du
    relevé, et la placer après deux cents lignes reviendrait à ne pas l'afficher. */
-.recurrences {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-s);
-  padding: var(--espace-l);
-  border-radius: var(--rayon-moyen);
-  background: var(--couleur-surface);
-  border: 1px solid var(--couleur-bordure);
-}
 
 .titreBloc {
   margin: 0;
@@ -311,36 +406,6 @@
   color: var(--couleur-texte-attenue);
   font-size: 13px;
   line-height: 1.45;
-}
-
-.listeRecurrences {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-xs);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.listeRecurrences li {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: baseline;
-  gap: 2px var(--espace-m);
-}
-
-.nomRecurrence {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: var(--typo-gras-moyen);
-}
-
-.metaRecurrence {
-  grid-column: 1 / -1;
-  color: var(--couleur-texte-faible);
-  font-size: 12px;
 }
 
 /* Le filtre de date, dans la zone de dépôt : c'est une décision à prendre AVANT de lire
@@ -361,40 +426,28 @@
   text-align: center;
 }
 
-/* Les deux sélecteurs d'une ligne : sa nature, et son autre compte s'il y a lieu. En
-   colonne sur téléphone — côte à côte, deux menus déroulants sur 390 px n'ont plus assez
-   de place pour montrer ce qu'ils contiennent. */
-.reglages {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 2px;
-}
-
 @media (min-width: 600px) {
-  .reglages {
-    flex-direction: row;
-    flex-wrap: wrap;
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
   }
 }
 
-/* Le bouton de création d'une catégorie suggérée. Bordé et non plein : créer une catégorie
-   est une décision du foyer, pas l'action principale de cet écran — qui reste d'importer. */
-.creer {
-  min-height: 32px;
-  padding: 0 var(--espace-m);
-  border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-pilule);
-  background: transparent;
-  color: var(--couleur-texte);
-  font-size: 13px;
-  font-weight: var(--typo-gras-moyen);
+@media (min-width: 1024px) {
+  .page {
+    padding-left: calc(var(--disposition-largeur-rail) + var(--espace-xxl));
+    padding-right: var(--espace-xxl);
+  }
 }
 
-.creer:hover:not(:disabled) {
-  border-color: var(--couleur-accent-clair);
-}
-
-.creer:disabled {
-  opacity: 0.55;
+@media (prefers-reduced-motion: reduce) {
+  .rond,
+  .chevron,
+  .chevronOuvert {
+    transition: none;
+  }
+  .rond:active {
+    scale: 1;
+  }
 }
