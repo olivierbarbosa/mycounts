@@ -139,3 +139,78 @@ test('les accents d’un relevé Latin-1 survivent à l’import', async ({ page
     page.getByRole('dialog', { name: 'Importer un relevé' }).getByText(libelle),
   ).toBeVisible()
 })
+
+test('le rangement s’apprend d’un import à l’autre', async ({ page }) => {
+  /* Sans mémoire, deux cents lignes seraient à ranger à la main à chaque import — et
+   * personne ne le fait deux fois. C'est ce qui rend l'import réellement utilisable. */
+  const commercant = `Boucherie ${Date.now()}`
+  await connecter(page)
+
+  // Une catégorie de dépense, quelle qu'elle soit.
+  const categories = (await (await page.request.get('/api/categories')).json()) as {
+    id: string
+    nom: string
+    nature: string
+  }[]
+  const depense = categories.find((categorie) => categorie.nature === 'depense')!
+
+  await ouvrirImport(page)
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await deposer(page, releve(ligne(commercant, '-18,00', `a-${Date.now()}`)))
+
+  await ecran.getByLabel(`Catégorie de ${commercant}`).selectOption(depense.id)
+  await ecran.getByRole('button', { name: /Importer 1 opération/ }).click()
+  await expect(ecran.getByText(/1 opération importée/)).toBeVisible()
+
+  // Second relevé, même commerçant, autre montant : la catégorie est proposée d'office.
+  await deposer(page, releve(ligne(commercant, '-24,50', `b-${Date.now()}`)))
+  await expect(ecran.getByLabel(`Catégorie de ${commercant}`)).toHaveValue(depense.id)
+})
+
+test('un prélèvement déjà enregistré est signalé et décoché', async ({ page }) => {
+  /* Une opération en double fausse le solde, les budgets et les statistiques d'un coup,
+   * alors qu'une ligne oubliée se rattrape en la recochant. */
+  const marque = Date.now()
+  await connecter(page)
+
+  const comptes = (await (await page.request.get('/api/comptes')).json()) as { id: string }[]
+  await page.request.post('/api/operations', {
+    data: {
+      compte_id: comptes[0].id,
+      libelle: `Abonnement ${marque}`,
+      montant_centimes: -1_799,
+      date_operation: '2026-08-16',
+    },
+  })
+
+  await ouvrirImport(page)
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await deposer(page, releve(ligne(`PRLV ABO ${marque}`, '-17,99', `c-${marque}`)))
+
+  // Le libellé n'a pas besoin de se ressembler : c'est le montant et la date qui parlent.
+  await expect(ecran.getByText(/ressemble à/)).toBeVisible()
+  await expect(ecran.getByRole('button', { name: /Importer 0 opération/ })).toBeDisabled()
+})
+
+test('les prélèvements réguliers du relevé sont proposés, jamais créés', async ({ page }) => {
+  const marque = Date.now()
+  await connecter(page)
+  const avant = ((await (await page.request.get('/api/recurrences')).json()) as unknown[]).length
+
+  await ouvrirImport(page)
+  const ecran = page.getByRole('dialog', { name: 'Importer un relevé' })
+  await deposer(
+    page,
+    releve(
+      `05/07/2026;ORANGE ${marque};PRLV ORANGE;o1-${marque};;Prelevement;Telecom;Sous;-25,89;;05/07/2026;05/07/2026;0`,
+      `05/08/2026;ORANGE ${marque};PRLV ORANGE;o2-${marque};;Prelevement;Telecom;Sous;-25,89;;05/08/2026;05/08/2026;0`,
+    ),
+  )
+
+  await expect(ecran.getByText('Prélèvements réguliers repérés')).toBeVisible()
+  await expect(ecran.getByText(/par mois/)).toBeVisible()
+
+  // Rien n'a été créé : l'écran propose, il ne remplit pas le calendrier tout seul.
+  const apres = ((await (await page.request.get('/api/recurrences')).json()) as unknown[]).length
+  expect(apres).toBe(avant)
+})

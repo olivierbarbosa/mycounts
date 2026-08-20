@@ -212,6 +212,7 @@ export function App() {
         <ImportReleve
           origine={origineImport}
           comptes={comptes}
+          categoriesDuFoyer={categories}
           surFermeture={() => setOrigineImport(null)}
           surImport={apresEcriture}
         />

@@ -30,8 +30,8 @@ def releve(*lignes: str) -> bytes:
 def ligne(
     libelle: str = "INTERMARCHE",
     debit: str = "-46,80",
-    credit: str = "",
     reference: str = "ref-1",
+    credit: str = "",
     categorie: str = "Alimentation",
     date: str = "17/08/2026",
 ) -> str:
@@ -221,3 +221,124 @@ def test_un_compte_inconnu_est_refuse(client: TestClient, session_bd: Session) -
         json={"compte_id": "00000000-0000-0000-0000-000000000000", "lignes": []},
     )
     assert reponse.status_code == 404
+
+
+def creer_categorie(client: TestClient, nom: str) -> str:
+    reponse = client.post(
+        "/api/categories", json={"nom": nom, "nature": "depense", "teinte": "vert"}
+    )
+    assert reponse.status_code == 201, reponse.text
+    return str(reponse.json()["id"])
+
+
+def test_le_rangement_sAPPREND_dun_import_a_lautre(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Sans mémoire, 198 lignes seraient à ranger à la main à chaque import — et personne
+    ne le fait deux fois."""
+    session_ouverte(client, session_bd)
+    compte = creer_compte(client)
+    courses = creer_categorie(client, "Courses")
+
+    revue = analyser(client, releve(ligne("INTERMARCHE", "-46,80", "r1")))
+    assert revue["lignes"][0]["categorie_proposee_id"] is None
+
+    premiere = revue["lignes"][0]
+    client.post(
+        "/api/import/valider",
+        json={
+            "compte_id": compte,
+            "lignes": [
+                {
+                    "cle": premiere["cle"],
+                    "date_operation": premiere["date_operation"],
+                    "libelle": premiere["libelle"],
+                    "montant_centimes": premiere["montant_centimes"],
+                    "categorie_id": courses,
+                    "categorie_banque": premiere["categorie_banque"],
+                }
+            ],
+        },
+    )
+
+    # Second relevé, même commerçant, autre montant et autre référence.
+    seconde = analyser(client, releve(ligne("INTERMARCHE", "-31,20", "r2")))
+    assert seconde["lignes"][0]["categorie_proposee_id"] == courses
+
+
+def test_la_categorie_de_la_banque_sert_aussi_pour_un_commercant_INCONNU(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le rangement appris sur « Alimentation » couvre tous les commerçants de cette
+    catégorie, y compris ceux qu'on n'a jamais vus."""
+    session_ouverte(client, session_bd)
+    compte = creer_compte(client)
+    courses = creer_categorie(client, "Courses")
+
+    revue = analyser(client, releve(ligne("INTERMARCHE", "-46,80", "r1")))
+    premiere = revue["lignes"][0]
+    client.post(
+        "/api/import/valider",
+        json={
+            "compte_id": compte,
+            "lignes": [
+                {
+                    "cle": premiere["cle"],
+                    "date_operation": premiere["date_operation"],
+                    "libelle": premiere["libelle"],
+                    "montant_centimes": premiere["montant_centimes"],
+                    "categorie_id": courses,
+                    "categorie_banque": "Alimentation",
+                }
+            ],
+        },
+    )
+
+    # Un commerçant jamais vu, mais la même catégorie bancaire.
+    autre = analyser(client, releve(ligne("CARREFOUR", "-22,00", "r9")))
+    assert autre["lignes"][0]["categorie_proposee_id"] == courses
+
+
+def test_un_prelevement_deja_enregistre_est_signale_comme_doublon(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le cas visé : un abonnement saisi comme récurrence, et présent au relevé. Sans ce
+    signalement, il compterait deux fois — dans le solde, les budgets et les statistiques."""
+    session_ouverte(client, session_bd)
+    compte = creer_compte(client)
+    client.post(
+        "/api/operations",
+        json={
+            "compte_id": compte,
+            "libelle": "Netflix",
+            "montant_centimes": -1_599,
+            "date_operation": "2026-08-16",
+        },
+    )
+
+    revue = analyser(client, releve(ligne("PRLV NETFLIX INTERNATIONAL", "-15,99", "r5")))
+    # Le libellé n'a pas besoin de se ressembler : c'est le montant et la date qui parlent.
+    assert revue["lignes"][0]["doublon_probable"] is not None
+    assert "Netflix" in revue["lignes"][0]["doublon_probable"]
+
+
+def test_les_recurrences_du_releve_sont_PROPOSEES_jamais_creees(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Un écran qui ajouterait des récurrences tout seul remplirait le calendrier de
+    prélèvements que personne n'a validés."""
+    session_ouverte(client, session_bd)
+    creer_compte(client)
+    avant = len(client.get("/api/recurrences").json())
+
+    revue = analyser(
+        client,
+        releve(
+            ligne("ORANGE", "-25,89", "r1", date="05/07/2026"),
+            ligne("ORANGE", "-25,89", "r2", date="05/08/2026"),
+        ),
+    )
+    assert len(revue["recurrences_proposees"]) == 1
+    assert revue["recurrences_proposees"][0]["cadence"] == "mois"
+    # Rien n'a été créé.
+    assert len(client.get("/api/recurrences").json()) == avant

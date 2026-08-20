@@ -38,6 +38,7 @@ from mycounts.domain.agregats import EtatOperation
 from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.enveloppes import Rollover, UsageEnveloppe
 from mycounts.domain.enveloppes import TypeMouvement as TypeMouvementEnveloppe
+from mycounts.domain.import_releve import GenreCorrespondance
 from mycounts.domain.recurrence import UniteRecurrence
 from mycounts.models.auth import Foyer, Utilisateur
 from mycounts.models.base import Base
@@ -318,6 +319,39 @@ class Operation(Base):
 
     compte: Mapped[Compte] = relationship()
     categorie: Mapped[Categorie | None] = relationship()
+
+
+class CorrespondanceImport(Base):
+    """Ce que le foyer a retenu d'un rangement précédent, à l'import d'un relevé.
+
+    Elle existe pour une raison mesurée : un export bancaire réel de 198 opérations arrive
+    sans aucune catégorie du foyer. Sans mémoire d'un import à l'autre, il faudrait ranger
+    198 lignes à la main, à chaque fois — et personne ne le fait deux fois.
+
+    Deux genres, `libelle` et `categorie_banque`, avec le premier prioritaire : voir
+    `domain/import_releve.categorie_proposee`.
+    """
+
+    __tablename__ = "correspondance_import"
+    __table_args__ = (
+        # Une valeur ne peut être rangée que d'une façon par foyer. Sans cette contrainte,
+        # deux apprentissages contradictoires cohabiteraient et le rangement dépendrait de
+        # l'ordre des lignes en base.
+        UniqueConstraint(
+            "foyer_id", "genre", "valeur", name="uq_correspondance_import_par_foyer"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    foyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("foyer.id", ondelete="RESTRICT"))
+    genre: Mapped[GenreCorrespondance] = mapped_column(String(24))
+    valeur: Mapped[str] = mapped_column(String(140))
+    categorie_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("categorie.id", ondelete="CASCADE")
+    )
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class Enveloppe(Base):

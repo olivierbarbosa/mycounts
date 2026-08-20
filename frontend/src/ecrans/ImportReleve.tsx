@@ -1,7 +1,13 @@
 import { ChevronLeft, FileUp } from 'lucide-react'
 import { useState } from 'react'
 
-import type { ComptePublic, LigneAValider, LigneImport, RevueImport } from '../api/client'
+import type {
+  CategoriePublique,
+  ComptePublic,
+  LigneAValider,
+  LigneImport,
+  RevueImport,
+} from '../api/client'
 import { ErreurApi, api } from '../api/client'
 import { type Origine, useEcranDeBulle } from '../composants/EcranDeBulle'
 import { Montant } from '../composants/Montant'
@@ -10,6 +16,7 @@ import styles from './ImportReleve.module.css'
 type Props = {
   readonly origine: Origine
   readonly comptes: readonly ComptePublic[]
+  readonly categoriesDuFoyer: readonly CategoriePublique[]
   readonly surFermeture: () => void
   readonly surImport: () => void
 }
@@ -43,11 +50,21 @@ function dateCivile(iso: string): Date {
  * qui vient de la banque reste tel quel — une opération importée qu'on aurait retouchée à
  * l'import ne se rapprocherait plus jamais de son relevé d'origine.
  */
-export function ImportReleve({ origine, comptes, surFermeture, surImport }: Props) {
+export function ImportReleve({
+  origine,
+  comptes,
+  categoriesDuFoyer,
+  surFermeture,
+  surImport,
+}: Props) {
   const { proprietes, poigneeDeRetour, fermer } = useEcranDeBulle(origine, surFermeture)
   const [revue, setRevue] = useState<RevueImport | null>(null)
   const [retenues, setRetenues] = useState<Set<string>>(new Set())
   const [compteId, setCompteId] = useState(comptes[0]?.id ?? '')
+  /** Catégorie retenue pour chaque ligne, indexée par clé. Initialisée avec ce que le
+   *  foyer a appris des imports précédents — l'utilisateur n'a plus qu'à corriger les
+   *  exceptions au lieu de tout ranger. */
+  const [categories, setCategories] = useState<Record<string, string>>({})
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
   const [bilan, setBilan] = useState<string | null>(null)
@@ -61,7 +78,23 @@ export function ImportReleve({ origine, comptes, surFermeture, surImport }: Prop
       setRevue(analyse)
       // Tout ce qui est nouveau est coché d'emblée : le cas courant est « je veux tout »,
       // et faire cocher deux cents lignes à la main serait une corvée qui ferait renoncer.
-      setRetenues(new Set(analyse.lignes.filter((l) => !l.deja_importee).map((l) => l.cle)))
+      setRetenues(
+        new Set(
+          analyse.lignes
+            // Un doublon probable est DÉCOCHÉ : une opération en double fausse le solde,
+            // les budgets et les statistiques d'un coup, alors qu'une ligne oubliée se
+            // rattrape en la recochant. Le signalement dit pourquoi, l'utilisateur décide.
+            .filter((ligne) => !ligne.deja_importee && ligne.doublon_probable === null)
+            .map((ligne) => ligne.cle),
+        ),
+      )
+      setCategories(
+        Object.fromEntries(
+          analyse.lignes
+            .filter((ligne) => ligne.categorie_proposee_id !== null)
+            .map((ligne) => [ligne.cle, ligne.categorie_proposee_id as string]),
+        ),
+      )
     } catch (cause) {
       setRevue(null)
       setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
@@ -90,6 +123,10 @@ export function ImportReleve({ origine, comptes, surFermeture, surImport }: Prop
         date_operation: ligne.date_operation,
         libelle: ligne.libelle,
         montant_centimes: ligne.montant_centimes,
+        categorie_id: categories[ligne.cle] ?? null,
+        // Renvoyée pour que le rangement s'APPRENNE : sans elle, le choix ne servirait
+        // qu'à cette ligne et tout serait à refaire au prochain import.
+        categorie_banque: ligne.categorie_banque,
       }))
 
     try {
@@ -194,6 +231,27 @@ export function ImportReleve({ origine, comptes, surFermeture, surImport }: Prop
               </label>
             )}
 
+            {revue.recurrences_proposees.length > 0 && (
+              <section className={styles.recurrences}>
+                <h2 className={styles.titreBloc}>Prélèvements réguliers repérés</h2>
+                <p className={styles.explicationBloc}>
+                  Ils reviennent dans ce relevé et ne sont pas encore dans votre calendrier. Rien
+                  n’est créé : à vous de les ajouter si vous le souhaitez, depuis le calendrier.
+                </p>
+                <ul className={styles.listeRecurrences}>
+                  {revue.recurrences_proposees.map((candidate) => (
+                    <li key={`${candidate.libelle}-${candidate.montant_centimes}`}>
+                      <span className={styles.nomRecurrence}>{candidate.libelle}</span>
+                      <span className={styles.metaRecurrence}>
+                        {candidate.occurrences} fois · par {candidate.cadence}
+                      </span>
+                      <Montant centimes={candidate.montant_centimes} taille="ligne" />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             <ul className={styles.liste}>
               {[...nouvelles, ...deja].map((ligne: LigneImport) => (
                 <li
@@ -217,6 +275,40 @@ export function ImportReleve({ origine, comptes, surFermeture, surImport }: Prop
                       {ligne.sens === 'virement' && ' · virement interne'}
                       {ligne.deja_importee && ' · déjà importée'}
                     </span>
+                    {/* Signalé, jamais décidé : deux dépenses du même montant à trois
+                        jours d'intervalle existent, et seule la personne qui les a faites
+                        peut trancher. */}
+                    {ligne.doublon_probable !== null && (
+                      <span className={styles.doublon}>
+                        ressemble à « {ligne.doublon_probable} », déjà enregistré
+                      </span>
+                    )}
+                    {!ligne.deja_importee && (
+                      <select
+                        className={styles.categorie}
+                        value={categories[ligne.cle] ?? ''}
+                        aria-label={`Catégorie de ${ligne.libelle}`}
+                        onChange={(evenement) =>
+                          setCategories((actuel) => ({
+                            ...actuel,
+                            [ligne.cle]: evenement.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Sans catégorie</option>
+                        {categoriesDuFoyer
+                          .filter((categorie) =>
+                            ligne.montant_centimes < 0
+                              ? categorie.nature === 'depense'
+                              : categorie.nature === 'revenu',
+                          )
+                          .map((categorie) => (
+                            <option key={categorie.id} value={categorie.id}>
+                              {categorie.nom}
+                            </option>
+                          ))}
+                      </select>
+                    )}
                   </span>
                   <Montant centimes={ligne.montant_centimes} taille="ligne" />
                 </li>

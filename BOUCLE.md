@@ -384,6 +384,11 @@ s'ouvre.
   **Le PDF reste à trancher** : le texte y est extractible mais POSITIONNÉ, et le CSV
   contient déjà tout ce qu'il contient. Il n'apporterait que l'historique antérieur à ce
   que la banque laisse exporter.
+- ~~**Lot F (suite) — rendre l'import utilisable.**~~ **Fait le 2026-08-20** —
+  `docs/changelog.d/0053-import-categorisation.md`. Le rangement s'apprend d'un import à
+  l'autre, les doublons avec les récurrences sont signalés et décochés, et les prélèvements
+  réguliers sont repérés avec un seuil CALIBRÉ sur les vrais relevés — un seuil fixe à
+  trois occurrences n'en trouvait aucune sur une fenêtre de 55 jours.
 2. **Enveloppes** — chantier découpé en quatre lots, tranché le 2026-08-20 d'après
    `docs/reference-enveloppes-collegue.md`. La règle qui commande tout le reste :
 

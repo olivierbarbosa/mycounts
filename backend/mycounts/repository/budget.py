@@ -23,8 +23,16 @@ from sqlalchemy.orm import Session
 from mycounts.domain.agregats import EtatOperation, OperationCalcul
 from mycounts.domain.categories import CATEGORIES_INITIALES
 from mycounts.domain.comptes import TypeCompte
+from mycounts.domain.import_releve import Correspondance, GenreCorrespondance
 from mycounts.domain.montants import Cents
-from mycounts.models.budget import Categorie, Compte, NatureCategorie, Operation, TeinteCategorie
+from mycounts.models.budget import (
+    Categorie,
+    Compte,
+    CorrespondanceImport,
+    NatureCategorie,
+    Operation,
+    TeinteCategorie,
+)
 from mycounts.repository.base import Principal
 
 
@@ -543,3 +551,65 @@ def cles_deja_importees(session: Session, principal: Principal) -> set[str]:
         .where(Compte.foyer_id == principal.foyer_id, Operation.cle_import.is_not(None))
     ).scalars()
     return {cle for cle in lignes if cle is not None}
+
+
+def correspondances_du_foyer(session: Session, principal: Principal) -> list[Correspondance]:
+    """Ce que le foyer a retenu des imports précédents, dans la forme du domaine.
+
+    Converties ici plutôt que dans la route : le domaine ne doit pas connaître les modèles
+    SQLAlchemy, et la route n'a pas à savoir comment ils sont faits.
+    """
+    lignes = session.execute(
+        select(CorrespondanceImport).where(CorrespondanceImport.foyer_id == principal.foyer_id)
+    ).scalars()
+    return [
+        Correspondance(
+            # Converti EXPLICITEMENT : la colonne est un `String`, et SQLAlchemy en rend
+            # une chaîne brute, pas un membre de l'énumération. Le domaine compare ses
+            # genres avec `is`, qui est le bon opérateur pour un enum et qui rendrait
+            # silencieusement `False` sur une chaîne — la correspondance ne serait jamais
+            # retrouvée, sans qu'aucune erreur ne se produise nulle part.
+            genre=GenreCorrespondance(ligne.genre),
+            valeur=ligne.valeur,
+            categorie_id=str(ligne.categorie_id),
+        )
+        for ligne in lignes
+    ]
+
+
+def retenir_la_correspondance(
+    session: Session,
+    principal: Principal,
+    *,
+    genre: GenreCorrespondance,
+    valeur: str,
+    categorie_id: uuid.UUID,
+) -> None:
+    """Retient un rangement, ou remplace celui qui existait.
+
+    Remplacer et non ignorer : si l'utilisateur range Intermarché ailleurs qu'avant, c'est
+    qu'il a changé d'avis, et le prochain import doit suivre son dernier choix — pas le
+    premier qu'il ait fait.
+    """
+    if not valeur.strip():
+        return
+    existante = session.execute(
+        select(CorrespondanceImport).where(
+            CorrespondanceImport.foyer_id == principal.foyer_id,
+            CorrespondanceImport.genre == genre,
+            CorrespondanceImport.valeur == valeur,
+        )
+    ).scalar_one_or_none()
+    if existante is not None:
+        existante.categorie_id = categorie_id
+        session.flush()
+        return
+    session.add(
+        CorrespondanceImport(
+            foyer_id=principal.foyer_id,
+            genre=genre,
+            valeur=valeur,
+            categorie_id=categorie_id,
+        )
+    )
+    session.flush()

@@ -15,6 +15,7 @@ bénéfice nul — la revue se fait dans la foulée, et la validation renvoie le
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
@@ -23,16 +24,24 @@ from mycounts.api.dependances import PrincipalCourant, SessionBase
 from mycounts.api.import_schemas import (
     DemandeValidationImport,
     LigneImportPublique,
+    RecurrenceProposee,
     RevueImport,
 )
 from mycounts.domain.import_releve import (
+    GenreCorrespondance,
     LigneImportee,
+    OperationExistante,
     ReleveIllisible,
     analyser,
+    categorie_proposee,
+    detecter_les_recurrences,
     ecarter_les_deja_importees,
+    normaliser_pour_correspondance,
+    ressemble_a_une_operation_existante,
 )
 from mycounts.domain.montants import Cents
 from mycounts.repository import budget as depot
+from mycounts.repository import recurrences as depot_recurrences
 
 routeur = APIRouter(tags=["import"])
 
@@ -45,9 +54,20 @@ un envoi de plusieurs gigaoctets ferait tomber le serveur pour tout le foyer.
 TAILLE_MAXIMALE: int = 5 * 1024 * 1024
 
 
-def _en_public(ligne: LigneImportee, deja_importee: bool) -> LigneImportPublique:
+def _en_public(
+    ligne: LigneImportee,
+    deja_importee: bool,
+    categorie_id: str | None = None,
+    doublon: OperationExistante | None = None,
+) -> LigneImportPublique:
     return LigneImportPublique(
         cle=ligne.cle,
+        categorie_proposee_id=None if categorie_id is None else uuid.UUID(categorie_id),
+        doublon_probable=(
+            None
+            if doublon is None
+            else f"{doublon.libelle} du {doublon.date_operation.strftime('%d/%m')}"
+        ),
         date_operation=ligne.date_operation,
         libelle=ligne.libelle,
         montant_centimes=int(ligne.montant),
@@ -91,12 +111,45 @@ async def analyser_un_releve(
         lignes, depot.cles_deja_importees(session, principal)
     )
 
+    # Ce que le foyer a retenu des imports précédents, et ce qu'il a déjà en base.
+    correspondances = depot.correspondances_du_foyer(session, principal)
+    existantes = [
+        OperationExistante(
+            date_operation=operation.date_operation,
+            montant=Cents(operation.montant_centimes),
+            libelle=operation.libelle,
+        )
+        for operation in depot.operations_visibles(session, principal)
+    ]
+    montants_recurrents = [
+        Cents(recurrence.montant_centimes)
+        for recurrence in depot_recurrences.recurrences_visibles(session, principal)
+    ]
+
     return RevueImport(
         total=len(lignes),
         nouvelles=len(nouvelles),
         deja_importees=len(ignorees),
-        lignes=[_en_public(ligne, False) for ligne in nouvelles]
+        lignes=[
+            _en_public(
+                ligne,
+                False,
+                categorie_proposee(ligne, correspondances),
+                ressemble_a_une_operation_existante(ligne, existantes),
+            )
+            for ligne in nouvelles
+        ]
         + [_en_public(ligne, True) for ligne in ignorees],
+        recurrences_proposees=[
+            RecurrenceProposee(
+                libelle=candidate.libelle,
+                montant_centimes=int(candidate.montant),
+                cadence=candidate.cadence,
+                occurrences=candidate.occurrences,
+                derniere=candidate.derniere,
+            )
+            for candidate in detecter_les_recurrences(nouvelles, montants_recurrents)
+        ],
     )
 
 
@@ -131,6 +184,27 @@ def valider_un_import(
             categorie_id=ligne.categorie_id,
             cle_import=ligne.cle,
         )
+
+        # Le rangement s'APPREND. Sans cela, le choix de l'utilisateur ne servirait qu'à
+        # cette ligne-ci, et deux cents lignes seraient à ranger de nouveau au prochain
+        # import — ce que personne ne fait deux fois.
+        if ligne.categorie_id is not None:
+            depot.retenir_la_correspondance(
+                session,
+                principal,
+                genre=GenreCorrespondance.LIBELLE,
+                valeur=normaliser_pour_correspondance(ligne.libelle),
+                categorie_id=ligne.categorie_id,
+            )
+            if ligne.categorie_banque:
+                depot.retenir_la_correspondance(
+                    session,
+                    principal,
+                    genre=GenreCorrespondance.CATEGORIE_BANQUE,
+                    valeur=ligne.categorie_banque,
+                    categorie_id=ligne.categorie_id,
+                )
+
         connues.add(ligne.cle)
         ecrites += 1
 

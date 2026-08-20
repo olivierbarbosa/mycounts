@@ -16,10 +16,17 @@ import datetime as dt
 
 import pytest
 from mycounts.domain.import_releve import (
+    Correspondance,
+    GenreCorrespondance,
+    LigneImportee,
+    OperationExistante,
     ReleveIllisible,
     SensImporte,
     analyser,
+    categorie_proposee,
+    detecter_les_recurrences,
     ecarter_les_deja_importees,
+    ressemble_a_une_operation_existante,
 )
 from mycounts.domain.montants import Cents
 
@@ -209,3 +216,184 @@ class TestFichiersRefuses:
         with pytest.raises(ReleveIllisible) as erreur:
             analyser(_releve(_ligne(operation="hier", comptabilisation="hier")))
         assert "hier" in str(erreur.value)
+
+
+def _importee(
+    libelle: str = "INTERMARCHE",
+    categorie_banque: str = "Alimentation",
+    montant: int = -4_680,
+    date_operation: dt.date = dt.date(2026, 8, 17),
+) -> LigneImportee:
+    return LigneImportee(
+        date_operation=date_operation,
+        libelle=libelle,
+        montant=Cents(montant),
+        sens=SensImporte.DEPENSE,
+        reference="r",
+        categorie_banque=categorie_banque,
+        rang=1,
+    )
+
+
+class TestCategorieProposee:
+    """Ce qu'on retient d'un rangement précédent."""
+
+    def test_sans_rien_dappris_on_ne_propose_RIEN(self) -> None:
+        """`None` et non une catégorie par défaut : ranger de travers est pire que ne pas
+        ranger. Une opération sans catégorie se VOIT dans les statistiques ; une opération
+        mal rangée disparaît dans un total juste en apparence."""
+        assert categorie_proposee(_importee(), []) is None
+
+    def test_une_correspondance_sur_la_categorie_de_la_banque_sert(self) -> None:
+        correspondances = [
+            Correspondance(GenreCorrespondance.CATEGORIE_BANQUE, "Alimentation", "cat-courses")
+        ]
+        assert categorie_proposee(_importee(), correspondances) == "cat-courses"
+
+    def test_une_correspondance_sur_le_COMMERCANT_prime(self) -> None:
+        """Le particulier l'emporte sur le général : « Alimentation → Courses » est une
+        règle large, « intermarche → Courses » une décision prise pour ce commerçant."""
+        correspondances = [
+            Correspondance(GenreCorrespondance.CATEGORIE_BANQUE, "Alimentation", "cat-general"),
+            Correspondance(GenreCorrespondance.LIBELLE, "intermarche", "cat-precise"),
+        ]
+        assert categorie_proposee(_importee(), correspondances) == "cat-precise"
+
+    def test_le_commercant_est_reconnu_quelle_que_soit_son_ecriture(self) -> None:
+        correspondances = [Correspondance(GenreCorrespondance.LIBELLE, "cafe creme", "cat-x")]
+        assert categorie_proposee(_importee(libelle="Café Crème"), correspondances) == "cat-x"
+
+    def test_une_categorie_de_banque_VIDE_ne_correspond_a_rien(self) -> None:
+        """Sans cette garde, une correspondance enregistrée sur la chaîne vide
+        s'appliquerait à toutes les lignes que la banque n'a pas catégorisées."""
+        correspondances = [Correspondance(GenreCorrespondance.CATEGORIE_BANQUE, "", "cat-piege")]
+        assert categorie_proposee(_importee(categorie_banque=""), correspondances) is None
+
+
+class TestRessemblanceAvecLexistant:
+    """Le cas visé : un prélèvement déjà saisi comme récurrence, et présent au relevé."""
+
+    def test_meme_montant_et_date_proche_sont_signales(self) -> None:
+        existante = OperationExistante(
+            date_operation=dt.date(2026, 8, 15), montant=Cents(-4_680), libelle="Netflix"
+        )
+        assert ressemble_a_une_operation_existante(_importee(), [existante]) == existante
+
+    def test_le_LIBELLE_na_pas_besoin_de_se_ressembler(self) -> None:
+        """Une récurrence s'appelle « Netflix » chez son propriétaire et « PRLV NETFLIX
+        INTERNATIONAL BV » sur le relevé. Exiger la ressemblance ferait rater précisément
+        les cas qu'on cherche."""
+        existante = OperationExistante(
+            date_operation=dt.date(2026, 8, 17), montant=Cents(-4_680), libelle="Netflix"
+        )
+        trouvee = ressemble_a_une_operation_existante(
+            _importee(libelle="PRLV NETFLIX INTERNATIONAL BV"), [existante]
+        )
+        assert trouvee == existante
+
+    def test_un_montant_different_dun_centime_ne_correspond_PAS(self) -> None:
+        existante = OperationExistante(
+            date_operation=dt.date(2026, 8, 17), montant=Cents(-4_681), libelle="Netflix"
+        )
+        assert ressemble_a_une_operation_existante(_importee(), [existante]) is None
+
+    def test_au_dela_de_la_tolerance_on_ne_rapproche_plus(self) -> None:
+        """Au-delà, on rapprocherait des opérations qui n'ont en commun que leur montant."""
+        loin = OperationExistante(
+            date_operation=dt.date(2026, 8, 27), montant=Cents(-4_680), libelle="X"
+        )
+        assert ressemble_a_une_operation_existante(_importee(), [loin]) is None
+
+    def test_la_tolerance_joue_dans_les_DEUX_sens(self) -> None:
+        """Une opération saisie avant ou après la date du relevé, indifféremment : le
+        prélèvement peut se présenter en avance comme en retard."""
+        for ecart in (-3, 3):
+            proche = OperationExistante(
+                date_operation=dt.date(2026, 8, 17) + dt.timedelta(days=ecart),
+                montant=Cents(-4_680),
+                libelle="X",
+            )
+            assert ressemble_a_une_operation_existante(_importee(), [proche]) is not None
+
+
+class TestDetectionDesRecurrences:
+    """Repérer les prélèvements réguliers d'un relevé, sans produire de bruit.
+
+    Le seuil est RELATIF à ce que la fenêtre permet d'observer. La première version
+    exigeait trois occurrences quoi qu'il arrive et n'en proposait aucune sur un export
+    réel de 55 jours, où un prélèvement mensuel ne peut apparaître que deux fois.
+    """
+
+    @staticmethod
+    def _mensuel(libelle: str, montant: int, mois: list[int], jour: int = 5):  # type: ignore[no-untyped-def]
+        return [
+            _importee(
+                libelle=libelle,
+                montant=montant,
+                date_operation=dt.date(2026, m, jour),
+            )
+            for m in mois
+        ]
+
+    def test_deux_prelevements_mensuels_suffisent_sur_une_fenetre_courte(self) -> None:
+        """55 jours ne peuvent pas contenir trois occurrences mensuelles : exiger trois
+        reviendrait à ne jamais rien proposer."""
+        lignes = self._mensuel("ORANGE", -2_589, [7, 8])
+        (candidate,) = detecter_les_recurrences(lignes)
+        assert candidate.cadence == "mois"
+        assert candidate.occurrences == 2
+
+    def test_sur_une_LONGUE_fenetre_deux_occurrences_ne_suffisent_plus(self) -> None:
+        """Le témoin qui distingue un seuil relatif d'un seuil abaissé à deux.
+
+        Le relevé couvre six mois : deux occurrences mensuelles y sont une coïncidence, et
+        non un abonnement. Une autre ligne allonge la fenêtre sans être elle-même retenue.
+        """
+        lignes = [
+            *self._mensuel("ORANGE", -2_589, [1, 2]),
+            _importee(libelle="AUTRE", montant=-100, date_operation=dt.date(2026, 7, 1)),
+        ]
+        assert detecter_les_recurrences(lignes) == ()
+
+    def test_trois_occurrences_passent_sur_une_longue_fenetre(self) -> None:
+        lignes = self._mensuel("ORANGE", -2_589, [1, 2, 3, 4, 5, 6, 7])
+        (candidate,) = detecter_les_recurrences(lignes)
+        assert candidate.occurrences == 7
+
+    def test_un_montant_qui_VARIE_nest_pas_detecte(self) -> None:
+        """L'électricité, l'eau. Les repérer demanderait une tolérance sur le montant, qui
+        rapprocherait aussi des dépenses sans aucun rapport — payé en suggestions fausses."""
+        lignes = [
+            _importee(libelle="EDF", montant=-8_000, date_operation=dt.date(2026, 6, 5)),
+            _importee(libelle="EDF", montant=-9_200, date_operation=dt.date(2026, 7, 5)),
+            _importee(libelle="EDF", montant=-7_500, date_operation=dt.date(2026, 8, 5)),
+        ]
+        assert detecter_les_recurrences(lignes) == ()
+
+    def test_des_dates_irregulieres_ne_font_pas_une_recurrence(self) -> None:
+        """« Régulier » n'est pas « régulier en moyenne » : trois dépenses les 1er, 2 et 60
+        ont une moyenne mensuelle et ne sont pas un abonnement."""
+        lignes = [
+            _importee(libelle="HASARD", montant=-1_000, date_operation=dt.date(2026, 6, 1)),
+            _importee(libelle="HASARD", montant=-1_000, date_operation=dt.date(2026, 6, 2)),
+            _importee(libelle="HASARD", montant=-1_000, date_operation=dt.date(2026, 7, 31)),
+        ]
+        assert detecter_les_recurrences(lignes) == ()
+
+    def test_un_REVENU_recurrent_nest_jamais_propose(self) -> None:
+        """Un salaire est récurrent lui aussi ; personne n'a besoin qu'on le lui apprenne."""
+        lignes = self._mensuel("SALAIRE", 250_000, [7, 8])
+        assert detecter_les_recurrences(lignes) == ()
+
+    def test_une_recurrence_DEJA_enregistree_nest_pas_reproposee(self) -> None:
+        """Reproposer ce qui existe serait exactement le bruit qu'on cherche à éviter."""
+        lignes = self._mensuel("ORANGE", -2_589, [7, 8])
+        assert detecter_les_recurrences(lignes, deja_connues=[Cents(-2_589)]) == ()
+
+    def test_les_propositions_sont_triees_de_la_plus_couteuse_a_la_moins(self) -> None:
+        lignes = [
+            *self._mensuel("PETIT", -500, [7, 8], jour=3),
+            *self._mensuel("GROS", -15_000, [7, 8], jour=9),
+        ]
+        candidates = detecter_les_recurrences(lignes)
+        assert [c.libelle for c in candidates] == ["gros", "petit"]

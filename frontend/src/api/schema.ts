@@ -1326,6 +1326,11 @@ export interface components {
       montant_centimes: number
       /** Categorie Id */
       categorie_id?: string | null
+      /**
+       * Categorie Banque
+       * @default
+       */
+      categorie_banque: string
     }
     /**
      * LigneImportPublique
@@ -1348,6 +1353,10 @@ export interface components {
       categorie_banque: string
       /** Deja Importee */
       deja_importee: boolean
+      /** Categorie Proposee Id */
+      categorie_proposee_id: string | null
+      /** Doublon Probable */
+      doublon_probable: string | null
     }
     /**
      * LignePreparationPublique
@@ -1644,6 +1653,25 @@ export interface components {
       libelle: string
       type_compte: components['schemas']['TypeCompte']
     }
+    /**
+     * RecurrenceProposee
+     * @description Un prélèvement régulier repéré dans le relevé, qu'aucune récurrence ne couvre.
+     */
+    RecurrenceProposee: {
+      /** Libelle */
+      libelle: string
+      /** Montant Centimes */
+      montant_centimes: number
+      /** Cadence */
+      cadence: string
+      /** Occurrences */
+      occurrences: number
+      /**
+       * Derniere
+       * Format: date
+       */
+      derniere: string
+    }
     /** RecurrencePublique */
     RecurrencePublique: {
       /**
@@ -1719,6 +1747,8 @@ export interface components {
       deja_importees: number
       /** Lignes */
       lignes: components['schemas']['LigneImportPublique'][]
+      /** Recurrences Proposees */
+      recurrences_proposees: components['schemas']['RecurrenceProposee'][]
     }
     /**
      * Rollover

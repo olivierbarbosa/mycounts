@@ -266,3 +266,79 @@
     scale: 1;
   }
 }
+
+/* Signalement d'un doublon probable. En encre d'alerte et non de débit : ce n'est pas une
+   erreur, c'est une question posée à l'utilisateur. */
+.doublon {
+  color: var(--couleur-alerte);
+  font-size: 12px;
+}
+
+/* Le sélecteur de catégorie, dans la ligne. Compact : il y en a un par ligne, et deux
+   cents champs pleine largeur feraient une page qu'on ne peut plus parcourir. */
+.categorie {
+  min-height: 32px;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 0 var(--espace-s);
+  border-radius: var(--rayon-petit);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+}
+
+/* Les prélèvements repérés, avant la liste : c'est une information sur l'ENSEMBLE du
+   relevé, et la placer après deux cents lignes reviendrait à ne pas l'afficher. */
+.recurrences {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.titreBloc {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.explicationBloc {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.listeRecurrences {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.listeRecurrences li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 2px var(--espace-m);
+}
+
+.nomRecurrence {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.metaRecurrence {
+  grid-column: 1 / -1;
+  color: var(--couleur-texte-faible);
+  font-size: 12px;
+}
