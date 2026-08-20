@@ -900,3 +900,27 @@ ouvre une épargne, il a deux comptes, et la feuille débordait pour de bon.
 **Le contrôle qui aurait tranché.** `tests/integration/test_reinitialisation.py` crée
 trois comptes, lance le script, et compte ce qui reste. Le témoin part de trois pour que
 « il en reste un » ne puisse pas être vrai par hasard.
+
+## #029 — J'ai changé une couleur de la DA sans le dire assez fort
+
+**Ce que je croyais.** Qu'annoncer « j'ai éclairci le rouge des débits » au milieu d'un
+compte rendu suffisait à faire valider le changement. La ligne y était, chiffrée.
+
+**Ce qu'il s'est passé.** Olivier l'a découvert sur une capture, plusieurs échanges plus
+tard : « pourquoi t'as changé les couleurs ? ». Il a demandé le retour à la palette
+d'origine, et il a eu raison de la demander — c'est sa direction artistique, pas la mienne.
+
+**Pourquoi mon annonce ne valait pas accord.** Une couleur de la DA n'est pas un détail
+d'implémentation qu'on corrige en passant parce qu'une mesure l'exige. La mesure dit ce
+qui est vrai ; elle ne dit pas quel arbitrage rendre entre lisibilité et identité. J'avais
+noyé une décision qui lui appartenait dans un compte rendu de six paragraphes.
+
+**Ce que j'aurais dû faire.** Poser la question AVANT de changer, avec les trois options
+et leurs chiffres — ce que j'ai fini par faire, mais après coup. Le coût d'une question
+est d'un aller-retour ; celui d'un changement non validé, de trois.
+
+**Le contrôle en place maintenant.** La palette d'origine est rétablie et le rouge des
+débits porte une dérogation BORNÉE dans `e2e/contraste.spec.ts` : son seuil est abaissé à
+la valeur mesurée (3,2 au lieu de 4,5), pas supprimé. Vérifié par mutation — halo poussé
+à 0,42, les trois tests du thème sombre rougissent. La dérogation couvre une décision
+prise, elle ne couvre pas une dégradation future.

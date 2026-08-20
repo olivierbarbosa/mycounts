@@ -53,10 +53,14 @@ export const couleursSombres = {
   chaud: '#FFF4BF',
 
   credit: '#34D399',
-  /* Éclairci de 31 % vers le blanc par rapport au #FB7185 d'origine : sous le halo, le
-   *  rose initial tombait à 3,23:1. Ce défaut est antérieur à l'animation du halo — la
-   *  sonde ne mesurait simplement pas le halo. */
-  debit: '#FC9DAB',
+  /* Rouge d'origine, conservé sur décision explicite d'Olivier (20 août 2026) après avoir
+   *  vu le chiffre : sous le halo, il mesure 3,23:1 là où la lisibilité AA en demande 4,5.
+   *  L'éclaircir à #FC9DAB le faisait passer, au prix d'un rose nettement plus pâle.
+   *
+   *  La sonde de contraste ne l'ignore pas pour autant : `e2e/contraste.spec.ts` lui
+   *  applique un plancher fixé à la valeur MESURÉE, si bien que toute dégradation
+   *  supplémentaire de ce rouge la fera rougir. Une dérogation bornée, pas une exemption. */
+  debit: '#FB7185',
   alerte: '#FBBF24',
 
   verreTeinte: 'rgba(255, 255, 255, 0.09)',
@@ -70,11 +74,11 @@ export const couleursSombres = {
 
   /** Halos de fond. Ils passent DERRIÈRE le contenu et ne portent jamais de texte :
    *  c'est ce qui permet de les rendre francs sans dégrader la lisibilité. */
-  /* 0,20 et non 0,26 : au-delà, le halo éclaircit assez le fond pour faire tomber le
-   *  rouge des débits sous 4,5:1, et colle le vert des crédits à 4,52:1 — sans marge pour
-   *  la moindre retouche future. Mesuré par `e2e/contraste.spec.ts` une fois la sonde
-   *  rendue capable de voir le halo, ce qu'elle ne savait pas faire. */
-  haloHaut: 'rgba(220, 149, 255, 0.20)',
+  /* 0,26, valeur d'origine, rétablie avec le rouge des débits : les deux vont ensemble.
+   *  À cette intensité le halo éclaircit assez le fond pour que le vert des crédits tombe
+   *  à 4,52:1 — juste au-dessus du seuil, donc sans marge. Toute retouche de cette valeur
+   *  demande de relancer `e2e/contraste.spec.ts` avant d'être crue. */
+  haloHaut: 'rgba(220, 149, 255, 0.26)',
   haloBas: 'rgba(255, 190, 251, 0.13)',
   /** Liseré lumineux sur les surfaces en verre. */
   lueurBordure: 'rgba(220, 149, 255, 0.30)',

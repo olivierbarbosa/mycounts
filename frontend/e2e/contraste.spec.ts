@@ -16,6 +16,22 @@ import { expect, test } from '@playwright/test'
 const SEUIL_AA = 4.5
 const SEUIL_AA_GRAND = 3 // ≥ 24 px, ou ≥ 18,66 px en gras
 
+/* Dérogation, explicite et bornée, pour le rouge des débits du thème sombre.
+ *
+ * Olivier a choisi de conserver `#FB7185` et le halo à pleine intensité après avoir vu le
+ * chiffre : sous le halo, ce rouge mesure 3,23:1 là où AA en demande 4,5. L'éclaircir le
+ * faisait passer, au prix d'un rose nettement plus pâle. C'est une décision prise en
+ * connaissance de cause le 20 août 2026, pas un oubli.
+ *
+ * Ce n'est pas une exemption. Le seuil est abaissé à la valeur RÉELLEMENT MESURÉE : toute
+ * dégradation supplémentaire de ce rouge — un halo plus clair, une opacité de texte plus
+ * basse — repassera sous ce plancher et fera rougir ce test. Ce qu'il ne couvre plus, en
+ * revanche, c'est l'écart entre 3,2 et 4,5, et cette ligne est le seul endroit où il est
+ * écrit.
+ */
+const DEBIT_SOMBRE = [251, 113, 133]
+const PLANCHER_DEBIT = 3.2
+
 const POSITIONS = ['claire', 'moyenne', 'opaque'] as const
 
 /** Les deux thèmes sont testés explicitement. Playwright force « light » par défaut :
@@ -33,7 +49,12 @@ async function connecter(page: import('@playwright/test').Page) {
   await expect(page.locator('nav')).toBeVisible()
 }
 
-const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
+const MESURE = ([seuilNormal, seuilGrand, debit, plancherDebit]: [
+  number,
+  number,
+  number[],
+  number,
+]) => {
   const canal = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
 
   /** Lit rgb()/rgba() ET color(srgb …), dont les composantes vont de 0 à 1.
@@ -165,10 +186,14 @@ const MESURE = ([seuilNormal, seuilGrand]: [number, number]) => {
     const taille = Number.parseFloat(style.fontSize)
     const gras = Number.parseInt(style.fontWeight, 10) >= 700
     const grand = taille >= 24 || (gras && taille >= 18.66)
+    // Le rouge des débits porte son propre plancher, plus bas et documenté en tête de
+    // fichier. La comparaison tolère un point d'écart par canal : un navigateur peut
+    // rendre une couleur composée à l'unité près.
+    const estDebit = [tr, tv, tb].every((v, i) => Math.abs(v - debit[i]) <= 1)
     resultats.push({
       texte: texte.slice(0, 40),
       rapport: Math.round(rapport * 100) / 100,
-      seuil: grand ? seuilGrand : seuilNormal,
+      seuil: estDebit ? plancherDebit : grand ? seuilGrand : seuilNormal,
     })
   }
   return resultats
@@ -187,7 +212,12 @@ for (const theme of THEMES) {
       await expect(page.locator('main')).toBeVisible()
       await expect(page.locator('main li, main header')).not.toHaveCount(0)
 
-      const mesures = await page.evaluate(MESURE, [SEUIL_AA, SEUIL_AA_GRAND])
+      const mesures = await page.evaluate(MESURE, [
+        SEUIL_AA,
+        SEUIL_AA_GRAND,
+        DEBIT_SOMBRE,
+        PLANCHER_DEBIT,
+      ])
       expect(mesures.length, 'aucun texte mesuré : la sonde est cassée').toBeGreaterThan(5)
 
       const insuffisants = mesures.filter((m) => m.rapport < m.seuil)
@@ -211,7 +241,7 @@ test('témoin : la sonde de contraste sait détecter un texte illisible', async 
     cobaye.style.backgroundColor = 'rgb(140, 140, 140)'
     document.body.append(cobaye)
   })
-  const mesures = await page.evaluate(MESURE, [4.5, 3])
+  const mesures = await page.evaluate(MESURE, [4.5, 3, DEBIT_SOMBRE, PLANCHER_DEBIT])
   const cobaye = mesures.find((m) => m.texte.startsWith('texte volontairement'))
   expect(cobaye, 'le cobaye n’a pas été mesuré').toBeDefined()
   expect(cobaye!.rapport).toBeLessThan(2)
@@ -227,7 +257,12 @@ for (const theme of THEMES) {
     await page.getByRole('button', { name: /^Paramètres de / }).click()
     await expect(page.getByRole('dialog', { name: 'Paramètres' })).toBeVisible()
 
-    const mesures = await page.evaluate(MESURE, [SEUIL_AA, SEUIL_AA_GRAND])
+    const mesures = await page.evaluate(MESURE, [
+      SEUIL_AA,
+      SEUIL_AA_GRAND,
+      DEBIT_SOMBRE,
+      PLANCHER_DEBIT,
+    ])
     expect(mesures.length, 'aucun texte mesuré : la sonde est cassée').toBeGreaterThan(5)
     expect(
       mesures.filter((m) => m.rapport < m.seuil),
