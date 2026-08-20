@@ -110,6 +110,75 @@ caractéristiques de direction artistique en ont été tirées.)*
 
 > et regarder le détails aussi
 
+### 2026-08-20 — corrections, direction artistique, épargne et mouvement
+
+> ça me mets not found au moment de vouloir supprimer
+
+> ajoute une texture sur le background de fond stp
+
+> fait que le halo ce déplace aussi sur la page entière
+
+> Il faut que tous les modales sur téléphone on puisse tout faire en un clic jamais devoir
+> scroll.
+
+> Toujours la même chose en mode web app
+
+> J'ai toujours ça
+
+*(trois allers-retours sur le même champ de date coupé par le bord de l'écran — voir
+ERREURS.md #024 et #025)*
+
+> Attaque l'épargne
+
+> Pour les paramètres j'aimerais les mettres dans une bulle avatar pour que derrière on
+> mette les réglages selon ce qu'on veut régler avec des sous menu pour que l'ux soit déjà
+> adapter au téléphone et tout faire rapidement on peut mettre le bulle avatar en haut a
+> gauche de tout les écrans un peu comme ce que fait revolut
+
+> Avec un effet de dezoom zoom dans l'avatar comme ce que fait les app iphone comme
+> revolut + les pages s'ouvre toujours de la droite avec un effet de la droite vers la
+> gauche fluide
+
+> Parfait mais pourquoi ta changer les couleurs ?
+
+> Je parle de cette palette de couleur
+
+*(la palette d'origine a été rétablie — voir ERREURS.md #029)*
+
+> Pourquoi ma web app est au couleur blanche maintenant ?
+
+*(son téléphone était passé en apparence claire ; l'app n'avait aucun réglage de thème)*
+
+> Il faudrait faire cette effet pour la bulle du compte quand on clique dessus : un effet
+> d'animation d'interface appelé une transition par zoom et morphing (Shared Element
+> Transition) combinée à un effet de flou d'arrière-plan (Background Blur / Frosted Glass).
+
+> Alors c'est pas très fluide et pour l'ouverture des sous menu il doit y avoir le motion
+> de la page de droite a gauche
+
+> et quand tu reviens en arrière d'un sous menu il faut faire l'effet inverse de gauche a
+> droite
+
+> Ajoute de l'animation sur les icones de la navbar quand on appuie pour passer a une
+> autre page
+
+> Il faudrait que tu t'ajoute aussi que dans les paramètres dans gestion des comptes
+> d'afficher un compte = une card et de pouvoir modifier / supprimer / ajouter un compte
+> et de mettre déjà des catégorie de compte générer par nous de tout ce qui existe en
+> France.
+
+> Il faut aussi ce noter de pouvoir modifier le solde à la volé sur l'accueil
+
+> Il manque le solde a la volée et le budget
+
+> Et dans l'espace épargne il faut pouvoir rentrer dans le détails de chaque compte
+> épargne avec l'évolution du solde et des stats de combien on place par mois et combien
+> on reprend dans l'épargne pour calculer si on place trop en début de mois de l'argent et
+> qu'on est obligé de reprendre ou pas etc...
+
+> donne moi la boucle pour pouvoir avancé en autonomie
+
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -151,8 +220,29 @@ caractéristiques de direction artistique en ont été tirées.)*
 
 ## État du chantier
 
-- **Lot 0 — socle** : en cours.
-- Lots 1 à 5 : voir le plan.
+**Au 2026-08-20.** Ce bloc décrit l'état RÉEL. S'il diverge du code, le code a raison.
+
+**Livré et vérifié** : authentification et foyer ; comptes privés avec catalogue de
+produits français ; catégories ; opérations (créer, modifier, supprimer, détailler) ;
+période de paie à paie ; récurrences et calendrier ; plafonds par catégorie AVEC leur
+écran et les jauges de l'accueil ; virements entre comptes ; page Épargne ; correction du
+solde par ajustement ; bulle d'avatar et paramètres en sous-menus ; thème au choix ;
+mouvement des écrans mesuré à 60 images/s.
+
+**Reste à faire**, dans cet ordre :
+
+1. **Détail d'un compte d'épargne** — évolution du solde, versé et repris par mois, pour
+   répondre à « est-ce que je place trop tôt dans le mois et dois me resservir ». Demandé
+   le 2026-08-20.
+2. **Onglet Foyer** — membres, codes d'invitation (aujourd'hui enfouis dans un sous-menu),
+   comptes joints, plafonds partagés. C'est le lot 5 du séquencement d'origine.
+3. **Logos des prélèvements**, sur le modèle KeePassXC : bouton explicite, requête faite
+   par le serveur, mise en cache, repli sur la pastille.
+4. **Total annuel des charges** — « mes abonnements me coûtent X € par an » est
+   l'information qui fait résilier.
+5. **Réglages restants** : `paies_par_cycle` (la colonne existe, aucun écran ne l'expose),
+   archiver une catégorie (l'API le permet déjà).
+6. **Déploiement VPS** — ne se fait PAS sans accord explicite d'Olivier.
 
 ## Décisions prises par défaut, à confirmer
 
@@ -181,3 +271,56 @@ tranché, et de ce qui reste ouvert.
 - Expo vs Flutter — tranché après le lot 4.
 - Liste de catégories par défaut ou libre — au lot 2.
 - Sort des opérations sans catégorie vis-à-vis des plafonds — au lot 4.
+
+## Prompt de boucle
+
+À coller après `/loop` pour me laisser avancer seul. Il est écrit ici et non ailleurs
+pour qu'il vieillisse avec le chantier : la liste des tâches vit dans « État du chantier »
+ci-dessus, et le prompt s'y réfère au lieu de la recopier.
+
+```
+Avance seul sur mycounts. Prends la PREMIÈRE tâche non faite de « Reste à faire » dans
+BOUCLE.md, finis-la entièrement, puis passe à la suivante.
+
+Avant de coder :
+- relis ERREURS.md, en entier si tu touches une zone où je me suis déjà trompé ;
+- écris ce que l'écran fait ET ce qu'il ne fait pas avant d'écrire une ligne — trois
+  écrans ont été refaits deux fois faute de l'avoir fixé avant.
+
+Pour chaque changement :
+- une mesure qui ne peut pas rendre la réponse inverse ne prouve rien. Deux grandeurs qui
+  varient en sens OPPOSÉS, plus un témoin qui ne doit pas bouger ;
+- tout témoin est vérifié PAR MUTATION : casse l'implémentation, vois-le rougir, restaure.
+  Un test jamais vu rouge n'est pas un test ;
+- vérification verte avant d'ouvrir le lot suivant : make verifier, make tests-integration,
+  make tests-e2e, make front-tests. Deux fois de suite pour l'e2e, la base est partagée ;
+- la doc part dans le même commit que le code, le code mort se supprime au passage ;
+- une entrée docs/changelog.d/ par changement, et ERREURS.md à chaque fois que je me
+  trompe — surtout quand la mesure portait sur le mauvais sujet ;
+- commit et push sans me redemander.
+
+Arrête-toi et demande-moi :
+- toute décision de DIRECTION ARTISTIQUE — couleur, palette, densité, ton. J'ai changé
+  une couleur pour faire passer un contrôle, c'était mon erreur (ERREURS.md #029) ;
+- tout ce qui touche au VPS de production ;
+- toute suppression de données qui ne soit pas la mienne.
+Pose-les en choix multiples, avec les chiffres, jamais en prose.
+
+Pièges déjà payés, à ne pas repayer :
+- la base de DÉMONSTRATION se migre séparément (make demo-migrer). L'API refuse
+  désormais de démarrer si elle est en retard ;
+- ce dépôt n'a pas de configuration prettier par défaut : le style est guillemets simples,
+  sans point-virgule, 100 colonnes. frontend/.prettierrc l'écrit ;
+- un module CSS renomme aussi les `animation-name` : une image clé partagée vit dans
+  global.css et s'applique par une CLASSE globale ;
+- les tests e2e partagent une base : n'écris jamais un test qui suppose un état vide sans
+  le garantir lui-même ;
+- iOS ne rend pas les champs natifs comme Chromium. Ce que tu ne peux pas observer
+  localement, écris-le comme angle mort dans le test plutôt que de le supposer bon ;
+- vérifie la CI en sélectionnant par headSha == git rev-parse HEAD, et lis les compteurs :
+  un job vert dont les tests ont été skippés ne prouve rien.
+
+Rends compte en une fois quand la tâche est finie : ce qui est livré, ce qui a été mesuré
+et avec quels chiffres, ce que tu as trouvé en chemin, ce qu'il me reste à vérifier sur
+mon téléphone.
+```
