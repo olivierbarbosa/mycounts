@@ -211,7 +211,9 @@ en choix multiples : **tout, préparation mensuelle comprise**.)*
 >
 > CSV ou PDF
 
-*(question du format posée en choix multiples, écartée sans réponse — reste ouverte)*
+*(format tranché en choix multiples : **CSV, avec écran de revue**. Rien ne s'écrit avant
+validation ; la déduplication se fait sur date + montant + libellé, et toute ligne
+ambiguë est présentée plutôt que devinée.)*
 
 > Il faudrait aussi ajouter une bulle en haut a droite avec un logo de stats pour afficher
 > une page dédié aux budgets et la ou on vois la consommation de toutes les catégorie
@@ -329,8 +331,8 @@ mouvement des écrans mesuré à 60 images/s.
    décroissant, et une ligne « sans catégorie » qui n'est jamais masquée : c'est souvent
    la plus grosse, et la cacher donnerait une répartition fausse.
 
-6. **Import de relevé bancaire**, demandé le 2026-08-20 — format à trancher (voir Points
-   ouverts). Trois contraintes non négociables, quel que soit le format :
+6. **Import de relevé bancaire au format CSV**, demandé le 2026-08-20. Trois contraintes
+   non négociables :
    - **rien ne s'écrit sans revue** : l'import propose, l'utilisateur valide ;
    - **clé d'unicité explicite et documentée**, sans quoi réimporter un mois qui se
      chevauche duplique de l'argent ;
@@ -364,13 +366,11 @@ tranché, et de ce qui reste ouvert.
 
 ## Points ouverts
 
-- **Format de l'import bancaire** — CSV, OFX/QIF, ou PDF. Ce qui les sépare n'est pas la
-  lecture du fichier mais la capacité à dire « cette ligne, je l'ai déjà importée ». OFX
-  et QIF portent un identifiant de transaction fourni par la banque : le doublon devient
-  impossible par construction. Le CSV n'en a pas, il faut déduire la clé de
-  date + montant + libellé. Le PDF n'a ni identifiant ni structure garantie, et une
-  virgule mal lue transforme 1 234,56 en 123 456 sans que rien ne le signale. Posé en
-  choix multiples le 2026-08-20, écarté sans réponse.
+- ~~Format de l'import bancaire~~ — **TRANCHÉ le 2026-08-20** : CSV, avec écran de revue.
+  Le CSV ne porte aucun identifiant de transaction, contrairement à OFX et QIF : la clé
+  d'unicité se déduit de date + montant + libellé, et ne peut pas distinguer deux
+  opérations réellement identiques le même jour. C'est précisément pourquoi rien ne
+  s'écrit sans validation — l'ambiguïté est présentée, jamais tranchée en silence.
 - **Trois bulles autour du contenu** — avatar à gauche, Calendrier et Statistiques à
   droite. Sur 430 px, c'est beaucoup de chrome permanent au-dessus du solde. À regarder
   une fois posé : si l'en-tête devient chargé, l'une des deux peut descendre dans la page
