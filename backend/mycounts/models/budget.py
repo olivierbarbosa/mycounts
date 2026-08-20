@@ -36,6 +36,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from mycounts.domain.agregats import EtatOperation
 from mycounts.domain.comptes import TypeCompte
+from mycounts.domain.enveloppes import TypeMouvement as TypeMouvementEnveloppe
 from mycounts.domain.recurrence import UniteRecurrence
 from mycounts.models.auth import Foyer, Utilisateur
 from mycounts.models.base import Base
@@ -309,3 +310,90 @@ class Operation(Base):
 
     compte: Mapped[Compte] = relationship()
     categorie: Mapped[Categorie | None] = relationship()
+
+
+class Enveloppe(Base):
+    """Part réservée de l'épargne, rattachée à une catégorie de dépense.
+
+    Aucune colonne de solde : il se recalcule depuis `MouvementEnveloppe`, exactement
+    comme le solde d'un compte se recalcule depuis ses opérations. Stocker un solde en
+    ferait une seconde source de vérité, qui dériverait au premier mouvement oublié.
+    """
+
+    __tablename__ = "enveloppe"
+    __table_args__ = (
+        UniqueConstraint("foyer_id", "nom", name="uq_enveloppe_nom_par_foyer"),
+        CheckConstraint(
+            "cible_centimes is null or cible_centimes > 0",
+            name="ck_enveloppe_cible_positive",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    foyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("foyer.id", ondelete="RESTRICT"))
+    cree_par_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="RESTRICT")
+    )
+    nom: Mapped[str] = mapped_column(String(80))
+
+    # À quoi l'argent est promis. Facultatif : une réserve générale n'a pas de catégorie.
+    categorie_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("categorie.id", ondelete="RESTRICT"), default=None
+    )
+
+    # Sur quel compte cet argent DEVRAIT se trouver. Simple préférence de couverture :
+    # elle ne provoque aucun mouvement bancaire, elle sert à comparer ce qui est promis à
+    # ce qui est réellement en banque.
+    compte_prefere_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("compte.id", ondelete="RESTRICT"), default=None
+    )
+
+    # `None` et non zéro : une enveloppe sans cible n'est pas une enveloppe pleine, et la
+    # préparation mensuelle ne doit rien lui recommander plutôt que de recommander zéro.
+    cible_centimes: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    date_cible: Mapped[dt.date | None] = mapped_column(Date, default=None)
+
+    archive: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    categorie: Mapped[Categorie | None] = relationship()
+    mouvements: Mapped[list[MouvementEnveloppe]] = relationship(
+        back_populates="enveloppe", cascade="all, delete-orphan"
+    )
+
+
+class MouvementEnveloppe(Base):
+    """Une ligne du journal d'une enveloppe.
+
+    Le montant est TOUJOURS positif : c'est le type qui dit le sens. Un montant signé
+    rendrait possible une allocation négative — une reprise déguisée, invisible dans un
+    journal filtré par type.
+    """
+
+    __tablename__ = "mouvement_enveloppe"
+    __table_args__ = (
+        CheckConstraint("montant_centimes > 0", name="ck_mouvement_enveloppe_positif"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    enveloppe_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("enveloppe.id", ondelete="CASCADE"), index=True
+    )
+    type: Mapped[TypeMouvementEnveloppe] = mapped_column(String(24))
+    montant_centimes: Mapped[int] = mapped_column(BigInteger)
+    date_mouvement: Mapped[dt.date] = mapped_column(Date)
+    libelle: Mapped[str] = mapped_column(String(140), default="")
+
+    # L'opération qui a puisé dans l'enveloppe, s'il y en a une. Facultatif : une
+    # allocation ne vient d'aucune opération, c'est tout son propos.
+    operation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("operation.id", ondelete="SET NULL"), default=None
+    )
+
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    enveloppe: Mapped[Enveloppe] = relationship(back_populates="mouvements")

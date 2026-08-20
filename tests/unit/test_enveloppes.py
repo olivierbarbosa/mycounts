@@ -1,73 +1,164 @@
-"""Répartition de l'épargne en enveloppes.
+"""Enveloppes : le solde vient du journal, jamais d'une valeur écrite.
 
-Le test central est `le non affecté devient négatif quand l'épargne fond` : c'est la
-mesure qui peut rendre la réponse inverse. Forcer ce reste à zéro cacherait exactement ce
-qu'il faut voir — que les promesses ne sont plus couvertes par ce qui est en banque.
+Deux tests centraux, tous deux capables de rendre la réponse inverse :
+
+- `le reserve ne compte que les soldes positifs` : une enveloppe dans le rouge ne doit pas
+  rogner ce que les autres promettent ;
+- `le non affecte devient negatif quand l'argent fond` : le forcer à zéro cacherait
+  exactement ce qu'il faut voir.
 """
 
 from __future__ import annotations
 
-from mycounts.domain.enveloppes import Enveloppe, place_disponible, repartir
+import itertools
+
+from mycounts.domain.enveloppes import (
+    CREDITE,
+    Enveloppe,
+    Mouvement,
+    Repartition,
+    TypeMouvement,
+    repartir,
+    solde_de,
+)
 from mycounts.domain.montants import Cents
 
 
-def enveloppe(nom: str, montant: int) -> Enveloppe:
-    return Enveloppe(nom=nom, montant=Cents(montant))
+def m(type_: TypeMouvement, montant: int) -> Mouvement:
+    return Mouvement(type=type_, montant=Cents(montant))
 
 
-def test_le_non_affecte_est_ce_qui_reste_libre() -> None:
-    etat = repartir(
-        Cents(300_000), (enveloppe("Impôts", 90_000), enveloppe("Vacances", 80_000))
+def enveloppe(nom: str, *mouvements: Mouvement, cible: int | None = None) -> Enveloppe:
+    return Enveloppe(
+        nom=nom, mouvements=mouvements, cible=None if cible is None else Cents(cible)
     )
-    assert etat.affecte == 170_000
-    assert etat.non_affecte == 130_000
-    assert etat.decouvert is False
 
 
-def test_le_non_affecte_devient_negatif_quand_lepargne_fond() -> None:
-    """Une reprise a entamé des enveloppes : il faut que ça se voie.
+def test_chaque_type_a_un_sens_declare() -> None:
+    """Ajouter un type sans décider de son sens doit faire échouer ce test.
 
-    Le témoin oppose deux répartitions AUX MÊMES enveloppes, dont seule l'épargne change.
-    Sans lui, un code qui bornerait le reste à zéro passerait le test précédent.
+    Sans lui, un type nouveau tomberait par défaut du côté « débite » — silencieusement,
+    et sur de l'argent.
     """
-    enveloppes = (enveloppe("Impôts", 90_000), enveloppe("Vacances", 80_000))
+    for type_ in TypeMouvement:
+        credite = type_ in CREDITE
+        assert isinstance(credite, bool)
+    # Les types crédités sont ceux qu'on a explicitement listés, ni plus ni moins.
+    assert {
+        TypeMouvement.ALLOCATION,
+        TypeMouvement.REMBOURSEMENT,
+        TypeMouvement.AJUSTEMENT_PLUS,
+    } == CREDITE
+
+
+def test_le_solde_se_recalcule_depuis_le_journal() -> None:
+    solde = solde_de(
+        [
+            m(TypeMouvement.ALLOCATION, 90_000),
+            m(TypeMouvement.DEPENSE, 12_000),
+            m(TypeMouvement.REMBOURSEMENT, 2_000),
+        ]
+    )
+    assert solde == 80_000
+
+
+def test_le_montant_est_toujours_positif_le_sens_vient_du_type() -> None:
+    """Deux mouvements de MÊME montant et de sens opposés s'annulent.
+
+    C'est ce qui rend un montant signé inutile — et dangereux : une allocation négative
+    serait une reprise déguisée, invisible dans un journal filtré par type.
+    """
+    assert solde_de([m(TypeMouvement.ALLOCATION, 5_000), m(TypeMouvement.REPRISE, 5_000)]) == 0
+
+
+def test_une_enveloppe_peut_passer_en_negatif() -> None:
+    """Une dépense réelle ne se bloque pas parce que l'enveloppe est mal financée."""
+    vacances = enveloppe(
+        "Vacances", m(TypeMouvement.ALLOCATION, 10_000), m(TypeMouvement.DEPENSE, 13_000)
+    )
+    assert vacances.solde == -3_000
+
+
+def test_le_reserve_ne_compte_que_les_soldes_positifs() -> None:
+    """Une enveloppe dans le rouge ne rogne pas ce que les autres promettent.
+
+    Le témoin oppose deux répartitions dont seule la seconde a une enveloppe négative :
+    le réservé doit être IDENTIQUE, alors qu'une somme naïve le ferait baisser de 5 000.
+    """
+    impots = enveloppe("Impôts", m(TypeMouvement.ALLOCATION, 90_000))
+    vacances_rouge = enveloppe("Vacances", m(TypeMouvement.DEPENSE, 5_000))
+
+    sans = repartir(Cents(300_000), [impots])
+    avec = repartir(Cents(300_000), [impots, vacances_rouge])
+
+    assert sans.reserve == 90_000
+    assert avec.reserve == 90_000, "une enveloppe négative ne diminue pas le réservé"
+    assert avec.non_affecte == 210_000
+
+
+def test_le_non_affecte_devient_negatif_quand_largent_fond() -> None:
+    """Le témoin : mêmes enveloppes, seule l'épargne change."""
+    enveloppes = [
+        enveloppe("Impôts", m(TypeMouvement.ALLOCATION, 90_000)),
+        enveloppe("Vacances", m(TypeMouvement.ALLOCATION, 80_000)),
+    ]
 
     confortable = repartir(Cents(300_000), enveloppes)
     entame = repartir(Cents(120_000), enveloppes)
 
     assert confortable.non_affecte == 130_000
+    assert confortable.decouvert is False
     assert entame.non_affecte == -50_000, "borner à zéro cacherait que les promesses sautent"
     assert entame.decouvert is True
 
 
-def test_la_part_se_calcule_sur_lepargne_totale_pas_sur_laffecte() -> None:
-    """Rapportée à l'affecté, la dernière enveloppe grossirait à mesure qu'on en supprime.
-
-    Deux répartitions de MÊME enveloppe et de même épargne, l'une avec une seconde
-    enveloppe et l'autre sans : la part de la première ne doit pas bouger.
-    """
-    impots = enveloppe("Impôts", 90_000)
-
-    seule = repartir(Cents(300_000), (impots,))
-    accompagnee = repartir(Cents(300_000), (impots, enveloppe("Vacances", 80_000)))
+def test_la_part_ne_depend_pas_des_voisines() -> None:
+    impots = enveloppe("Impôts", m(TypeMouvement.ALLOCATION, 90_000))
+    seule = repartir(Cents(300_000), [impots])
+    accompagnee = repartir(
+        Cents(300_000), [impots, enveloppe("Vacances", m(TypeMouvement.ALLOCATION, 80_000))]
+    )
 
     assert seule.part(impots) == 30
-    assert accompagnee.part(impots) == 30, "la part ne dépend pas des voisines"
+    assert accompagnee.part(impots) == 30
 
 
 def test_une_epargne_nulle_ne_divise_pas_par_zero() -> None:
-    etat = repartir(Cents(0), (enveloppe("Impôts", 90_000),))
-    assert etat.part(etat.enveloppes[0]) == 0
-    assert etat.decouvert is True
+    vide = repartir(Cents(0), [enveloppe("Impôts", m(TypeMouvement.ALLOCATION, 90_000))])
+    assert vide.part(vide.enveloppes[0]) == 0
+    assert vide.decouvert is True
 
 
-def test_la_place_disponible_ignore_lenveloppe_quon_modifie() -> None:
-    """Sinon, augmenter une enveloppe se heurterait à ses propres euros déjà comptés.
+def test_la_place_restante_vaut_none_sans_cible() -> None:
+    """`None` et non zéro : sans cible, la préparation mensuelle ne doit RIEN recommander.
 
-    Le témoin est la première assertion : sans `sauf`, la place vaudrait 130 000 et
-    porter l'enveloppe à 200 000 serait refusé alors que l'épargne le permet largement.
+    Recommander zéro serait déjà une décision prise à la place de l'utilisateur.
     """
-    enveloppes = (enveloppe("Impôts", 90_000), enveloppe("Vacances", 80_000))
+    sans_cible = enveloppe("Divers", m(TypeMouvement.ALLOCATION, 10_000))
+    avec_cible = enveloppe("Ski", m(TypeMouvement.ALLOCATION, 10_000), cible=30_000)
 
-    assert place_disponible(Cents(300_000), enveloppes) == 130_000
-    assert place_disponible(Cents(300_000), enveloppes, sauf="Impôts") == 220_000
+    assert sans_cible.place is None
+    assert avec_cible.place == 20_000
+
+
+def test_la_place_ne_devient_jamais_negative() -> None:
+    """Dépasser sa cible ne crée pas une place négative, qui se lirait comme une dette."""
+    depassee = enveloppe("Ski", m(TypeMouvement.ALLOCATION, 40_000), cible=30_000)
+    assert depassee.place == 0
+
+
+def test_aucune_combinaison_de_types_ne_fait_planter_le_calcul() -> None:
+    """Balayage du produit cartésien : deux mouvements de tous types possibles.
+
+    Un test à trois exemples choisis ne prouve rien d'un calcul qui dépend d'un ensemble
+    de types — il prouve que ces trois-là marchent.
+    """
+    for a, b in itertools.product(TypeMouvement, repeat=2):
+        attendu = (100 if a in CREDITE else -100) + (200 if b in CREDITE else -200)
+        assert solde_de([m(a, 100), m(b, 200)]) == attendu
+
+
+def test_une_repartition_sans_enveloppe_laisse_tout_disponible() -> None:
+    vide = Repartition(epargne_totale=Cents(50_000), enveloppes=())
+    assert vide.reserve == 0
+    assert vide.non_affecte == 50_000
