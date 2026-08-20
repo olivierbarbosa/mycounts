@@ -184,8 +184,16 @@ ERREURS.md #024 et #025)*
 > Il faut reprenser le bouton + pour moi il doit être accessible soit en haut a droite sous
 > le même format que la bulle du profil ou sinon centrer dasn la navbar pour un ajout rapide
 
-*(question posée en choix multiples, écartée sans réponse — reste ouverte, voir « Points
-ouverts »)*
+> Pareil le calendrier peut être mis en haut a droite en format bulle comme l'avatar de
+> profil pas besoin de le mettre dans la navbar pour moi la navbar doit avoir :
+>
+> Accueil | Budget | + | Enveloppe | Epargne
+
+*(en réponse à « qu'est-ce qu'une Enveloppe ? »)*
+
+> Les enveloppes sont des enveloppes définit par rapport a une catégorie de dépense lié a
+> l'épargne c'est pour diviser ton épargne en enveloppe visuel savoir combien tu as de
+> disponible pour quoi
 
 > Note toi dans la loop les idées que je rajoute :
 >
@@ -251,13 +259,19 @@ mouvement des écrans mesuré à 60 images/s.
 **Reste à faire**, dans cet ordre :
 
 1. ~~Détail d'un compte d'épargne~~ — **fait le 2026-08-20**.
-2. **Retouches de la saisie et de l'accueil**, demandées le 2026-08-20 :
+2. **Nouvelle barre d'onglets**, demandée le 2026-08-20 :
+   `Accueil | Budget | + | Enveloppe | Épargne`. Le **+ est centré** dans la barre — c'est
+   le geste le plus fréquent, il tombe sous le pouce. Le **Calendrier** quitte la barre
+   pour une bulle en haut à droite, au format de celle du profil. Budget devient un
+   onglet à part entière au lieu d'un écran poussé depuis l'accueil.
+   *(« Enveloppe » reste à définir, voir Points ouverts.)*
+3. **Retouches de la saisie et de l'accueil**, demandées le 2026-08-20 :
    - le **solde d'ouverture** ne doit pas figurer dans la liste de l'accueil : on y veut
      les dépenses des comptes chèques et le solde, pas la ligne d'amorçage ;
    - la case **« c'est ma paie » disparaît du mode Virement**, où elle n'a aucun sens ;
    - en mode **Revenu**, c'est la catégorie **Salaire** qui dit que c'est la paie ;
    - plus d'**écart** entre le sélecteur de compte et les deux boutons, en mode Dépense.
-3. **Onglet Foyer** — membres, codes d'invitation (aujourd'hui enfouis dans un sous-menu),
+4. **Onglet Foyer** — membres, codes d'invitation (aujourd'hui enfouis dans un sous-menu),
    comptes joints, plafonds partagés. C'est le lot 5 du séquencement d'origine.
 3. **Logos des prélèvements**, sur le modèle KeePassXC : bouton explicite, requête faite
    par le serveur, mise en cache, repli sur la pastille.
@@ -284,11 +298,13 @@ tranché, et de ce qui reste ouvert.
 
 ## Points ouverts
 
-- **Où placer le bouton +** — en haut à droite au format de la bulle d'avatar, ou centré
-  dans la barre d'onglets. Posé en choix multiples le 2026-08-20, écarté sans réponse. Les
-  deux ne coûtent pas la même chose au pouce : le coin haut-droit est le point le plus
-  éloigné sur un écran de 430 × 932, et l'ajout est le geste le plus fréquent de
-  l'application. À trancher avant de coder.
+- ~~Ce qu'est une « Enveloppe »~~ — **TRANCHÉ le 2026-08-20** : une enveloppe découpe
+  l'ÉPARGNE, pas le budget. Elle est rattachée à une catégorie de dépense et répond à
+  « combien ai-je de disponible pour quoi ». Elle ne déplace aucun argent : c'est une
+  partition de ce qui est déjà sur les livrets. **Invariant à tenir** : la somme des
+  enveloppes ne peut jamais dépasser l'épargne réelle, et le non-affecté est toujours
+  affiché. Sans cette contrainte, le système devient une fiction qui promet de l'argent
+  qui n'existe pas — c'est l'échec classique de la méthode des enveloppes.
 - **« C'est la catégorie Salaire qui dit que c'est la paie » contredit une règle écrite.**
   `models/budget.py` dit noir sur blanc : « Le déduire d'une catégorie nommée *Salaire*
   rendrait la règle invisible et cassable en renommant. » Une paie ouvre la période
