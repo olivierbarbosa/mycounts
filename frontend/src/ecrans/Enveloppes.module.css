@@ -1,0 +1,248 @@
+.page {
+  min-height: 100dvh;
+  padding: var(--espace-l);
+  padding-top: calc(
+    var(--disposition-reserve-bulle) + var(--espace-l) + env(safe-area-inset-top, 0px)
+  );
+  /* Réserve la hauteur de la barre : sans elle, la dernière enveloppe passe sous le verre. */
+  padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-l);
+}
+
+.entete {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-xs);
+  text-align: center;
+  padding-top: var(--espace-xl);
+}
+
+.entete::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: min(420px, 90%);
+  height: 200px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--couleur-lueur-accent), transparent);
+  filter: blur(20px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.libelle {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+.borne {
+  margin: 0;
+  color: var(--couleur-texte-faible);
+  font-size: 13px;
+}
+
+/* Le découvert s'écrit en toutes lettres : la couleur du chiffre ne le porte jamais
+   seule, et « non affecté : −40 € » ne dit pas quoi faire. */
+.alerte {
+  margin: 0;
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-debit);
+  color: var(--couleur-debit);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+}
+
+.carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.enteteCarte {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-m);
+}
+
+.nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+/* Part de l'épargne occupée. Extrémité arrondie ancrée à la base : un remplissage qui
+   grandirait depuis son centre ne représenterait plus une progression. */
+.piste {
+  display: block;
+  height: 8px;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-haute);
+  overflow: hidden;
+}
+
+.remplissage {
+  display: block;
+  height: 100%;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-accent-clair);
+  transition: width 260ms ease-out;
+}
+
+.rouge {
+  background: var(--couleur-debit);
+}
+
+/* Encre neutre pour les quantités : la couleur est réservée à l'état. */
+.details {
+  font-size: 13px;
+  color: var(--couleur-texte-attenue);
+}
+
+.marque {
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+  color: var(--couleur-debit);
+}
+
+.retirer {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-debit);
+  font-size: 15px;
+}
+
+.formulaire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.etiquette {
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+  color: var(--couleur-texte-attenue);
+}
+
+.saisie {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--cible-tactile);
+  padding: var(--espace-m) var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  font-size: 16px;
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--couleur-texte-attenue);
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-s);
+}
+
+.principal {
+  flex: 1;
+  min-width: 140px;
+  min-height: var(--cible-tactile);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+  box-shadow:
+    inset 0 0 0 1px var(--couleur-contour-clair),
+    0 1px 2px var(--couleur-contour-sombre);
+}
+
+.secondaire {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-texte);
+  font-size: 15px;
+}
+
+.vide {
+  padding: var(--espace-xl);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  color: var(--couleur-texte-attenue);
+  text-align: center;
+}
+
+.vide p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .remplissage {
+    transition: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding-left: calc(var(--disposition-largeur-rail) + var(--espace-xxl));
+    padding-right: var(--espace-xxl);
+  }
+}

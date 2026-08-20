@@ -12,8 +12,33 @@ import { expect, test, type Page } from '@playwright/test'
  * afficherait toujours du sombre.
  */
 
-const FOND_SOMBRE = 'rgb(27, 15, 51)'
-const FOND_CLAIR = 'rgb(251, 247, 255)'
+/* La mesure porte sur la LUMINANCE du fond, pas sur deux valeurs `rgb()` recopiées.
+ *
+ * Ces deux constantes tenaient les couleurs exactes de la palette. Elles en faisaient donc
+ * un second auteur : changer la palette dans `tokens.ts` — seul auteur déclaré — faisait
+ * rougir ce test, qui ne parle pourtant pas de couleurs mais de savoir QUI décide du
+ * thème, du réglage ou du téléphone.
+ *
+ * Ce que la version par luminance perd : elle ne verrait pas une palette sombre virant au
+ * brun. Ce n'est pas ce que ce fichier surveille, et `contraste.spec.ts` le verrait.
+ * Ce qu'elle garde : les deux sens restent distingués, donc un réglage bloqué sur une
+ * seule valeur la fait toujours rougir — vérifié en forçant `data-theme` à une constante.
+ */
+const luminance = (page: Page) =>
+  page.evaluate(() => {
+    const [r, v, b] = getComputedStyle(document.body)
+      .backgroundColor.match(/[\d.]+/g)!
+      .map(Number)
+    const canal = (x: number) => {
+      const n = x / 255
+      return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4
+    }
+    return 0.2126 * canal(r) + 0.7152 * canal(v) + 0.0722 * canal(b)
+  })
+
+/** Au-dessus : un fond clair. En dessous : un fond sombre. Les deux thèmes du projet
+ *  mesurent 0,86 et 0,01 — la frontière est large, elle ne départage rien de limite. */
+const FRONTIERE = 0.3
 
 async function connecter(page: Page) {
   await page.goto('/')
@@ -40,28 +65,30 @@ async function choisirTheme(page: Page, libelle: string) {
     .click()
 }
 
-const fond = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor)
-
 test('le thème choisi l’emporte sur celui du téléphone, dans les deux sens', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' })
   await connecter(page)
-  expect(await fond(page), 'sans choix, l’app suit le téléphone').toBe(FOND_CLAIR)
+  expect(await luminance(page), 'sans choix, l’app suit le téléphone').toBeGreaterThan(FRONTIERE)
 
   await ouvrirApparence(page)
   await choisirTheme(page, 'Sombre')
-  expect(await fond(page), 'le choix sombre doit primer sur un téléphone en clair').toBe(
-    FOND_SOMBRE,
-  )
+  expect(
+    await luminance(page),
+    'le choix sombre doit primer sur un téléphone en clair',
+  ).toBeLessThan(FRONTIERE)
 
   // L'autre sens, sur un téléphone en sombre : c'est ce qui distingue un réglage qui
   // fonctionne d'un réglage bloqué sur une seule valeur.
   await page.emulateMedia({ colorScheme: 'dark' })
   await choisirTheme(page, 'Clair')
-  expect(await fond(page), 'le choix clair doit primer sur un téléphone en sombre').toBe(FOND_CLAIR)
+  expect(
+    await luminance(page),
+    'le choix clair doit primer sur un téléphone en sombre',
+  ).toBeGreaterThan(FRONTIERE)
 
   // Et « Système » rend la main.
   await choisirTheme(page, 'Système')
-  expect(await fond(page), 'Système doit rendre la main au téléphone').toBe(FOND_SOMBRE)
+  expect(await luminance(page), 'Système doit rendre la main au téléphone').toBeLessThan(FRONTIERE)
 })
 
 test('le thème choisi survit au rechargement', async ({ page }) => {
@@ -74,7 +101,7 @@ test('le thème choisi survit au rechargement', async ({ page }) => {
 
   await page.reload()
   await expect(page.locator('nav')).toBeVisible()
-  expect(await fond(page)).toBe(FOND_SOMBRE)
+  expect(await luminance(page)).toBeLessThan(FRONTIERE)
 
   // Remettre « Système » : les tests suivants partagent ce navigateur et son stockage.
   await ouvrirApparence(page)

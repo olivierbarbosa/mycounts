@@ -30,6 +30,10 @@ CATEGORIES_INITIALES: Final[tuple[CategorieInitiale, ...]] = (
     CategorieInitiale("Santé", NatureCategorie.DEPENSE, TeinteCategorie.CYAN),
     CategorieInitiale("Achats divers", NatureCategorie.DEPENSE, TeinteCategorie.ARDOISE),
     CategorieInitiale("Salaire", NatureCategorie.REVENU, TeinteCategorie.VERT),
+    # Un remboursement n'est ni une paie ni un gain : c'est de l'argent qui revient. Le
+    # ranger dans « Autres revenus » gonflait les revenus du mois d'une somme qui n'en est
+    # pas un, et rendait illisible la question « combien ai-je réellement gagné ».
+    CategorieInitiale("Remboursement", NatureCategorie.REVENU, TeinteCategorie.AMBRE),
     CategorieInitiale("Autres revenus", NatureCategorie.REVENU, TeinteCategorie.CYAN),
 )
 """Volontairement courte.

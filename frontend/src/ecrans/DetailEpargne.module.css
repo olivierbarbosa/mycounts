@@ -3,7 +3,7 @@
 .panneau {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: var(--plan-ecran);
   overflow-y: auto;
   overscroll-behavior: contain;
   background-color: var(--couleur-fond);

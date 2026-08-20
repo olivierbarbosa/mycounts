@@ -5,6 +5,7 @@ import type { CategoriePublique, ComptePublic, OperationPublique } from '../api/
 import { ErreurApi, api } from '../api/client'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import { Montant } from './Montant'
+import { fermetureExterieure } from './fermetureExterieure'
 import styles from './FeuilleOperation.module.css'
 
 type Props = {
@@ -103,6 +104,7 @@ export function FeuilleOperation({
   return (
     <div
       className={styles.voile}
+      onClick={fermetureExterieure(surFermeture)}
       role="dialog"
       aria-modal="true"
       aria-label="Détail de l’opération"

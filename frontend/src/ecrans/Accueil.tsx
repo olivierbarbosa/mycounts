@@ -1,4 +1,4 @@
-import { ChevronRight, Plus } from 'lucide-react'
+import { ChevronRight, Pencil } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
@@ -50,6 +50,46 @@ function dateCivile(iso: string): Date {
   return new Date(annee, mois - 1, jour)
 }
 
+/** Regroupe les opérations par jour, dans l'ordre où elles arrivent.
+ *
+ *  Ce que ce regroupement supprime : la date répétée sur chacune des lignes d'une même
+ *  journée. Sur une période de paie à paie, la même date revenait jusqu'à six fois de
+ *  suite dans la colonne des détails, et c'est elle qu'on lisait en premier au lieu du
+ *  libellé. Le serveur renvoyant déjà les opérations triées, l'ordre des groupes se déduit
+ *  de l'ordre d'arrivée — trier une seconde fois ici ferait de ce composant un second
+ *  auteur du classement. */
+function parJour(
+  operations: readonly OperationPublique[],
+): readonly (readonly [string, readonly OperationPublique[]])[] {
+  const groupes = new Map<string, OperationPublique[]>()
+  for (const operation of operations) {
+    const jour = groupes.get(operation.date_operation)
+    if (jour === undefined) groupes.set(operation.date_operation, [operation])
+    else jour.push(operation)
+  }
+  return [...groupes]
+}
+
+/**
+ * Accueil.
+ *
+ * Ce que cet écran fait : répondre en un coup d'œil, sans faire défiler, à « combien
+ * me reste-t-il, est-ce que mes budgets tiennent, qu'ai-je dépensé récemment ». Un seul
+ * chiffre en grand, trois mesures secondaires sur une ligne, les trois budgets les plus
+ * tendus, la liste.
+ *
+ * Ce qu'il ne fait PAS, et c'est la moitié de la refonte du 20 août 2026 :
+ *  - **il ne montre pas les montants des plafonds.** Une jauge dit une proportion ; le
+ *    « 212 € sur 400 € » qui l'accompagnait doublait la hauteur du bloc pour redire ce que
+ *    la barre montrait déjà. Les chiffres vivent sur l'onglet Budget ;
+ *  - **il ne montre pas tous les plafonds**, voir `JAUGES_SUR_LACCUEIL` ;
+ *  - **il ne montre pas le solde d'ouverture** dans la liste. C'est une ligne d'amorçage,
+ *    pas une dépense : elle compte dans les soldes et n'a rien à faire dans le journal de
+ *    ce qu'on a acheté ;
+ *  - **il ne propose aucun formulaire.** Tout ce qui écrit passe par le `+` de la barre ou
+ *    par une feuille — un écran de consultation qui contient un champ de saisie fait
+ *    hésiter sur ce qu'on est en train de faire.
+ */
 export function Accueil({
   surSaisie,
   surBudgets,
@@ -79,6 +119,17 @@ export function Accueil({
   const parCategorie = new Map(categories.map((c) => [c.id, c]))
   const parCompte = new Map(comptes.map((c) => [c.id, c]))
 
+  // L'amorçage n'est pas une opération du journal : voir le bloc de tête.
+  const journal = operations.filter((operation) => !operation.est_ouverture)
+
+  // TOUS les plafonds, et les plus tendus d'abord. Une version intermédiaire n'en montrait
+  // que trois pour raccourcir l'écran : Olivier a tranché le 20 août 2026 après l'avoir vu
+  // — les budgets se lisent d'un coup d'œil ou ne servent à rien, et en cacher six sur
+  // neuf oblige à ouvrir un second écran pour répondre à la question que celui-ci pose.
+  // `toSorted` plutôt qu'un tri en place : `plafonds` vient de l'état, le trier sur place
+  // le muterait sous React.
+  const tendus = plafonds.toSorted((a, b) => b.part_consommee - a.part_consommee)
+
   return (
     <main className={styles.page}>
       <header
@@ -97,71 +148,74 @@ export function Accueil({
           {resume.periode.fin_estimee ? ' (estimé)' : ''}
         </p>
 
-        <div className={styles.detailSoldes}>
+        {/* Trois colonnes de largeur ÉGALE, et toujours les trois : « À confirmer » était
+            masqué quand il valait zéro, ce qui faisait sauter les deux autres d'un tiers
+            de largeur d'un rafraîchissement à l'autre. Une mise en page qui bouge se
+            relit à chaque fois. */}
+        <div className={styles.mesures}>
           {/* Le réel est le seul chiffre qui se compare à la banque : c'est donc lui qui
               se corrige, et il s'annonce comme actionnable plutôt que d'attendre qu'on
               devine qu'on peut le toucher. */}
-          <button type="button" className={styles.detailAction} onClick={surAjustement}>
-            <span className={styles.detailLibelle}>Réel aujourd’hui</span>
+          <button
+            type="button"
+            className={styles.mesureAction}
+            onClick={surAjustement}
+            // Le mot « Corriger » a laissé la place à un crayon, qui tient sur la ligne du
+            // libellé au lieu d'ajouter une troisième ligne à la colonne. Ce que l'icône
+            // ne dit plus, l'étiquette accessible le dit : sans elle, le bouton
+            // s'annoncerait « Réel, 1 402,00 € » et rien n'indiquerait qu'il agit.
+            aria-label="Corriger le solde réel"
+          >
+            <span className={styles.mesureLibelle}>
+              Réel
+              <Pencil className={styles.crayon} size={11} strokeWidth={2.4} aria-hidden />
+            </span>
             <Montant
               centimes={resume.solde_reel}
               taille="ligne"
               neutre
               signeExplicitePositif={false}
             />
-            <span className={styles.corriger}>Corriger</span>
           </button>
-          {resume.solde_a_confirmer !== 0 && (
-            <div className={styles.detail}>
-              <span className={styles.detailLibelle}>À confirmer</span>
-              <Montant centimes={resume.solde_a_confirmer} taille="ligne" />
-            </div>
-          )}
-          <div className={styles.detail}>
-            <span className={styles.detailLibelle}>Dépensé sur la période</span>
+          <div className={styles.mesure}>
+            <span className={styles.mesureLibelle}>À confirmer</span>
+            <Montant centimes={resume.solde_a_confirmer} taille="ligne" />
+          </div>
+          <div className={styles.mesure}>
+            <span className={styles.mesureLibelle}>Dépensé</span>
             <Montant centimes={resume.depenses_de_periode} taille="ligne" />
           </div>
         </div>
       </header>
 
-      {/* Les budgets avant la liste des opérations : ce qu'on vient vérifier en ouvrant
-          l'application, c'est « est-ce que ça tient », pas « qu'ai-je acheté ». Le bloc
-          n'apparaît que si des plafonds existent — une section vide n'apprend rien et
-          repousse la liste vers le bas. */}
       {/* Le bloc s'affiche TOUJOURS, même sans plafond. Ne le montrer qu'une fois un
           plafond posé fermait la seule porte vers l'écran qui permet d'en poser un :
           une fonction livrée que personne ne pouvait atteindre. */}
       <section className={styles.budgets}>
-        <button type="button" className={styles.enteteBudgets} onClick={surBudgets}>
-          <h2 className={styles.titreListe}>Budgets</h2>
-          <span className={styles.lien}>
-            {plafonds.length === 0 ? 'Fixer un plafond' : 'Gérer'}
+        {plafonds.length === 0 ? (
+          <button type="button" className={styles.videBudgets} onClick={surBudgets}>
+            <span>Aucun plafond. En fixer un pour savoir, en cours de mois, si ça tient.</span>
             <ChevronRight size={16} strokeWidth={2} aria-hidden />
-          </span>
-        </button>
-
-        {plafonds.length === 0 && (
-          <p className={styles.videBudgets}>
-            Aucun plafond. En fixer un sur une catégorie permet de savoir, en cours de mois, si la
-            trajectoire tient.
-          </p>
-        )}
-        {plafonds.length > 0 && (
-          <ul className={styles.jauges}>
-            {plafonds.map((plafond) => (
-              <li key={plafond.id} className={styles.ligneJauge}>
-                <span className={styles.enteteJauge}>
+          </button>
+        ) : (
+          <>
+            <ul className={styles.jauges}>
+              {tendus.map((plafond) => (
+                <li key={plafond.id} className={styles.ligneJauge}>
                   <span className={styles.nomJauge}>{plafond.categorie_nom}</span>
-                  {/* Encre neutre, jamais la couleur de la barre : un chiffre teinté se
-                      lit comme un état alors qu'il n'est qu'une quantité. */}
+                  <Jauge plafond={plafond} />
+                  {/* Consommé sur limite, au bout de la barre : la proportion se voit, les
+                      montants se lisent, et les deux tiennent sur la même ligne. Encre
+                      neutre — la couleur est réservée à l'état, et un chiffre teinté se
+                      lirait comme une alerte alors qu'il ne dit qu'une somme. */}
                   <span className={styles.chiffreJauge}>
                     <Montant
                       centimes={-plafond.consomme_centimes}
                       taille="ligne"
                       neutre
                       signeExplicitePositif={false}
-                    />{' '}
-                    sur{' '}
+                    />
+                    {' / '}
                     <Montant
                       centimes={plafond.limite_centimes}
                       taille="ligne"
@@ -169,26 +223,25 @@ export function Accueil({
                       signeExplicitePositif={false}
                     />
                   </span>
-                </span>
-                <Jauge plafond={plafond} />
-                {plafond.depasse ? (
-                  <span className={styles.etatDepasse}>Plafond dépassé</span>
-                ) : plafond.depasse_avec_les_echeances ? (
-                  <span className={styles.etatAlerte}>Sera dépassé avec les prélèvements</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+                  {/* L'état ne tient jamais à la seule couleur de la barre, et n'occupe une
+                      ligne que lorsqu'il a quelque chose à dire. */}
+                  {plafond.depasse ? (
+                    <span className={styles.etatDepasse}>Plafond dépassé</span>
+                  ) : plafond.depasse_avec_les_echeances ? (
+                    <span className={styles.etatAlerte}>Sera dépassé avec les prélèvements</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <button type="button" className={styles.lienBudgets} onClick={surBudgets}>
+              Gérer les plafonds
+              <ChevronRight size={16} strokeWidth={2} aria-hidden />
+            </button>
+          </>
         )}
       </section>
 
-      <section>
-        <h2 className={styles.titreListe}>
-          Depuis le {jourEtMois(dateCivile(resume.periode.debut), moisCourt)}
-        </h2>
-      </section>
-
-      {operations.length === 0 ? (
+      {journal.length === 0 ? (
         <div className={styles.vide}>
           <p>Aucune opération sur cette période.</p>
           {/* Un état vide doit proposer l'action, pas seulement la décrire : « le bouton
@@ -198,53 +251,54 @@ export function Accueil({
           </button>
         </div>
       ) : (
-        <ul className={styles.liste}>
-          {operations.map((operation) => {
-            const categorie = operation.categorie_id
-              ? parCategorie.get(operation.categorie_id)
-              : undefined
-            const compte = parCompte.get(operation.compte_id)
-            return (
-              <li key={operation.id}>
-                <button
-                  type="button"
-                  className={styles.operation}
-                  onClick={() => surOperationChoisie(operation)}
-                  aria-label={`Détail de ${operation.libelle}`}
-                >
-                  <span
-                    className={`${styles.pastille} ${
-                      TEINTES[categorie?.teinte ?? 'ardoise'] ?? styles.teinteArdoise
-                    }`}
-                    aria-hidden="true"
-                  >
-                    {(categorie?.nom ?? operation.libelle).slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className={styles.corps}>
-                    <span className={styles.libelle}>{operation.libelle}</span>
-                    <span className={styles.meta}>
-                      {jourEtMois(dateCivile(operation.date_operation), moisCourt)}
-                      {categorie ? ` · ${categorie.nom}` : ''}
-                      {compte ? ` · ${compte.nom}` : ''}
-                      {operation.est_ouverture ? ' · ouverture' : ''}
-                    </span>
-                  </span>
-                  <Montant centimes={operation.montant_centimes} taille="ligne" />
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+        <section className={styles.journal}>
+          <h2 className={styles.titreListe}>
+            Depuis le {jourEtMois(dateCivile(resume.periode.debut), moisCourt)}
+          </h2>
+          {parJour(journal).map(([jour, duJour]) => (
+            <div key={jour} className={styles.groupe}>
+              <h3 className={styles.jour}>{jourEtMois(dateCivile(jour), moisCourt)}</h3>
+              <ul className={styles.liste}>
+                {duJour.map((operation) => {
+                  const categorie = operation.categorie_id
+                    ? parCategorie.get(operation.categorie_id)
+                    : undefined
+                  const compte = parCompte.get(operation.compte_id)
+                  return (
+                    <li key={operation.id}>
+                      <button
+                        type="button"
+                        className={styles.operation}
+                        onClick={() => surOperationChoisie(operation)}
+                        aria-label={`Détail de ${operation.libelle}`}
+                      >
+                        <span
+                          className={`${styles.pastille} ${
+                            TEINTES[categorie?.teinte ?? 'ardoise'] ?? styles.teinteArdoise
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {(categorie?.nom ?? operation.libelle).slice(0, 1).toUpperCase()}
+                        </span>
+                        <span className={styles.corps}>
+                          <span className={styles.libelle}>{operation.libelle}</span>
+                          {/* La date a quitté cette ligne : elle est portée par l'en-tête
+                              du groupe. Ne restent que catégorie et compte, qui varient
+                              d'une opération à l'autre. */}
+                          <span className={styles.meta}>
+                            {[categorie?.nom, compte?.nom].filter(Boolean).join(' · ')}
+                          </span>
+                        </span>
+                        <Montant centimes={operation.montant_centimes} taille="ligne" />
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </section>
       )}
-
-      <button
-        type="button"
-        className={styles.ajouter}
-        onClick={surSaisie}
-        aria-label="Saisir une opération"
-      >
-        <Plus size={24} strokeWidth={2.4} aria-hidden />
-      </button>
     </main>
   )
 }

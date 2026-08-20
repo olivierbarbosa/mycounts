@@ -9,7 +9,7 @@
 .panneau {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: var(--plan-ecran);
   overflow-y: auto;
   overscroll-behavior: contain;
   /* Verre dépoli plutôt qu'aplat : l'application reste devinée derrière, ce qui dit que

@@ -24,7 +24,14 @@ export default function preparation() {
 
   execFileSync(
     python,
-    ['-m', 'scripts.creer_premier_compte', "Foyer d'essai", courriel, 'Essai', '--ignorer-si-existe'],
+    [
+      '-m',
+      'scripts.creer_premier_compte',
+      "Foyer d'essai",
+      courriel,
+      'Essai',
+      '--ignorer-si-existe',
+    ],
     { cwd: racine, env: environnement, stdio: 'inherit' },
   )
 

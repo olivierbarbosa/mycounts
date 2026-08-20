@@ -332,6 +332,96 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/enveloppes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Lister
+     * @description Toutes les enveloppes, avec ce qui reste non affecté.
+     *
+     *     Le non-affecté est rendu au même niveau que les enveloppes, et non déduit par le
+     *     client : c'est la grandeur qui dit ce qu'on peut encore réserver, et la laisser
+     *     calculer ailleurs ouvrirait la porte à deux définitions du mot « disponible ».
+     */
+    get: operations['lister_api_enveloppes_get']
+    put?: never
+    /** Creer */
+    post: operations['creer_api_enveloppes_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/enveloppes/{enveloppe_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Supprimer
+     * @description Supprime l'enveloppe et son journal. Aucun argent ne bouge.
+     *
+     *     Une enveloppe ne détient rien : elle nomme une part de ce qui est déjà en banque.
+     *     La supprimer rend simplement cette part « non affectée ». C'est pourquoi il n'y a pas
+     *     de refus ici, contrairement aux comptes — il n'y a rien à perdre.
+     */
+    delete: operations['supprimer_api_enveloppes__enveloppe_id__delete']
+    options?: never
+    head?: never
+    /** Modifier */
+    patch: operations['modifier_api_enveloppes__enveloppe_id__patch']
+    trace?: never
+  }
+  '/api/enveloppes/{enveloppe_id}/journal': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Journal */
+    get: operations['journal_api_enveloppes__enveloppe_id__journal_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/enveloppes/{enveloppe_id}/mouvements': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Ajouter Mouvement
+     * @description Ajoute une ligne au journal. **N'écrit aucune opération bancaire.**
+     *
+     *     Réserver 200 € pour les vacances ne déplace pas 200 € : cela dit que 200 € des
+     *     livrets sont promis aux vacances. L'argent était déjà là.
+     */
+    post: operations['ajouter_mouvement_api_enveloppes__enveloppe_id__mouvements_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/epargne': {
     parameters: {
       query?: never
@@ -761,6 +851,43 @@ export interface components {
       /** Mot De Passe */
       mot_de_passe: string
     }
+    /** DemandeEnveloppe */
+    DemandeEnveloppe: {
+      /**
+       * Allocation Initiale Centimes
+       * @description Somme réservée d'emblée. Enregistrée comme un MOUVEMENT du journal, jamais comme un solde de départ : sinon ce serait la seule valeur que l'historique ignore.
+       * @default 0
+       */
+      allocation_initiale_centimes: number
+      /** Categorie Id */
+      categorie_id?: string | null
+      /** Cible Centimes */
+      cible_centimes?: number | null
+      /** Compte Prefere Id */
+      compte_prefere_id?: string | null
+      /** Date Cible */
+      date_cible?: string | null
+      /** Nom */
+      nom: string
+      /** @default allocation */
+      type_allocation_initiale: components['schemas']['TypeMouvement']
+    }
+    /** DemandeMouvement */
+    DemandeMouvement: {
+      /** Date Mouvement */
+      date_mouvement?: string | null
+      /**
+       * Libelle
+       * @default
+       */
+      libelle: string
+      /**
+       * Montant Centimes
+       * @description TOUJOURS positif : c'est le type qui dit le sens. Un montant signé rendrait possible une allocation négative, c'est-à-dire une reprise déguisée.
+       */
+      montant_centimes: number
+      type: components['schemas']['TypeMouvement']
+    }
     /** DemandeOperation */
     DemandeOperation: {
       /** Categorie Id */
@@ -903,6 +1030,34 @@ export interface components {
        */
       recurrence_id: string
     }
+    /** EnveloppePublique */
+    EnveloppePublique: {
+      /** Archive */
+      archive: boolean
+      /** Categorie Id */
+      categorie_id: string | null
+      /** Categorie Nom */
+      categorie_nom: string | null
+      /** Cible Centimes */
+      cible_centimes: number | null
+      /** Compte Prefere Id */
+      compte_prefere_id: string | null
+      /** Date Cible */
+      date_cible: string | null
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Nom */
+      nom: string
+      /** Part */
+      part: number
+      /** Place Centimes */
+      place_centimes: number | null
+      /** Solde Centimes */
+      solde_centimes: number
+    }
     /**
      * EpargnePublique
      * @description Ce que le foyer a mis de côté, et ce qu'il y a versé sur la période.
@@ -974,6 +1129,28 @@ export interface components {
       produit?: string | null
     }
     /**
+     * ModificationEnveloppe
+     * @description Champs absents = inchangés.
+     *
+     *     Conséquence assumée : on ne peut pas RETIRER une cible ici, seulement la changer.
+     *     Retirer une cible fait cesser toute recommandation mensuelle — c'est un geste rare et
+     *     lourd de sens, il aura sa propre route plutôt qu'un `null` ambigu.
+     */
+    ModificationEnveloppe: {
+      /** Archive */
+      archive?: boolean | null
+      /** Categorie Id */
+      categorie_id?: string | null
+      /** Cible Centimes */
+      cible_centimes?: number | null
+      /** Compte Prefere Id */
+      compte_prefere_id?: string | null
+      /** Date Cible */
+      date_cible?: string | null
+      /** Nom */
+      nom?: string | null
+    }
+    /**
      * ModificationOperation
      * @description Champs corrigeables d'une opération.
      *
@@ -1038,6 +1215,24 @@ export interface components {
       solde_fin_centimes: number
       /** Verse Centimes */
       verse_centimes: number
+    }
+    /** MouvementPublic */
+    MouvementPublic: {
+      /**
+       * Date Mouvement
+       * Format: date
+       */
+      date_mouvement: string
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Libelle */
+      libelle: string
+      /** Montant Centimes */
+      montant_centimes: number
+      type: components['schemas']['TypeMouvement']
     }
     /**
      * NatureCategorie
@@ -1173,6 +1368,22 @@ export interface components {
       unite: components['schemas']['UniteRecurrence']
     }
     /**
+     * RepartitionPublique
+     * @description L'épargne découpée, et ce qui reste libre.
+     */
+    RepartitionPublique: {
+      /** Decouvert */
+      decouvert: boolean
+      /** Enveloppes */
+      enveloppes: components['schemas']['EnveloppePublique'][]
+      /** Epargne Totale Centimes */
+      epargne_totale_centimes: number
+      /** Non Affecte Centimes */
+      non_affecte_centimes: number
+      /** Reserve Centimes */
+      reserve_centimes: number
+    }
+    /**
      * ResumePublic
      * @description Les quatre grandeurs, toutes exposées.
      *
@@ -1211,6 +1422,19 @@ export interface components {
      * @enum {string}
      */
     TypeCompte: 'courant' | 'epargne'
+    /**
+     * TypeMouvement
+     * @description Nature d'un mouvement d'enveloppe. Décide du sens, jamais le montant.
+     * @enum {string}
+     */
+    TypeMouvement:
+      | 'allocation'
+      | 'reprise'
+      | 'depense'
+      | 'remboursement'
+      | 'ajustement_plus'
+      | 'ajustement_moins'
+      | 'liberation'
     /**
      * UniteRecurrence
      * @enum {string}
@@ -1843,6 +2067,210 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['AjustementFait']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  lister_api_enveloppes_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RepartitionPublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  creer_api_enveloppes_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeEnveloppe']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RepartitionPublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  supprimer_api_enveloppes__enveloppe_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        enveloppe_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  modifier_api_enveloppes__enveloppe_id__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        enveloppe_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ModificationEnveloppe']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RepartitionPublique']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  journal_api_enveloppes__enveloppe_id__journal_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        enveloppe_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MouvementPublic'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  ajouter_mouvement_api_enveloppes__enveloppe_id__mouvements_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        enveloppe_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DemandeMouvement']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RepartitionPublique']
         }
       }
       /** @description Validation Error */

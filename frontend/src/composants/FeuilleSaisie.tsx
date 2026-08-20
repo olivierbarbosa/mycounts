@@ -4,11 +4,16 @@ import { type FormEvent, useState } from 'react'
 import type { CategoriePublique, ComptePublic } from '../api/client'
 import { ErreurApi, api } from '../api/client'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
+import { fermetureExterieure } from './fermetureExterieure'
+import { ChoixCategorie } from './ChoixCategorie'
 import styles from './FeuilleSaisie.module.css'
 
 type Props = {
   readonly comptes: readonly ComptePublic[]
   readonly categories: readonly CategoriePublique[]
+  /** Relit les référentiels après la création d'une catégorie à la volée : la liste vit
+   *  dans l'application, ce composant ne fait que la recevoir. */
+  readonly surReferentielsChanges: () => void | Promise<void>
   readonly surFermeture: () => void
   readonly surEnregistrement: () => void
 }
@@ -27,9 +32,16 @@ const aujourdHuiLocal = (): string => {
  *  d'argent. D'où un formulaire différent — deux comptes, aucune catégorie. */
 type Sens = 'depense' | 'revenu' | 'virement'
 
-export function FeuilleSaisie({ comptes, categories, surFermeture, surEnregistrement }: Props) {
+export function FeuilleSaisie({
+  comptes,
+  categories,
+  surFermeture,
+  surEnregistrement,
+  surReferentielsChanges,
+}: Props) {
   const [sens, setSens] = useState<Sens>('depense')
   const sortie = sens === 'depense'
+
   const [montant, setMontant] = useState('')
   const [libelle, setLibelle] = useState('')
   const [date, setDate] = useState(aujourdHuiLocal)
@@ -37,13 +49,27 @@ export function FeuilleSaisie({ comptes, categories, surFermeture, surEnregistre
   const [sourceId, setSourceId] = useState(comptes[0]?.id ?? '')
   const [destinationId, setDestinationId] = useState(comptes[1]?.id ?? '')
   const [categorieId, setCategorieId] = useState('')
+
+  /* Une catégorie nommée « Salaire » vaut « c'est ma paie », côté ÉCRAN seulement.
+   *
+   * `est_paie` reste une colonne explicite en base, et `models/budget.py` dit pourquoi :
+   * déduire la règle d'un nom de catégorie la rendrait invisible et cassable par un simple
+   * renommage. Ce qui est déduit ici n'est donc pas la règle mais la valeur envoyée, et le
+   * repli est bénin — renommer sa catégorie fait réapparaître la case, elle ne fait pas
+   * perdre le marqueur des opérations déjà enregistrées.
+   *
+   * La comparaison est faite sur le nom mis en minuscules et débarrassé de ses espaces :
+   * c'est le nom que porte la catégorie initiale du domaine. */
+  const laCategorieDitLaPaie =
+    !sortie &&
+    categories
+      .find((categorie) => categorie.id === categorieId)
+      ?.nom.trim()
+      .toLowerCase() === 'salaire'
   const [estPaie, setEstPaie] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
 
-  const categoriesDuSens = categories.filter((c) =>
-    sortie ? c.nature === 'depense' : c.nature === 'revenu',
-  )
   // Virer suppose deux comptes. Proposer l'option avec un seul mènerait à un formulaire
   // qu'on ne peut pas valider — mieux vaut dire pourquoi.
   const virementPossible = comptes.length > 1
@@ -93,7 +119,7 @@ export function FeuilleSaisie({ comptes, categories, surFermeture, surEnregistre
           montant_centimes: signe,
           date_operation: date,
           categorie_id: categorieId || null,
-          est_paie: !sortie && estPaie,
+          est_paie: !sortie && (laCategorieDitLaPaie || estPaie),
         })
       }
       surEnregistrement()
@@ -105,7 +131,13 @@ export function FeuilleSaisie({ comptes, categories, surFermeture, surEnregistre
   }
 
   return (
-    <div className={styles.voile} role="dialog" aria-modal="true" aria-label="Saisir une opération">
+    <div
+      className={styles.voile}
+      onClick={fermetureExterieure(surFermeture)}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Saisir une opération"
+    >
       <form className={styles.feuille} onSubmit={soumettre} noValidate>
         <h2 className={styles.titre}>Nouvelle opération</h2>
 
@@ -198,19 +230,17 @@ export function FeuilleSaisie({ comptes, categories, surFermeture, surEnregistre
             <label className={styles.etiquette} htmlFor="categorie">
               Catégorie
             </label>
-            <select
+            {/* Une catégorie manquante se crée ICI : c'est en saisissant une dépense
+                qu'on découvre qu'elle manque, et repartir dans les paramètres pour
+                revenir ensuite tout ressaisir est le chemin qui fait renoncer. */}
+            <ChoixCategorie
               id="categorie"
-              className={styles.choix}
-              value={categorieId}
-              onChange={(e) => setCategorieId(e.target.value)}
-            >
-              <option value="">Sans catégorie</option>
-              {categoriesDuSens.map((categorie) => (
-                <option key={categorie.id} value={categorie.id}>
-                  {categorie.nom}
-                </option>
-              ))}
-            </select>
+              categories={categories}
+              nature={sortie ? 'depense' : 'revenu'}
+              valeur={categorieId}
+              surChangement={setCategorieId}
+              surCreation={surReferentielsChanges}
+            />
           </div>
         )}
 
@@ -287,7 +317,11 @@ export function FeuilleSaisie({ comptes, categories, surFermeture, surEnregistre
           </div>
         )}
 
-        {!sortie && (
+        {/* La case ne s'affiche PLUS quand la catégorie dit déjà que c'est un salaire :
+            cocher « c'est ma paie » sous une catégorie « Salaire » demande de confirmer ce
+            qu'on vient d'énoncer. Elle réapparaît intacte pour toute autre catégorie de
+            revenu — une prime, un remboursement — où la question se pose vraiment. */}
+        {!sortie && !laCategorieDitLaPaie && (
           <div className={styles.champ}>
             <label className={styles.etiquette} htmlFor="est-paie">
               <input
@@ -303,6 +337,12 @@ export function FeuilleSaisie({ comptes, categories, surFermeture, surEnregistre
               si vous ne voulez pas que le mois reparte à zéro.
             </p>
           </div>
+        )}
+
+        {!sortie && laCategorieDitLaPaie && (
+          <p className={styles.note}>
+            Cette opération ouvrira une nouvelle période budgétaire à sa date, comme toute paie.
+          </p>
         )}
 
         {erreur !== null && (

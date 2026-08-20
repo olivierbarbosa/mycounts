@@ -1,0 +1,26 @@
+/* Bande de bord qui capte le glissement de retour.
+   Elle ne dessine rien : sa seule raison d'être est de réserver une zone où `touch-action`
+   vaut `none`, pour que WebKit n'interprète pas le geste comme un défilement avant même
+   que le premier `pointermove` ne nous parvienne.
+
+   `touch-action` posé ICI et non sur l'écran entier : le contenu défile, verticalement
+   partout et horizontalement dans la grille du calendrier. Le neutraliser sur toute la
+   surface remplacerait un geste manquant par deux gestes cassés. */
+.poignee {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 24px;
+  touch-action: none;
+  /* Au-dessus du contenu de l'écran, sous les éléments fixes de l'application. */
+  z-index: var(--plan-poignee);
+}
+
+/* Au-delà du mobile il n'y a pas de bord d'écran à tirer, et une bande morte de 24 px sur
+   le flanc gauche d'une fenêtre volerait les clics de ce qu'elle recouvre. */
+@media (min-width: 1024px) {
+  .poignee {
+    display: none;
+  }
+}

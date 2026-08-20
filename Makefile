@@ -56,7 +56,13 @@ front-installer:
 	cd frontend && npx playwright install chromium
 
 front-lint:
-	cd frontend && npx tsc --noEmit
+	@# `-p` sur CHAQUE projet, et non `tsc --noEmit` nu. Le tsconfig.json racine est un
+	@# fichier de références (`"files": []`) : sans `-p`, tsc n'a aucun fichier à compiler,
+	@# annonce « No errors found » et sort en 0 quoi qu'il arrive. Ce contrôle a été vert
+	@# pendant toute la vie du projet sans jamais rien vérifier — mesuré le 20 août 2026 en
+	@# lui présentant une erreur de type que la forme `-p` rattrape et que celle-ci ratait.
+	cd frontend && npx tsc --noEmit -p tsconfig.app.json
+	cd frontend && npx tsc --noEmit -p tsconfig.node.json
 
 # Fonctions pures du frontend (formatage des montants). Les écrans relèvent des tests
 # de bout en bout : ce qui se voit se vérifie dans un navigateur.

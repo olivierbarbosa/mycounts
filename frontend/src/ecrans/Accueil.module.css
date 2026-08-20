@@ -57,25 +57,35 @@
   font-size: 13px;
 }
 
-.detailSoldes {
-  display: flex;
-  gap: var(--espace-xl);
-  justify-content: center;
-  flex-wrap: wrap;
-  padding-top: var(--espace-m);
+/* Les trois mesures secondaires, sur UNE ligne de colonnes égales.
+   `grid` et non `flex` : en flex, chaque colonne prenait la largeur de son contenu, si
+   bien que « 1 402,00 € » poussait « À confirmer » hors de l'axe et que la rangée se
+   redessinait à chaque rafraîchissement. Trois fractions égales ne bougent jamais. */
+.mesures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: start;
+  gap: var(--espace-s);
+  width: 100%;
+  padding-top: var(--espace-l);
 }
 
-.detail {
+.mesure {
   display: flex;
   flex-direction: column;
   gap: 2px;
   align-items: center;
+  /* Le libellé et le chiffre restent lisibles à 390 px : c'est le TEXTE qui se coupe,
+     jamais la colonne qui déborde sur sa voisine. */
+  min-width: 0;
 }
 
-.detailLibelle {
-  color: var(--couleur-texte-attenue);
-  font-size: 12px;
+.mesureLibelle {
+  color: var(--couleur-texte-faible);
+  font-size: 11px;
   font-weight: var(--typo-gras-moyen);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .liste {
@@ -220,29 +230,6 @@
   font-weight: var(--typo-gras-fort);
 }
 
-/* Bouton d'action flottant, au-dessus de la tab bar. */
-.ajouter {
-  position: fixed;
-  right: var(--espace-xl);
-  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-  width: 56px;
-  height: 56px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--rayon-pilule);
-  border: none;
-  background: var(--couleur-degrade-accent);
-  color: var(--couleur-accent-contraste);
-  font-size: 26px;
-  line-height: 1;
-  /* Ombre portée neutre, pas une lueur colorée : la profondeur sans l'effet « bouton
-     qui brille ». Le liseré interne donne l'arête. */
-  box-shadow:
-    inset 0 0 0 1px var(--couleur-contour-clair),
-    0 10px 28px var(--couleur-verre-bord-sombre);
-  z-index: 11;
-}
-
 @media (min-width: 600px) {
   .page {
     max-width: 720px;
@@ -265,49 +252,29 @@
     text-align: left;
   }
 
-  .detailSoldes {
-    justify-content: flex-start;
+  /* Au format bureau la rangée cesse d'occuper toute la largeur : trois colonnes étirées
+     sur 1 400 px éloigneraient les chiffres les uns des autres au point qu'on ne les lise
+     plus comme un groupe. Elles se serrent à gauche, sous le solde. */
+  .mesures {
+    grid-template-columns: repeat(3, minmax(0, 160px));
+    justify-content: start;
   }
 
-  .detail {
+  .mesure {
     align-items: flex-start;
-  }
-
-  .ajouter {
-    bottom: var(--espace-xxl);
-    right: var(--espace-xxl);
   }
 }
 
-/* Bloc des budgets sur l'accueil. */
+/* Bloc des budgets sur l'accueil.
+
+   Il n'a plus ni titre ni en-tête. « Budgets » surmontait une pile de jauges qui portent
+   déjà chacune le nom de leur catégorie : le mot ne disait rien que les barres ne
+   disaient. Ce qui reste est la seule chose qu'on vient y chercher — trois proportions —
+   et une porte vers l'écran qui détaille les chiffres. */
 .budgets {
   display: flex;
   flex-direction: column;
-  gap: var(--espace-m);
-}
-
-.enteteBudgets {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--espace-m);
-  width: 100%;
-  min-height: var(--cible-tactile);
-  padding: 0;
-  border: none;
-  background: transparent;
-  text-align: left;
-}
-
-/* Encre de texte et non la teinte d'accent : celle-ci est réservée aux bordures et aux
-   lueurs, et mesurée à 4,00:1 en thème clair — sous le seuil. L'affordance passe par le
-   chevron, qui n'a pas ce problème. */
-.lien {
-  display: flex;
-  align-items: center;
-  gap: var(--espace-xs);
-  color: var(--couleur-texte-attenue);
-  font-size: 14px;
+  gap: var(--espace-s);
 }
 
 .jauges {
@@ -316,24 +283,41 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--espace-m);
-}
-
-.ligneJauge {
-  display: flex;
-  flex-direction: column;
   gap: var(--espace-s);
-  padding: var(--espace-l);
-  border-radius: var(--rayon-moyen);
-  background: var(--couleur-surface);
-  border: 1px solid var(--couleur-bordure);
 }
 
-.enteteJauge {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--espace-m);
+/* Une ligne, trois colonnes : le nom, la barre, les montants. Les jauges étaient
+   auparavant des cartes en verre de 16 px de marge intérieure, empilées — trois d'entre
+   elles occupaient la moitié d'un écran de 390 px pour trois barres de 6 px de haut. Sans
+   carte, le même contenu tient en un tiers de la hauteur et les barres s'alignent toutes
+   sur la même verticale, ce qui est précisément ce qui permet de les comparer d'un coup
+   d'œil — et c'est ce qui rend tenable d'en afficher neuf plutôt que trois.
+
+   Une quatrième zone, en dessous, accueille l'état quand il y en a un : il occupe toute la
+   largeur plutôt qu'une colonne, sans quoi « Sera dépassé avec les prélèvements » réduirait
+   la barre de toutes les lignes voisines pour tenir dans la sienne. */
+.ligneJauge {
+  display: grid;
+  grid-template-columns: minmax(0, 72px) 1fr auto;
+  align-items: center;
+  gap: var(--espace-s) var(--espace-m);
+  min-height: 28px;
+}
+
+/* Chiffres et état en chasse fixe pour les colonnes : sans elle, « 9,50 € » et
+   « 1 240,00 € » donnent deux largeurs de colonne différentes d'une ligne à l'autre, et
+   les barres cessent d'être alignées — ce qui leur retire leur seule qualité. */
+.chiffreJauge {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--couleur-texte-attenue);
+  white-space: nowrap;
+}
+
+.etatAlerte,
+.etatDepasse {
+  grid-column: 1 / -1;
 }
 
 .nomJauge {
@@ -341,32 +325,45 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
-  font-weight: var(--typo-gras-moyen);
-}
-
-/* Encre neutre pour les quantités : la couleur est réservée à l'état, et un chiffre
-   teinté se lirait comme une alerte alors qu'il ne dit qu'une somme. */
-.chiffreJauge {
-  flex: 0 0 auto;
   font-size: 13px;
   color: var(--couleur-texte-attenue);
 }
 
 /* L'état s'écrit en toutes lettres : la couleur de la barre ne le porte jamais seule. */
 .etatAlerte {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--couleur-alerte);
 }
 
 .etatDepasse {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: var(--typo-gras-moyen);
   color: var(--couleur-debit);
 }
 
-/* Un bloc vide doit proposer l'action, pas seulement constater le vide. */
+/* Encre de texte et non la teinte d'accent : celle-ci est réservée aux bordures et aux
+   lueurs. L'affordance passe par le chevron, qui n'a pas de seuil de contraste à tenir. */
+.lienBudgets {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--espace-xs);
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+}
+
+/* Un bloc vide doit proposer l'action, pas seulement constater le vide : c'est ici la
+   SEULE porte vers l'écran des plafonds tant qu'aucun n'est posé. */
 .videBudgets {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+  width: 100%;
   margin: 0;
   padding: var(--espace-l);
   border-radius: var(--rayon-moyen);
@@ -374,17 +371,38 @@
   border: 1px solid var(--couleur-bordure);
   color: var(--couleur-texte-attenue);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.45;
+  text-align: left;
 }
 
-/* Le solde réel est un bouton : même géométrie que les deux autres détails, plus un
-   libellé qui dit ce qu'il fait. Un chiffre cliquable sans mention se découvre par hasard,
-   ou jamais. */
-.detailAction {
+/* Journal des opérations, groupé par jour. */
+.journal {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  gap: var(--espace-l);
+}
+
+.groupe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+/* La date, une fois par journée au lieu d'une fois par ligne. */
+.jour {
+  margin: 0;
+  font-size: 12px;
+  font-weight: var(--typo-gras-moyen);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--couleur-texte-faible);
+}
+
+/* Le solde réel est un bouton : même géométrie que les deux autres mesures, plus un
+   libellé qui dit ce qu'il fait. Un chiffre cliquable sans mention se découvre par hasard,
+   ou jamais. */
+.mesureAction {
+  composes: mesure;
   padding: var(--espace-xs) var(--espace-s);
   border: 1px solid transparent;
   border-radius: var(--rayon-moyen);
@@ -395,24 +413,36 @@
     scale 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-.detailAction:hover {
+.mesureAction:hover {
   border-color: var(--couleur-bordure);
 }
 
-.detailAction:active {
+.mesureAction:active {
   scale: 0.96;
 }
 
-.corriger {
-  font-size: 12px;
-  color: var(--couleur-texte-attenue);
+/* Le crayon se pose SUR la ligne du libellé, d'où le libellé passé en flex. Une icône
+   posée sous le chiffre rallongeait la colonne d'une troisième ligne, et déséquilibrait la
+   rangée : « Réel » devenait plus haut que ses deux voisins pour ne rien dire de plus. */
+.mesureLibelle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.crayon {
+  flex: 0 0 auto;
+  /* Optiquement aligné sur les capitales du libellé, qui est en petites majuscules : sans
+     ce demi-pixel, le crayon paraît posé trop bas. */
+  translate: 0 -0.5px;
+  opacity: 0.9;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .detailAction {
+  .mesureAction {
     transition: none;
   }
-  .detailAction:active {
+  .mesureAction:active {
     scale: 1;
   }
 }

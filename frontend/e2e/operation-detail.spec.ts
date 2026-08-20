@@ -18,6 +18,24 @@ async function connecter(page: import('@playwright/test').Page) {
   await expect(page.locator('nav')).toBeVisible()
 }
 
+/**
+ * Ouvre le calendrier depuis sa bulle.
+ *
+ * `dispatchEvent` et non `click`, pour une raison précise : depuis que l'écran monte sa
+ * coquille SANS attendre le réseau — c'était le but, il ne s'affichait avant qu'après
+ * quatre allers-retours — il recouvre la bulle dans la milliseconde qui suit l'appui.
+ * Playwright vérifie l'actionnabilité de sa cible APRÈS avoir cliqué, constate qu'elle est
+ * désormais couverte par l'écran qu'elle vient d'ouvrir, et réessaie jusqu'au délai.
+ *
+ * La bulle est pourtant bien cliquable AU MOMENT du clic, et l'interception qui suit est
+ * le résultat attendu du geste, pas un obstacle à celui-ci. L'assertion sur le dialogue
+ * garde donc toute sa valeur : si le clic ne portait pas, elle échouerait.
+ */
+async function ouvrirCalendrier(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Calendrier' }).dispatchEvent('click')
+  await expect(page.getByRole('dialog', { name: 'Calendrier' })).toBeVisible()
+}
+
 async function saisir(page: import('@playwright/test').Page, libelle: string, montant: string) {
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await page.getByLabel('Montant', { exact: true }).fill(montant)
@@ -113,14 +131,17 @@ test('retirer une échéance de prélèvement ne la fait pas revenir', async ({ 
   const hier = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
 
   await connecter(page)
-  await page.getByRole('button', { name: 'Calendrier' }).click()
+  await ouvrirCalendrier(page)
   await page.getByRole('button', { name: 'Ajouter un prélèvement' }).click()
   await page.getByLabel('Montant', { exact: true }).fill('7,50')
   await page.getByLabel('Libellé', { exact: true }).fill(libelle)
   await page.getByLabel('Première échéance').fill(hier)
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // La FEUILLE nommément : le calendrier qui l'a ouverte est lui-même un dialogue modal
+  // et reste ouvert derrière elle.
+  await expect(page.getByRole('dialog', { name: /prélèvement/ })).toHaveCount(0)
 
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click()
   await page.getByRole('button', { name: 'Accueil' }).click()
   await page.getByRole('button', { name: `Détail de ${libelle}` }).click()
   await expect(page.getByRole('dialog')).toContainText('Prélèvement automatique')
@@ -133,8 +154,16 @@ test('retirer une échéance de prélèvement ne la fait pas revenir', async ({ 
   // Le calcul se rejoue à chaque ouverture du calendrier : trois passages suffisent
   // largement à faire réapparaître une ligne simplement supprimée.
   for (let tour = 0; tour < 3; tour++) {
-    await page.getByRole('button', { name: 'Calendrier' }).click()
-    await page.getByRole('button', { name: 'Accueil' }).click()
+    await ouvrirCalendrier(page)
+    // Fermer l'écran, et non cliquer sur l'onglet « Accueil » : la barre d'onglets est
+    // RECOUVERTE par le calendrier, qui est un dialogue modal. Le tour de boucle ne
+    // rouvrait donc rien, et le test ne rejouait pas le calcul qu'il prétend éprouver.
+    // Celui DU CALENDRIER : le détail de l'opération, ouvert derrière, en porte un autre.
+    await page
+      .getByRole('dialog', { name: 'Calendrier' })
+      .getByRole('button', { name: 'Fermer', exact: true })
+      .click()
+    await expect(page.getByRole('dialog', { name: 'Calendrier' })).toHaveCount(0)
   }
 
   await expect(page.getByRole('button', { name: `Détail de ${libelle}` })).toHaveCount(0)

@@ -4,14 +4,21 @@
  * Aucun autre fichier n'écrit de valeur littérale : le garde-fou n°9
  * (`scripts/verifier_couleurs.py`) refuse tout `#hex` ou `rgb()` ailleurs.
  *
- * Direction artistique : **néon et Liquid Glass**, sur une palette lavande —
- * `#8C56D4` primaire, `#DC95FF` mauve clair, `#FFBEFB` rose, `#FFF4BF` crème.
- * Fond en dégradé violet profond, surfaces en verre laiteux, montants en display avec
- * les centimes réduits.
+ * Direction artistique : **bleu ardoise et Liquid Glass**, sur la palette choisie par
+ * Olivier le 20 août 2026 — `#334155` ardoise, `#0EA5E9` ciel, `#7DD3FC` ciel clair,
+ * `#E0F2FE` brume, `#F1F5F9` neige. Elle remplace la palette lavande d'origine.
  *
- * Contrainte mesurée avant d'écrire une ligne : `#8C56D4` donne 4,53:1 avec du blanc,
- * soit le seuil AA franchi de justesse. C'est donc le SEUL des quatre qui peut porter du
- * texte clair ; les trois autres vont aux lueurs, aux liserés et aux pastilles.
+ * Contrainte mesurée AVANT d'écrire une ligne, et c'est elle qui commande la répartition
+ * des rôles : `#0EA5E9` avec du texte blanc ne donne que **2,77:1** là où AA en demande
+ * 4,5. Il ne peut donc porter aucun texte. Il va aux liserés, aux lueurs et aux jauges du
+ * thème SOMBRE, où il mesure 6,44:1 sur le fond. En thème clair il tombe à 2,53:1 même
+ * comme aplat graphique — sous le seuil de 3:1 des composants non textuels — et s'y
+ * assombrit donc en `#0284C7` (3,74:1), puis en `#0369A1` (5,42:1) dès qu'il porte du
+ * texte. Le violet suivait déjà exactement cette règle.
+ *
+ * Les boutons pleins ne montent jamais plus clair que `#0369A1`, mesuré à 5,93:1 avec du
+ * blanc : leur volume vient de l'assombrissement vers le bas, jamais d'un éclaircissement
+ * vers le haut.
  *
  * Contrepartie non négociable de cette DA : sur du verre, le contraste dépend de ce qui
  * défile dessous. Toutes les paires texte/fond définies ici sont donc vérifiées
@@ -19,92 +26,94 @@
  * de transparence. Une teinte plus jolie mais moins lisible fait échouer la CI.
  */
 
-/** Palette sombre — thème principal. */
+/** Palette sombre — dérivée de la même famille que la claire, et non d'une seconde DA :
+ *  l'ardoise `#334155` y devient le fond en descendant à `#0F172A`, et le ciel `#0EA5E9`
+ *  y prend enfin la place d'accent pleinement lisible que le thème clair lui refuse. */
 export const couleursSombres = {
-  /** Le fond n'est plus un aplat : deux arrêts de dégradé, du violet profond au presque
-   *  noir violacé. Le premier sert aussi de couleur de repli. */
-  // Violet profond dérivé du primaire. Un fond doit rester un fond : assez présent pour
-  // porter la DA, assez discret pour que l'œil aille aux montants.
-  fond: '#1B0F33',
-  fondHaut: '#2E1A55',
-  fondBas: '#120920',
+  /** Le fond n'est pas un aplat : trois arrêts, de l'ardoise au presque noir bleuté.
+   *  Le premier sert aussi de couleur de repli. */
+  fond: '#0F172A',
+  fondHaut: '#1E293B',
+  fondBas: '#020617',
 
   /** Surfaces en verre : très peu opaques, c'est le flou qui fait le matériau. */
   surface: 'rgba(255, 255, 255, 0.07)',
   surfaceHaute: 'rgba(255, 255, 255, 0.12)',
   bordure: 'rgba(255, 255, 255, 0.14)',
   /** Repli opaque quand la transparence est désactivée ou non supportée. */
-  surfaceOpaque: '#251646',
+  surfaceOpaque: '#1E293B',
 
-  texte: '#FFFFFF',
+  /** L'encre n'est pas du blanc pur mais la neige de la palette : sur un fond bleuté,
+   *  du #FFFFFF franc paraît plus dur que le reste de l'interface. 16,3:1 sur le fond. */
+  texte: '#F1F5F9',
   // Ces deux opacités ne sont pas choisies à l'œil : ce sont les plus basses qui
   // passent encore 4,5:1 sur le dégradé de fond, avec une marge. Mesuré, pas supposé.
-  texteAttenue: 'rgba(255, 255, 255, 0.80)',
-  texteFaible: 'rgba(255, 255, 255, 0.62)',
+  texteAttenue: 'rgba(241, 245, 249, 0.80)',
+  texteFaible: 'rgba(241, 245, 249, 0.62)',
 
-  /** Primaire de la palette. Mesuré à 4,53:1 avec du blanc : il passe AA de justesse et
-   *  constitue la limite basse — l'éclaircir casserait le contraste. */
-  accent: '#8C56D4',
-  /** Mauve clair. Pour les BORDURES, les lueurs et les pastilles — jamais pour du texte.
-   *  La convention était implicite jusqu'à ce que je pose un lien « Gérer » de cette
-   *  couleur : mesuré à 4,00:1 en thème clair, sous le seuil. Les liens portent l'encre
-   *  du texte et se signalent par un chevron. */
-  accentClair: '#DC95FF',
+  /** Ciel de la palette, à sa valeur pure. Sur ce fond il mesure 6,44:1 : c'est le seul
+   *  des deux thèmes où `#0EA5E9` peut être employé tel quel. */
+  accent: '#0EA5E9',
+  /** Ciel clair. Pour les BORDURES, les lueurs et les indicateurs — et, ici seulement,
+   *  pour du texte : 10,7:1 sur le fond. La règle reste que le texte coloré se mesure
+   *  avant d'être posé, jamais qu'une teinte est « pour le texte » par nature. */
+  accentClair: '#7DD3FC',
   accentContraste: '#FFFFFF',
-  /** Rose de la palette. Trop lumineux pour porter du texte : lueurs et liserés. */
-  neon: '#FFBEFB',
-  /** Crème de la palette. Même règle : accent chaud, jamais de fond de libellé. */
-  chaud: '#FFF4BF',
+  /** Même ciel clair en rôle de néon : lueurs et liserés. */
+  neon: '#7DD3FC',
+  /** Brume de la palette. Accent froid et pâle, jamais de fond de libellé. */
+  chaud: '#E0F2FE',
 
   credit: '#34D399',
-  /* Rouge d'origine, conservé sur décision explicite d'Olivier (20 août 2026) après avoir
-   *  vu le chiffre : sous le halo, il mesure 3,23:1 là où la lisibilité AA en demande 4,5.
-   *  L'éclaircir à #FC9DAB le faisait passer, au prix d'un rose nettement plus pâle.
+  /* Le rouge d'origine, conservé sur décision explicite d'Olivier — la SECONDE fois, après
+   *  avoir vu le chiffre. Sous le halo bleu il mesure 3,51:1 là où AA en demande 4,5.
+   *  `#FDA4AF` le faisait passer à 5,00:1, au prix d'un rose nettement plus pâle.
    *
-   *  La sonde de contraste ne l'ignore pas pour autant : `e2e/contraste.spec.ts` lui
-   *  applique un plancher fixé à la valeur MESURÉE, si bien que toute dégradation
-   *  supplémentaire de ce rouge la fera rougir. Une dérogation bornée, pas une exemption. */
+   *  Attention au chiffre que l'on cite : sur le fond NU `#0F172A`, ce rouge mesure
+   *  6,63:1, et j'ai d'abord conclu de là que la dérogation de la palette lavande était
+   *  devenue inutile. C'est faux — les montants ne sont jamais posés sur le fond nu mais
+   *  sur le halo, qui l'éclaircit. La sonde de `contraste.spec.ts` mesure le rendu réel et
+   *  a rendu le bon verdict ; mon calcul sur aplat mesurait autre chose que le sujet.
+   *
+   *  La dérogation n'est donc pas une exemption : son plancher vaut la valeur MESURÉE, si
+   *  bien que toute dégradation supplémentaire de ce rouge — un halo plus clair, une
+   *  opacité plus basse — fera rougir le test. */
   debit: '#FB7185',
   alerte: '#FBBF24',
 
   verreTeinte: 'rgba(255, 255, 255, 0.09)',
-  verreBordSombre: 'rgba(12, 5, 26, 0.55)',
+  verreBordSombre: 'rgba(2, 6, 23, 0.55)',
   verreSpeculaire: 'rgba(255, 255, 255, 0.42)',
-  verreOpaque: '#251646',
+  verreOpaque: '#1E293B',
 
-  /** Lueurs néon. Décoratives : jamais le seul porteur d'une information. */
-  lueurAccent: 'rgba(140, 86, 212, 0.48)',
+  /** Lueurs. Décoratives : jamais le seul porteur d'une information. */
+  lueurAccent: 'rgba(14, 165, 233, 0.48)',
   /* Lueurs des deux sens, pour le halo qui éclaire le solde de l'accueil. Elles ne portent
    *  aucun texte : le chiffre est posé PAR-DESSUS en couleur pleine, et c'est lui que la
    *  sonde de contraste mesure. */
   lueurDebit: 'rgba(251, 113, 133, 0.34)',
   lueurCredit: 'rgba(52, 211, 153, 0.30)',
-  lueurNeon: 'rgba(255, 190, 251, 0.28)',
+  lueurNeon: 'rgba(125, 211, 252, 0.28)',
 
   /** Halos de fond. Ils passent DERRIÈRE le contenu et ne portent jamais de texte :
    *  c'est ce qui permet de les rendre francs sans dégrader la lisibilité. */
-  /* 0,26, valeur d'origine, rétablie avec le rouge des débits : les deux vont ensemble.
-   *  À cette intensité le halo éclaircit assez le fond pour que le vert des crédits tombe
-   *  à 4,52:1 — juste au-dessus du seuil, donc sans marge. Toute retouche de cette valeur
-   *  demande de relancer `e2e/contraste.spec.ts` avant d'être crue. */
-  haloHaut: 'rgba(220, 149, 255, 0.26)',
-  haloBas: 'rgba(255, 190, 251, 0.13)',
+  haloHaut: 'rgba(14, 165, 233, 0.26)',
+  haloBas: 'rgba(125, 211, 252, 0.13)',
   /** Liseré lumineux sur les surfaces en verre. */
-  lueurBordure: 'rgba(220, 149, 255, 0.30)',
+  lueurBordure: 'rgba(125, 211, 252, 0.30)',
 
   /** Habillage des boutons d'action. Auteur unique : chaque écran s'y réfère, aucun ne
    *  recompose son propre dégradé — deux boutons voisins aux dégradés légèrement
    *  différents se remarquent immédiatement. */
-  /** L'arrêt le plus CLAIR ne peut pas dépasser #635BFF : mesuré, il donne 4,68:1 avec
-   *  du blanc et constitue déjà la limite basse du seuil AA. Un dégradé qui s'éclaircit
-   *  vers le haut, comme la première version (#7A73FF), tombait à 3,67:1 — le contraste
-   *  arbitre, pas l'esthétique. Le volume vient donc de l'assombrissement vers le bas. */
-  degradeAccent: 'linear-gradient(180deg, #8C56D4 0%, #7F4CC4 55%, #6C3FAA 100%)',
-  degradeAccentSurvol: 'linear-gradient(180deg, #9560DE 0%, #8752CE 55%, #7345B4 100%)',
+  /** L'arrêt le plus CLAIR ne peut pas dépasser #0369A1 : mesuré, il donne 5,93:1 avec du
+   *  blanc. Partir du #0EA5E9 de la palette tomberait à 2,77:1 — le contraste arbitre,
+   *  pas l'esthétique. Le volume vient donc de l'assombrissement vers le bas. */
+  degradeAccent: 'linear-gradient(180deg, #0369A1 0%, #075985 55%, #0C4A6E 100%)',
+  degradeAccentSurvol: 'linear-gradient(180deg, #0A7BB8 0%, #0369A1 55%, #075985 100%)',
   /** Liseré interne, jamais externe : un contour extérieur agrandirait la cible et
    *  décalerait l'alignement d'une rangée de boutons. */
   contourClair: 'rgba(255, 255, 255, 0.22)',
-  contourSombre: 'rgba(12, 5, 26, 0.35)',
+  contourSombre: 'rgba(2, 6, 23, 0.35)',
 } as const
 
 /** Force du grain posé sur le fond, par thème.
@@ -125,6 +134,39 @@ export const couleursSombres = {
  *  Trois auteurs pour une même mesure, dont deux qui n'auraient appris un changement que
  *  par un chevauchement à l'écran.
  */
+/**
+ * Échelle d'empilement. AUTEUR UNIQUE des `z-index` du projet.
+ *
+ * Elle est née d'un défaut mesurable : les écrans poussés depuis une bulle — calendrier,
+ * détail d'épargne, paramètres — étaient au plan 30, et les feuilles modales au plan 20.
+ * Toute feuille ouverte DEPUIS l'un de ces écrans s'affichait donc derrière lui : le
+ * formulaire existait, était focalisable, recevait la frappe, et restait invisible. Il
+ * fallait fermer l'écran pour découvrir ce qu'on venait de saisir.
+ *
+ * Aucun des deux nombres n'était faux en lui-même ; ils avaient simplement été choisis
+ * dans deux fichiers différents, à deux moments différents, sans que personne ne tienne la
+ * liste. C'est précisément ce qu'une donnée à auteur unique empêche.
+ *
+ * L'ordre se lit de bas en haut, et un composant ne choisit jamais un nombre : il choisit
+ * un RÔLE. Ajouter un plan intermédiaire se fait ici, une fois.
+ */
+export const plans = {
+  /** Halos et grain du fond, sous le contenu. */
+  fond: '-1',
+  /** Poignée de glissement de retour, au-dessus du contenu de son écran. */
+  poignee: '5',
+  /** Barre d'onglets et rail latéral. */
+  navigation: '10',
+  /** Bulles du haut. Au-dessus de la navigation : elles se recouvrent au format bureau. */
+  bulle: '15',
+  /** Écran plein poussé par une bulle. Couvre navigation et bulles — il les remplace. */
+  ecran: '30',
+  /** Feuille modale. AU-DESSUS des écrans pleins, sans quoi elle ouvre dans le vide. */
+  feuille: '40',
+  /** Confirmation posée dans une feuille : le dernier mot revient à elle. */
+  confirmation: '50',
+} as const
+
 export const disposition = {
   /** Largeur du rail latéral, au-delà de 1024 px. */
   largeurRail: '232px',
@@ -143,49 +185,66 @@ export const textureClaire = {
 
 /** Palette claire. Mêmes rôles, mêmes noms : un composant ne connaît que les rôles. */
 export const couleursClaires = {
-  fond: '#FBF7FF',
-  fondHaut: '#F6EDFF',
-  fondBas: '#FFFDF5',
+  fond: '#F1F5F9',
+  fondHaut: '#E0F2FE',
+  /** Seul ton dérivé hors des cinq choisis : le dégradé a besoin de s'éclaircir vers le
+   *  bas, et reprendre `#F1F5F9` y aurait produit un aplat sur la moitié de la hauteur. */
+  fondBas: '#F8FAFC',
 
   surface: 'rgba(255, 255, 255, 0.72)',
   surfaceHaute: 'rgba(255, 255, 255, 0.88)',
-  bordure: 'rgba(43, 20, 74, 0.14)',
+  bordure: 'rgba(51, 65, 85, 0.14)',
   surfaceOpaque: '#FFFFFF',
 
-  texte: '#2B144A',
-  texteAttenue: 'rgba(43, 20, 74, 0.82)',
-  texteFaible: 'rgba(43, 20, 74, 0.66)',
+  /** L'ardoise de la palette. 9,45:1 sur le fond, 10,4:1 sur une surface blanche. */
+  texte: '#334155',
+  /* Ces deux opacités ne sont pas reprises du thème sombre ni choisies à l'œil : elles ont
+   *  été MESURÉES contre le plus sombre des trois arrêts du dégradé de fond, `#E0F2FE`.
+   *
+   *  Les valeurs héritées de la palette lavande (0,82 et 0,66) ne tiennent plus ici, et
+   *  `e2e/contraste.spec.ts` l'a dit avant moi : le violet `#2B144A` était nettement plus
+   *  foncé que l'ardoise `#334155`, si bien qu'à 0,66 le texte faible tombait à 3,45:1
+   *  pour un seuil à 4,5. À 0,78 il mesure 4,97:1 sur le pire fond.
+   *
+   *  Le texte atténué monte à 0,92 pour la même raison, et pour une seconde : à 0,82 il ne
+   *  se serait plus distingué d'un texte faible remonté à 0,78, et deux rôles qui rendent
+   *  la même chose à l'écran n'en font plus qu'un. */
+  texteAttenue: 'rgba(51, 65, 85, 0.92)',
+  texteFaible: 'rgba(51, 65, 85, 0.78)',
 
-  // Assombri par rapport au #8C56D4 de la palette : sur fond clair, le primaire tel quel
-  // ne tient pas le seuil AA avec du texte blanc.
-  accent: '#6E3DAE',
-  accentClair: '#8C56D4',
+  // Assombri par rapport au #0EA5E9 de la palette, comme le violet l'était avant lui : le
+  // ciel pur ne fait que 2,53:1 sur ce fond — sous les 3:1 exigés d'un composant
+  // graphique, donc inutilisable même pour une barre de jauge. #0284C7 donne 3,74:1.
+  accent: '#0284C7',
+  /** Ici l'accent clair est plus SOMBRE que l'accent : le rôle est « la teinte qui peut
+   *  porter du texte », pas « la teinte la plus lumineuse ». 5,42:1 sur le fond. */
+  accentClair: '#0369A1',
   accentContraste: '#FFFFFF',
-  neon: '#A63C9E',
-  chaud: '#8A6A12',
+  neon: '#0EA5E9',
+  chaud: '#7DD3FC',
 
   credit: '#047857',
   debit: '#BE123C',
   alerte: '#B45309',
 
   verreTeinte: 'rgba(255, 255, 255, 0.62)',
-  verreBordSombre: 'rgba(43, 20, 74, 0.16)',
+  verreBordSombre: 'rgba(51, 65, 85, 0.16)',
   verreSpeculaire: 'rgba(255, 255, 255, 0.95)',
   verreOpaque: '#FFFFFF',
 
-  lueurAccent: 'rgba(140, 86, 212, 0.22)',
+  lueurAccent: 'rgba(14, 165, 233, 0.22)',
   lueurDebit: 'rgba(190, 18, 60, 0.16)',
   lueurCredit: 'rgba(4, 120, 87, 0.16)',
-  lueurNeon: 'rgba(220, 149, 255, 0.20)',
+  lueurNeon: 'rgba(125, 211, 252, 0.20)',
 
-  haloHaut: 'rgba(220, 149, 255, 0.18)',
-  haloBas: 'rgba(255, 244, 191, 0.22)',
-  lueurBordure: 'rgba(110, 61, 174, 0.18)',
+  haloHaut: 'rgba(14, 165, 233, 0.18)',
+  haloBas: 'rgba(125, 211, 252, 0.22)',
+  lueurBordure: 'rgba(3, 105, 161, 0.18)',
 
-  degradeAccent: 'linear-gradient(180deg, #7B47BE 0%, #6E3DAE 55%, #5D3193 100%)',
-  degradeAccentSurvol: 'linear-gradient(180deg, #8951CC 0%, #7B47BE 55%, #6A3AA6 100%)',
+  degradeAccent: 'linear-gradient(180deg, #0369A1 0%, #075985 55%, #0C4A6E 100%)',
+  degradeAccentSurvol: 'linear-gradient(180deg, #0A7BB8 0%, #0369A1 55%, #075985 100%)',
   contourClair: 'rgba(255, 255, 255, 0.28)',
-  contourSombre: 'rgba(43, 20, 74, 0.20)',
+  contourSombre: 'rgba(51, 65, 85, 0.20)',
 } as const
 
 /**
@@ -269,6 +328,7 @@ ${enVariables('typo', typographie)}
 ${enVariables('verre', verre)}
 ${enVariables('texture', textureClaire)}
 ${enVariables('disposition', disposition)}
+${enVariables('plan', plans)}
   --cible-tactile: ${cibleTactileMinimale};
   --verre-opacite: var(--verre-opacite-moyenne);
   color-scheme: light dark;

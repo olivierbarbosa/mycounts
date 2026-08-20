@@ -1027,3 +1027,125 @@ Fermer, Virement, Dépense, Revenu, Enregistrer, Supprimer, Confirmer, Annuler �
 cartes cadrées sur leur panneau plutôt que cherchées dans la page entière. Huit fichiers
 corrigés d'un coup, parce que corriger seulement celui qui rougissait aurait laissé les
 sept autres attendre leur tour.
+
+## #034 — Un contrôle vert qui n'avait jamais rien vérifié
+
+**Ce que je croyais.** Que `make front-lint` typait le frontend. Il tourne depuis le début
+du projet, il est appelé par `make verifier`, il est vert, et sa ligne dit
+`npx tsc --noEmit`.
+
+**Ce qu'il s'est passé.** Il ne compilait aucun fichier. Le `tsconfig.json` racine est un
+fichier de RÉFÉRENCES — `"files": []` plus deux `references`. Sans `-p`, `tsc` prend ce
+fichier, n'y trouve aucun fichier à compiler, affiche « No errors found » et sort en 0.
+Toujours. Quelle que soit l'erreur présente dans le code.
+
+**Comment je l'ai vu.** Par accident, en lançant `tsc --noEmit -p tsconfig.app.json` pour
+vérifier mon propre travail : il a trouvé une erreur de type réelle dans `Enveloppes.tsx`,
+présente dans l'arbre de travail depuis la veille, que `make front-lint` déclarait saine.
+Les deux formes ont alors été exécutées côte à côte sur le même code : sortie 0 pour l'une,
+sortie 2 pour l'autre.
+
+**Pourquoi je ne l'avais pas vu plus tôt.** Parce qu'un garde-fou vert ne demande rien à
+personne. Le projet exige que chaque témoin soit vérifié par mutation — casser
+l'implémentation, voir le test rougir — et cette règle n'avait jamais été appliquée aux
+outils du `Makefile` eux-mêmes. Un contrôle qui ne peut pas rendre la réponse « rouge »
+n'est pas un contrôle, et c'est vrai d'un `tsc` comme d'un test.
+
+**Le contrôle en place maintenant.** `front-lint` appelle `-p` sur chacun des deux projets,
+et le `Makefile` porte en commentaire la raison exacte, avec la date de la mesure. La
+vérification par mutation vaut désormais pour les cibles du `Makefile` autant que pour les
+tests : avant de croire un contrôle, lui présenter la faute qu'il prétend détecter.
+
+## #035 — Le contraste mesuré sur un aplat, la couleur posée sur un halo
+
+**Ce que je croyais.** Qu'en changeant la palette pour du bleu ardoise, le rouge des débits
+`#FB7185` n'avait plus besoin de sa dérogation : je l'avais mesuré à 6,63:1 sur le fond
+`#0F172A`, très au-dessus du seuil de 4,5. J'ai retiré la dérogation et je l'ai annoncé
+comme un gain.
+
+**Ce qu'il s'est passé.** La sonde `e2e/contraste.spec.ts` a rendu 3,51:1 sur les centimes
+des montants. Elle avait raison et mon calcul avait tort : un montant n'est jamais posé sur
+le fond nu. Le halo passe dessous et l'éclaircit fortement, et c'est ce fond composite qui
+décide du contraste. J'avais mesuré une couleur sur une autre couleur ; l'écran, lui,
+empile un fond, un halo, une surface de verre et un texte.
+
+**La faute de fond.** C'est la cinquième fois dans ce fichier que la mesure porte sur le
+mauvais sujet, et la troisième pour le contraste précisément — après #011 et #021. La règle
+existait déjà, écrite dans `CLAUDE.md` : *une sonde a un domaine de validité, le connaître
+avant de croire son verdict*. Un calcul de contraste sur deux valeurs hexadécimales a pour
+domaine de validité « deux aplats opaques superposés ». Ce n'est pas la situation de cette
+interface, qui est faite de couches translucides — c'est même exactement ce que la DA
+Liquid Glass rend impossible à calculer de tête.
+
+**Ce que ça a failli coûter.** Une dérogation retirée à tort aurait laissé passer, sans
+plus aucun garde-fou, la dégradation qu'elle existait pour surveiller.
+
+**Le contrôle en place maintenant.** La dérogation est rétablie, plancher à 3,5 — la valeur
+mesurée par la sonde, pas par moi. Et la règle est explicite dans `tokens.ts` : le chiffre
+qui fait foi est celui du rendu, jamais celui d'un aplat. Quand les deux divergent, c'est
+le calcul sur aplat qui parle d'autre chose.
+
+## #036 — Une sonde qui ne pouvait rien voir sur un foyer vide
+
+**Ce que je croyais.** Que `contraste.spec.ts` couvrait la palette, puisqu'il parcourt tous
+les textes visibles de l'accueil dans deux thèmes et trois positions de transparence.
+
+**Ce qu'il s'est passé.** Lancé seul, il passait. Lancé dans la suite complète, il
+échouait — sur quarante-deux textes. J'ai d'abord lu ça comme une interférence entre
+tests, c'est-à-dire comme un défaut de la suite. C'était l'inverse : le foyer d'essai est
+réinitialisé VIDE, une page sans opération n'affiche aucun montant, donc ni vert ni rouge —
+et ce sont précisément les deux couleurs les plus difficiles à faire passer. Seule la suite
+complète, en laissant des données derrière elle, donnait à la sonde quelque chose à voir.
+
+**Ce que ça dit.** La mesure isolée était la mesure aveugle. Un test dont le résultat dépend
+de ce que d'autres tests ont laissé en base ne prouve rien, ni quand il rougit ni quand il
+passe.
+
+**Le contrôle en place maintenant.** Le fichier crée lui-même un débit et un crédit avant de
+mesurer (`garantirDesMontants`). Il ne dépend plus de l'ordre d'exécution et reproduit le
+défaut seul, de façon déterministe.
+
+## #037 — Une constante placée avant l'état qu'elle lit
+
+**Ce que je croyais.** Qu'ajouter `const laCategorieDitLaPaie = …` juste sous `const sortie`
+était sans risque : `tsc` passait, le lint passait, la vérification des classes CSS passait.
+
+**Ce qu'il s'est passé.** La constante lisait `categorieId`, déclaré vingt lignes plus bas
+par `useState`. Zone morte temporelle : `ReferenceError: Cannot access 'categorieId' before
+initialization`, et la feuille de saisie qui plante entièrement.
+
+**Pourquoi rien ne l'a vu.** TypeScript ne signale pas toutes les TDZ, et surtout le bogue
+était MASQUÉ par un court-circuit : la constante s'écrit `!sortie && categories.find(…)`, si
+bien qu'en mode Dépense — le mode testé partout — l'expression s'arrêtait avant de toucher à
+`categorieId`. Seuls les modes Revenu et Virement plantaient. Le parcours de saisie passait
+au vert pendant que l'écran était cassé pour deux de ses trois modes.
+
+**Ce que ça dit.** Un court-circuit booléen peut cacher une erreur d'initialisation dans la
+branche non prise, et la branche non prise est souvent celle qu'on teste le moins. Le
+défaut n'est apparu que dans le test d'épargne, qui fait un virement.
+
+**Le contrôle en place maintenant.** La constante est déclarée après le `useState` qu'elle
+lit. Aucun garde-fou automatique n'a été ajouté : ce qui l'a trouvé est un test de bout en
+bout qui exerce un mode PEU fréquent, et c'est cette couverture-là qui vaut d'être
+entretenue.
+
+## #038 — Deux nombres choisis dans deux fichiers, un formulaire invisible
+
+**Ce que je croyais.** Rien de particulier : les `z-index` étaient posés au fil de l'eau,
+chacun dans le module qui en avait besoin.
+
+**Ce qu'il s'est passé.** Olivier l'a signalé depuis son téléphone : ouvrir le formulaire de
+prélèvement depuis le calendrier ne montrait rien. « Ça fait comme si rien s'affichait, on
+est obligé de fermer l'écran calendrier. » Le formulaire était bien monté, bien focalisable,
+il recevait la frappe — et il s'affichait DERRIÈRE l'écran qui l'avait ouvert. Les écrans
+poussés étaient au plan 30, les feuilles modales au plan 20.
+
+**Ce qui rend ce défaut typique.** Aucun des deux nombres n'était faux en lui-même. Ils
+avaient été choisis dans deux fichiers différents, à deux moments différents, sans que
+personne ne tienne la liste — et le défaut ne se voit que sur la combinaison des deux. Le
+même trou touchait les Paramètres et le Détail d'épargne, jamais remarqué faute d'y ouvrir
+une feuille.
+
+**Le contrôle en place maintenant.** `tokens.ts` porte une échelle de plans nommés — `fond`,
+`poignee`, `navigation`, `bulle`, `ecran`, `feuille`, `confirmation` — et plus aucun module
+n'écrit de nombre. Un composant choisit un RÔLE, et l'ordre se lit à un seul endroit.

@@ -22,6 +22,11 @@ export type EpargnePublique = components['schemas']['EpargnePublique']
 export type CompteEpargne = components['schemas']['CompteEpargne']
 export type DetailEpargne = components['schemas']['DetailEpargne']
 export type MoisDEpargne = components['schemas']['MoisDEpargnePublic']
+export type RepartitionEnveloppes = components['schemas']['RepartitionPublique']
+export type EnveloppePublique = components['schemas']['EnveloppePublique']
+export type DemandeEnveloppe = components['schemas']['DemandeEnveloppe']
+export type DemandeMouvementEnveloppe = components['schemas']['DemandeMouvement']
+export type MouvementEnveloppe = components['schemas']['MouvementPublic']
 export type DemandeCompte = components['schemas']['DemandeCompte']
 export type ModificationCompte = components['schemas']['ModificationCompte']
 export type ProduitPublic = components['schemas']['ProduitPublic']
@@ -189,6 +194,27 @@ export const api = {
 
   /** Rythme d'un livret : versé, repris et solde, mois par mois. */
   detailEpargne: (compteId: string) => appeler<DetailEpargne>(`/epargne/${compteId}`),
+
+  /** Les enveloppes ET le non-affecté. Le second est rendu par le serveur et non déduit
+   *  ici : le laisser calculer côté écran ouvrirait deux définitions de « disponible ». */
+  enveloppes: () => appeler<RepartitionEnveloppes>('/enveloppes'),
+
+  creerEnveloppe: (demande: DemandeEnveloppe) =>
+    appeler<RepartitionEnveloppes>('/enveloppes', {
+      method: 'POST',
+      body: JSON.stringify(demande),
+    }),
+
+  supprimerEnveloppe: (id: string) => appeler<void>(`/enveloppes/${id}`, { method: 'DELETE' }),
+
+  /** Ajoute une ligne au journal. N'écrit AUCUNE opération bancaire. */
+  mouvementEnveloppe: (id: string, demande: DemandeMouvementEnveloppe) =>
+    appeler<RepartitionEnveloppes>(`/enveloppes/${id}/mouvements`, {
+      method: 'POST',
+      body: JSON.stringify(demande),
+    }),
+
+  journalEnveloppe: (id: string) => appeler<MouvementEnveloppe[]>(`/enveloppes/${id}/journal`),
 
   creerVirement: (demande: DemandeVirement) =>
     appeler<VirementCree>('/virements', { method: 'POST', body: JSON.stringify(demande) }),

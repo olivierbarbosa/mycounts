@@ -1,10 +1,13 @@
 /* Navigation principale.
-   - Mobile et tablette : pilule flottante en bas, dans la zone du pouce.
+   - Mobile et tablette : DEUX capsules flottantes en bas, dans la zone du pouce — les
+     onglets dans une pilule, l'ajout seul dans un disque à sa droite (modèle Apple Music).
    - Bureau (≥ 1024 px) : colonne d'items ancrée en HAUT, sans grand bloc de verre.
 
-   La version précédente était un panneau plein hauteur avec trois items et sept cents
-   pixels de vide en dessous : le fond attirait l'œil plus que les libellés. Un rail sert
-   à naviguer, pas à occuper l'espace.
+   Pourquoi deux capsules et non une. Le `+` occupait auparavant un emplacement d'onglet au
+   milieu de la pilule. Il était donc dessiné comme une destination, aligné comme une
+   destination, et seul son arrondi disait qu'il n'en était pas une — pendant que la
+   pastille glissante devait sauter par-dessus son index. Le sortir de la pilule dit la
+   même chose par la mise en page, et rend son arithmétique à la pastille.
 
    Le matériau est déclaré ICI et non par une classe utilitaire appliquée de l'extérieur.
    C'est la deuxième fois que `Verre` écrasait la mise en page de son hôte : la première
@@ -17,7 +20,23 @@
   position: fixed;
   left: var(--espace-l);
   right: var(--espace-l);
-  /* Liquid Glass, uniquement sur les formats où la barre flotte au-dessus du contenu. */
+  /* env() est obligatoire : sans lui, la barre passe sous l'indicateur d'accueil iOS. */
+  bottom: calc(var(--espace-l) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  z-index: var(--plan-navigation);
+}
+
+/* Le Liquid Glass, en quatre couches empilées et non en un simple fond translucide.
+   Aucune n'est décorative au sens où on pourrait la retirer sans que le matériau change :
+     1. le reflet spéculaire, une ligne d'un pixel en haut, qui donne l'arête ;
+     2. la teinte, très peu opaque — c'est le flou qui fait le verre, pas l'opacité ;
+     3. les deux liserés internes, clair en haut et sombre en bas, qui donnent l'ÉPAISSEUR :
+        sans eux la capsule est une découpe dans la page, pas une plaque posée dessus ;
+     4. l'ombre portée large et basse, qui la décolle du contenu qui défile dessous. */
+.pilule,
+.ajouter {
   background:
     linear-gradient(90deg, transparent, var(--couleur-verre-speculaire), transparent) no-repeat
       top / 100% 1px,
@@ -29,19 +48,25 @@
   backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
   -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
   box-shadow:
+    inset 0 1px 0 var(--couleur-contour-clair),
+    inset 0 -1px 0 var(--couleur-verre-bord-sombre),
     inset 0 0 0 1px var(--couleur-verre-bord-sombre),
     0 8px 32px var(--couleur-verre-bord-sombre);
-  /* env() est obligatoire : sans lui, la barre passe sous l'indicateur d'accueil iOS. */
-  bottom: calc(var(--espace-l) + env(safe-area-inset-bottom, 0px));
+}
+
+.pilule {
+  position: relative;
+  flex: 1;
+  min-width: 0;
   display: flex;
+  align-items: center;
   gap: var(--espace-xs);
   padding: var(--espace-xs);
   border-radius: var(--rayon-pilule);
-  z-index: 10;
 }
 
-/* Pastille glissante. Les onglets sont à largeur égale (`flex: 1`), donc sa position se
-   calcule sans mesurer quoi que ce soit : un index et un nombre d'onglets suffisent.
+/* Pastille glissante. Les onglets ont tous la MÊME largeur (`flex: 1`), donc sa position
+   se calcule sans mesurer quoi que ce soit : un index et leur nombre suffisent.
    Seul `transform` est animé — le compositeur le joue sans repeindre, ce qui compte
    au-dessus d'un fond flouté qui devrait sinon refaire son flou à chaque image. */
 .pastille {
@@ -50,7 +75,8 @@
   bottom: var(--espace-xs);
   left: var(--espace-xs);
   width: calc(
-    (100% - 2 * var(--espace-xs) - (var(--onglets) - 1) * var(--espace-xs)) / var(--onglets)
+    (100% - 2 * var(--espace-xs) - (var(--emplacements) - 1) * var(--espace-xs)) /
+      var(--emplacements)
   );
   border-radius: var(--rayon-pilule);
   background: var(--couleur-degrade-accent);
@@ -62,7 +88,8 @@
 
 .onglet {
   flex: 1;
-  /* Au-dessus de la pastille, qui est posée en fond de la barre. */
+  min-width: 0;
+  /* Au-dessus de la pastille, qui est posée en fond de la pilule. */
   position: relative;
   z-index: 1;
   display: flex;
@@ -75,8 +102,12 @@
   border: none;
   background: transparent;
   color: var(--couleur-texte-attenue);
-  font-size: 11px;
+  /* 10 px et non 11 : à quatre onglets sur 390 px, « Calendrier » et « Enveloppe »
+     débordaient de leur pastille. La cible tactile, elle, reste entière — c'est le TEXTE
+     qui rétrécit, pas la zone cliquable. */
+  font-size: 10px;
   font-weight: var(--typo-gras-moyen);
+  line-height: 1.2;
   transition:
     color 160ms ease-out,
     background-color 160ms ease-out;
@@ -86,10 +117,50 @@
   color: var(--couleur-texte);
 }
 
-/* Le fond de l'onglet actif est désormais la pastille glissante : l'onglet ne porte plus
-   que la couleur de son texte. */
+/* Le fond de l'onglet actif est la pastille glissante : l'onglet ne porte plus que la
+   couleur de son texte. */
 .onglet[aria-current='page'] {
   color: var(--couleur-accent-contraste);
+}
+
+/* Le bouton d'ajout, dans SA capsule à droite.
+   Rond à côté d'une pilule d'onglets : la forme et l'écart disent ensemble qu'il n'est pas
+   une destination de plus mais l'action de l'application. Il garde le verre de la barre —
+   c'est le même matériau — et y ajoute le dégradé d'accent, qui n'appartient qu'à lui. */
+.ajouter {
+  flex: 0 0 auto;
+  /* Requis par le pseudo-élément du dégradé, qui se cale en `inset: 0` : sans ancrage,
+     il se positionnerait par rapport au premier parent positionné, c'est-à-dire la barre. */
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  color: var(--couleur-accent-contraste);
+  transition: scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Le dégradé est un pseudo-élément et non le fond du bouton : le fond, lui, porte déjà le
+   verre commun aux deux capsules. Les superposer dans une seule propriété obligerait à
+   recopier ici les quatre couches du matériau — deuxième auteur pour la même recette. */
+.ajouter::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--couleur-degrade-accent);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+}
+
+.ajouter svg {
+  position: relative;
+}
+
+.ajouter:active {
+  scale: 0.94;
 }
 
 .icone {
@@ -97,7 +168,7 @@
 }
 
 /* L'icône de l'onglet qui vient d'être choisi marque le coup d'un bref rebond.
-   Court et sans dépassement molle : un changement d'onglet est fréquent, et une
+   Court et sans dépassement mou : un changement d'onglet est fréquent, et une
    animation qu'on subit dix fois par jour doit se remarquer sans se faire attendre.
    `scale` seul est animé — le compositeur le joue au-dessus du verre de la barre sans
    la faire refaire son flou. */
@@ -129,12 +200,12 @@
   display: none;
 }
 
-/* Tablette : la pilule se recentre et cesse de s'étirer sur toute la largeur. */
+/* Tablette : les deux capsules se recentrent et cessent de s'étirer sur toute la largeur. */
 @media (min-width: 600px) and (max-width: 1023.98px) {
   .barre {
     left: 50%;
     right: auto;
-    width: 360px;
+    width: 420px;
     transform: translateX(-50%);
   }
 }
@@ -145,17 +216,12 @@
    de l'air entre les items, et un état actif marqué par un indicateur latéral plutôt que
    par un bloc de couleur pleine. */
 @media (min-width: 1024px) {
-  /* Le rail empile les onglets sous une marque : l'arithmétique horizontale de la
+  /* La pilule empile les onglets sous une marque : l'arithmétique horizontale de la
      pastille n'y a plus de sens, et la mesurer pour la rendre verticale reviendrait à
      entretenir deux géométries. Au format bureau, l'onglet actif reprend son propre fond.
      Ce que ce choix coûte : pas de glissement au clavier sur grand écran. Assumé. */
   .pastille {
     display: none;
-  }
-
-  .onglet[aria-current='page'] {
-    background: var(--couleur-degrade-accent);
-    box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
   }
 
   .barre {
@@ -167,13 +233,15 @@
     transform: none;
     flex-direction: column;
     align-items: stretch;
-    gap: 2px;
+    gap: var(--espace-l);
     padding: var(--espace-xxl) var(--espace-l);
-    border-radius: 0;
 
-    /* Verre discret. Le rail paraissait plus bleu que la page : la cause n'était pas la
-       teinte du verre — elle est blanche — mais la SATURATION du filtre. À 190 %, il
-       ravivait le bleu du fond au lieu de le laisser passer. À 105 %, le rail se fond. */
+    /* Verre discret, porté par le rail entier et non plus par chaque capsule : sur un
+       bureau les deux ne flottent plus au-dessus du contenu, elles bordent la page.
+
+       Le rail paraissait plus bleu que la page : la cause n'était pas la teinte du verre —
+       elle est blanche — mais la SATURATION du filtre. À 190 %, il ravivait le bleu du
+       fond au lieu de le laisser passer. À 105 %, le rail se fond. */
     background: color-mix(
       in srgb,
       var(--couleur-verre-teinte) calc(var(--verre-opacite) * 32%),
@@ -189,14 +257,54 @@
       24px 0 60px -30px var(--couleur-verre-bord-sombre);
   }
 
+  /* Les capsules rendent leur matériau au rail : deux plaques de verre posées sur une
+     troisième feraient trois épaisseurs pour une seule surface. */
+  .pilule {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 0;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+  }
+
   .marque {
+    /* Avant tout le reste : dans une colonne, la marque est un en-tête, pas un item. */
+    order: -2;
     display: block;
-    padding: 0 var(--espace-m) var(--espace-xxl);
+    padding: 0 var(--espace-m) var(--espace-xl);
     font-family: var(--typo-famille-chiffres);
     font-size: 18px;
     font-weight: var(--typo-gras-display);
     letter-spacing: -0.02em;
     color: var(--couleur-texte);
+  }
+
+  /* Dans une colonne, un rond isolé à côté d'une pile de rectangles ne serait qu'une
+     bizarrerie : l'ajout redevient une ligne, mais reste le PREMIER item et garde le seul
+     fond plein du rail — c'est ce qui continue de le distinguer des destinations. */
+  .ajouter {
+    order: -1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--espace-m);
+    width: 100%;
+    height: var(--cible-tactile);
+    padding: 0 var(--espace-l);
+    border-radius: var(--rayon-pilule);
+    background: var(--couleur-degrade-accent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+    font-size: 14px;
+    font-weight: var(--typo-gras-moyen);
+  }
+
+  .ajouter::before {
+    content: none;
   }
 
   .onglet {
@@ -257,6 +365,14 @@
 
   .onglet:active .icone,
   .onglet:active .iconeActive {
+    scale: 1;
+  }
+
+  .ajouter {
+    transition: none;
+  }
+
+  .ajouter:active {
     scale: 1;
   }
 }

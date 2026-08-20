@@ -31,7 +31,7 @@ test('corriger le solde depuis l’accueil ne crée pas de dépense', async ({ p
   const avant = await lire(page)
   const vise = avant.solde_reel - 4_321
 
-  await page.getByRole('button', { name: /Réel aujourd’hui/ }).click()
+  await page.getByRole('button', { name: 'Corriger le solde réel' }).click()
   await expect(page.getByRole('dialog', { name: 'Corriger le solde' })).toBeVisible()
 
   // Le premier compte de la liste est celui que l'accueil totalise : le foyer d'essai
@@ -54,7 +54,7 @@ test('l’écart apparaît dans l’historique', async ({ page }) => {
   await connecter(page)
   const avant = await lire(page)
 
-  await page.getByRole('button', { name: /Réel aujourd’hui/ }).click()
+  await page.getByRole('button', { name: 'Corriger le solde réel' }).click()
   const vise = avant.solde_reel + 1_500
   await page.getByLabel('Solde affiché par votre banque').fill(String(vise / 100).replace('.', ','))
   await page.getByRole('button', { name: 'Corriger', exact: true }).click()
@@ -69,7 +69,7 @@ test('corriger vers le solde déjà affiché ne fait rien', async ({ page }) => 
   const avant = await lire(page)
   const lignes = await (await page.request.get('/api/operations?periode_courante=false')).json()
 
-  await page.getByRole('button', { name: /Réel aujourd’hui/ }).click()
+  await page.getByRole('button', { name: 'Corriger le solde réel' }).click()
   await page
     .getByLabel('Solde affiché par votre banque')
     .fill(String(avant.solde_reel / 100).replace('.', ','))

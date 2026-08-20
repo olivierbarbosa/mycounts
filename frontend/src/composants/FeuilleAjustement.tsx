@@ -4,6 +4,7 @@ import type { ComptePublic } from '../api/client'
 import { ErreurApi, api } from '../api/client'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import { Montant } from './Montant'
+import { fermetureExterieure } from './fermetureExterieure'
 import styles from './FeuilleSaisie.module.css'
 
 type Props = {
@@ -66,7 +67,13 @@ export function FeuilleAjustement({ comptes, surFermeture, surEnregistrement }: 
   }
 
   return (
-    <div className={styles.voile} role="dialog" aria-modal="true" aria-label="Corriger le solde">
+    <div
+      className={styles.voile}
+      onClick={fermetureExterieure(surFermeture)}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Corriger le solde"
+    >
       <form className={styles.feuille} onSubmit={soumettre} noValidate>
         <h2 className={styles.titre}>Corriger le solde</h2>
 
@@ -120,10 +127,10 @@ export function FeuilleAjustement({ comptes, surFermeture, surEnregistrement }: 
         )}
 
         <div className={styles.actions}>
-          <button type="button" className={styles.secondaire} onClick={surFermeture}>
+          <button type="button" className={styles.annuler} onClick={surFermeture}>
             Annuler
           </button>
-          <button type="submit" className={styles.principal} disabled={enCours}>
+          <button type="submit" className={styles.valider} disabled={enCours}>
             Corriger
           </button>
         </div>

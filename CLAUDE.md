@@ -11,15 +11,18 @@ existant : une ligne sans fichier est une intention, sa place est dans le plan o
 ## État
 
 **Livré** : authentification et foyer ; comptes privés ; catégories (créer, renommer,
-retinter, archiver, supprimer) ; opérations ; période budgétaire de paie à paie ; soldes
-et liste ; amorçage avec solde d'ouverture ; récurrences, matérialisation idempotente,
-calendrier mensuel et file « à confirmer » ; plafonds par catégorie **côté serveur**.
-Interface néon + Liquid Glass sur palette lavande, mobile d'abord, rail latéral au-delà
-de 1024 px.
+retinter, archiver, supprimer — et **créer à la volée** depuis la saisie ou les budgets) ;
+opérations (créer, modifier, supprimer, détailler) ; période budgétaire de paie à paie ;
+soldes et liste ; amorçage avec solde d'ouverture ; récurrences, matérialisation
+idempotente, calendrier mensuel et file « à confirmer » ; plafonds par catégorie avec leur
+écran et les jauges de l'accueil ; virements ; page Épargne et détail d'un livret ;
+correction du solde par ajustement ; noyau des enveloppes (lot E1).
+Interface Liquid Glass sur palette **bleu ardoise**, mobile d'abord, rail latéral au-delà
+de 1024 px. Barre d'onglets à deux capsules (modèle Apple Music) ; écrans ouverts depuis
+une bulle du haut, avec glissement de retour au doigt.
 
-**Manque** : modifier / supprimer / détailler une opération (l'action la plus fréquente
-est à sens unique) ; écran des plafonds ; virements entre comptes ; page Épargne ; onglet
-Foyer et comptes joints ; déploiement VPS.
+**Manque** : enveloppes au-delà du noyau (lots E2 à E4) ; page Statistiques et coaching ;
+import de relevé (CSV / PDF) ; onglet Foyer et comptes joints ; déploiement VPS.
 
 Le plan d'exécution détaillé vit dans `docs/PLAN.md` — il fixe pour chaque écran ce qu'il
 fait **et ce qu'il ne fait pas**. Cette seconde colonne existe parce que trois écrans ont
@@ -73,12 +76,22 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   contredire** — deux incidents pour la même cause (ERREURS.md #008 et #020).
 - **Une sonde de mesure a un domaine de validité** : le connaître avant de croire son
   verdict. Celle du contraste m'a trompé trois fois (#011, #021).
-- **Frontend : `design/tokens.ts` est l'auteur unique de la palette.** Les composants
-  n'écrivent que `var(--…)`. DA néon + Liquid Glass : dégradé violet, surfaces en verre.
-  Un texte PEUT être posé sur du verre, à une condition mesurée — contraste AA de 4,5:1
-  vérifié dans les deux thèmes et les trois positions de transparence
+- **Frontend : `design/tokens.ts` est l'auteur unique de la palette ET de l'ordre
+  d'empilement.** Les composants n'écrivent que `var(--…)`, y compris pour les `z-index` :
+  ils choisissent un RÔLE (`--plan-feuille`, `--plan-ecran`…), jamais un nombre. Deux
+  nombres choisis dans deux fichiers avaient rendu un formulaire invisible derrière l'écran
+  qui l'ouvrait (ERREURS.md #038).
+- **DA Liquid Glass sur palette bleu ardoise** — `#334155`, `#0EA5E9`, `#7DD3FC`,
+  `#E0F2FE`, `#F1F5F9`. Un texte PEUT être posé sur du verre, à une condition mesurée —
+  contraste AA de 4,5:1 vérifié dans les deux thèmes et les trois positions de transparence
   (`frontend/e2e/contraste.spec.ts`). Les opacités de texte et la teinte de l'accent sont
-  donc contraintes par la mesure, pas choisies à l'œil.
+  donc contraintes par la mesure, pas choisies à l'œil : `#0EA5E9` ne porte AUCUN texte
+  (2,77:1 avec du blanc) et s'assombrit même en thème clair pour tenir le seuil des
+  composants graphiques.
+- **Le contraste se mesure sur le RENDU, jamais sur un aplat.** Un montant n'est pas posé
+  sur le fond mais sur le fond + le halo + le verre. Un calcul entre deux valeurs
+  hexadécimales a pour domaine de validité « deux aplats opaques » — ce n'est pas cette
+  interface. Trois erreurs pour cette seule cause (#011, #021, #035).
 - **Mobile d'abord, bureau à part entière.** Media queries `min-width` uniquement. À
   partir de 1024 px la navigation devient un rail latéral — pas une tab bar centrée dans
   le vide.
@@ -89,7 +102,9 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 ## Garde-fous actifs
 
 Dix, tous bloquants, tous prouvés en les faisant échouer devant la faute qu'ils
-prétendent détecter : données bancaires (IBAN mod-97, PAN Luhn), secrets, dépendances LLM,
+prétendent détecter — **y compris les cibles du `Makefile` elles-mêmes** : `front-lint` a
+été vert sans rien vérifier pendant toute la vie du projet, faute de `-p` sur un tsconfig
+de références (ERREURS.md #034) : données bancaires (IBAN mod-97, PAN Luhn), secrets, dépendances LLM,
 tête Alembic unique, flottants dans le domaine, requêtes hors repository, couleurs en dur
 hors `tokens.ts`, et mise en page sur trois tailles d'écran. Chaque script documente en
 tête **ce qu'il ne détecte pas** — lire cette section avant de lui faire confiance.

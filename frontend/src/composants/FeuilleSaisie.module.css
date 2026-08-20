@@ -6,7 +6,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 20;
+  z-index: var(--plan-feuille);
 }
 
 .feuille {

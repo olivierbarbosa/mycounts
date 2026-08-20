@@ -229,6 +229,69 @@ ambiguë est présentée plutôt que devinée.)*
 > * Dans la partie Dépense il faut mettre un peu plus d'écart entre le compte et les deux
 >   boutton en dessous.
 
+### 2026-08-20 — refonte visuelle et minimalisme
+
+*(Consignes redonnées après un `/clear` accidentel qui avait effacé la conversation. Elles
+sont recopiées ICI en premier, avant toute ligne de code : c'est exactement le trou que ce
+fichier existe pour boucher.)*
+
+> * La navbar doit être comme celle d'apple music le + séparé a droite de la navbar
+> * Ajouté du liquid glass a la navbar
+> * Nouvelle palette de couleur : #334155, #0EA5E9, #7DD3FC, #E0F2FE, #F1F5F9
+> * Les bulles en haut de l'écran doivent afficher les ecran de la même façon avec le même
+>   effet
+> * Il faut ajouter quand on ouvre une bulle qui a le bouton de retour en arrière le fait
+>   de pouvoir slider de gauche a droite avec le doigts pour revenir en arrière comme sur
+>   une app native iOS après dis moi si sur une PWA c'est compliqué?
+> * Il faut rendre l'UX des budgets et l'accueil plus minimaliste pour afficher ce que
+>   l'on a besoin et que tout sois visible rapidement et simplement on veut une UI/UX ou
+>   tout ce fait simplement avec le moins d'interaction avec l'utilisateur que ça soit
+>   simple et efficace.
+
+*(Suite, pendant la refonte :)*
+
+> Attention dans le calendrier le boutton plus devrait être en haut a droite du titre
+> calendrier et ouvrir le modal par dessus l'écran car la il l'affiche en dessous du coup
+> on vois pas les modifs qu'on peut faire ça fait comme si rien s'affichais on est obligé
+> de fermer l'ecran calendrier + le titre et le bouton retour en arrière devrait être plus
+> haut comme on fait pour le profil/paramètre
+
+> a la place d'écrire corriger en dessous de réel il faudrait mettre un petit crayon plus
+> esthétique je pense
+
+> Pour quitter les modals on pourrait appuyer en dehors au lieu de toujours appuyer sur
+> annuler ou le retour
+
+> Quand j'appuie sur la bulle calendrier y a un petit temps d'attente avant de l'afficher
+> c'est pas fluide + sur la page accueil il faut toujours afficher tout les budgets mis en
+> place car on doit les voir d'un coup d'oeil avec a droite de la barre Dépensé € / Total
+> du budget €
+
+> Il faut changer le + dans la page budget trouver autre chose car ça fait deux logo +
+> plutot rajouter un boutton ajouter un budgets et pouvoir éditer ou supprimer ceux déjà en
+> place via un crayon
+
+> A la place de quand on appuie ajouter un budget que ça nous renvoie en haut nous laisser
+> en bas de l'écran et remplacer de bouton par ce qu'on doit remplir dans le même format
+> que les budgets au dessus en pouvoir changer la catégorie le plafond
+
+> Il faut pouvoir aussi ajouter une catégorie rapidement et simplement si les catégories ne
+> nous conviennent pas ou qu'il en manque
+
+> * Dans la partie épargne le virer de l'argent doit être juste le fait d'ouvrir un petit
+>   modal qui cible virement pas besoin d'afficher dépense & revenu vu qu'on est dans la
+>   partie épargne
+> * Dans le modal du + ils faut qu'on simplifie au maximum et le cocher c'est ma paie si on
+>   a mis la catégorie Salaire c'est inutile vu que salaire = paie + il faut ajouter une
+>   catégorie dans revenu appelé remboursement
+> * Dans la partie nouvelle enveloppe pareil que dans budget on simplifie le remplissement
+>   des champs et on le rend affichable directement en un coup d'oeil et simple.
+
+> * Il faut ajouter une bulle a gauche de calendrier qui se nommera statistiques et qui
+>   fera les stats des dépenses et nous fera également du coaching sur les dépenses jugé
+>   inutiles ou en trop des abonnements pas nécessaire, des commandes deliveroo uber etc
+>   peut être pas nécessaire non plus etc.. avec des KPI/Graph etc..
+
 
 ## Traduction en décisions
 
@@ -283,6 +346,11 @@ mouvement des écrans mesuré à 60 images/s.
 **Reste à faire**, dans cet ordre :
 
 1. ~~Détail d'un compte d'épargne~~ — **fait le 2026-08-20**.
+1bis. ~~Refonte visuelle : palette bleu ardoise, navbar à deux capsules, bulles unifiées
+   avec glissement de retour, accueil et budgets allégés, création de catégorie à la
+   volée~~ — **fait le 2026-08-20**, voir `docs/changelog.d/0046-refonte-bleu-ardoise.md`.
+   Restent de cette vague : Épargne (le virement doit ouvrir un modal ciblé), Enveloppes
+   (simplifier la saisie comme sur Budget), modal `+` à simplifier davantage.
 2. **Enveloppes** — chantier découpé en quatre lots, tranché le 2026-08-20 d'après
    `docs/reference-enveloppes-collegue.md`. La règle qui commande tout le reste :
 

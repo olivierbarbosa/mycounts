@@ -8,13 +8,13 @@ import {
   UserRound,
   Users,
 } from 'lucide-react'
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 
 import type { CategoriePublique, ComptePublic, UtilisateurPublic } from '../api/client'
 import { api } from '../api/client'
-import { type Origine, initiales } from '../composants/BulleAvatar'
+import { initialesDeLUtilisateur } from '../composants/Bulle'
 import { ComptesBancaires } from '../composants/ComptesBancaires'
-import { useSuperposition } from '../composants/superposition'
+import { type Origine, useEcranDeBulle } from '../composants/EcranDeBulle'
 import { ReglageTheme } from '../composants/ReglageTheme'
 import { ReglageTransparence } from '../composants/ReglageTransparence'
 import { Categories } from './Categories'
@@ -27,15 +27,11 @@ type Props = {
   readonly surChangement: () => void
   readonly surFermeture: () => void
   readonly surDeconnexion: () => void
-  /** D'où le panneau doit naître. Voir `BulleAvatar`. */
+  /** D'où le panneau doit naître. Voir `Bulle`. */
   readonly origine: Origine
 }
 
 type Cle = 'compte' | 'comptes' | 'categories' | 'apparence' | 'foyer'
-
-/** Durée de la glissade. Doit rester égale à celle des transitions CSS : c'est elle qui
- *  décide quand le panneau quitte le DOM, et un écart laisserait voir un saut. */
-const DUREE_MS = 260
 
 /**
  * Paramètres, ouverts depuis la bulle d'avatar.
@@ -58,7 +54,6 @@ export function Parametres({
   // La sous-page reste montée le temps de sortir : la démonter tout de suite la ferait
   // disparaître d'un coup, sans le mouvement qui dit où elle repart.
   const [sortant, setSortant] = useState(false)
-  const [ferme, setFerme] = useState(false)
   // Le verre est SUSPENDU pendant chaque mouvement, pas seulement au premier. Une
   // sous-page qui glisse par-dessus oblige le panneau à refaire son flou à chaque image :
   // mesuré à 33,3 ms par image, soit trente par seconde, contre 16,7 sans.
@@ -83,7 +78,9 @@ export function Parametres({
   }
   const [code, setCode] = useState<string | null>(null)
   const avatar = useRef<HTMLSpanElement>(null)
-  useSuperposition()
+  // Éclosion depuis la bulle, repli vers elle, et glissement de retour au doigt : la même
+  // mécanique que pour toute autre bulle du haut, tenue à un seul endroit.
+  const { proprietes, poigneeDeRetour, fermer, ferme } = useEcranDeBulle(origine, surFermeture)
 
   // Transition d'élément partagé, en FLIP : on mesure l'ARRIVÉE de l'avatar une fois
   // posé, on calcule le transform qui le ramènerait sur la bulle, et on joue l'inverse.
@@ -118,13 +115,6 @@ export function Parametres({
     )
     return () => jouee.cancel()
   }, [origine])
-
-  // La fermeture est retardée le temps de la glissade : démonter tout de suite ferait
-  // disparaître le panneau d'un coup, sans le mouvement qui dit d'où il vient.
-  function fermer() {
-    setFerme(true)
-    window.setTimeout(surFermeture, DUREE_MS)
-  }
 
   async function inviter() {
     setCode((await api.creerInvitation()).code)
@@ -216,28 +206,20 @@ export function Parametres({
 
   return (
     <div
-      className={[
-        styles.panneau,
-        ferme ? 'mouvement-repli' : 'mouvement-eclosion',
-        // Le verre n'est posé qu'après le mouvement : voir `.pose`.
-        pose ? styles.pose : '',
-      ].join(' ')}
+      {...proprietes}
+      // Le verre n'est posé qu'après le mouvement : voir `.pose`.
+      className={[styles.panneau, proprietes.className, pose ? styles.pose : ''].join(' ')}
       onAnimationEnd={(evenement) => {
+        proprietes.onAnimationEnd(evenement)
         // Seule l'animation DU PANNEAU compte : celles de ses enfants remontent aussi,
         // et poser le verre à la première d'entre elles le remettrait dans le mouvement.
         if (evenement.target === evenement.currentTarget && !ferme) setPose(true)
       }}
-      style={
-        {
-          '--origine-x': `${origine.x}px`,
-          '--origine-y': `${origine.y}px`,
-          '--origine-rayon': `${origine.taille / 2}px`,
-        } as CSSProperties
-      }
       role="dialog"
       aria-modal="true"
       aria-label="Paramètres"
     >
+      {poigneeDeRetour}
       <div className={styles.pile}>
         <section className={styles.racine} aria-hidden={page !== null}>
           <header className={styles.entete}>
@@ -248,7 +230,7 @@ export function Parametres({
 
           <div className={styles.identite}>
             <span ref={avatar} className={styles.avatar} aria-hidden>
-              {initiales(utilisateur.nom_affichage)}
+              {initialesDeLUtilisateur(utilisateur.nom_affichage)}
             </span>
             <h1 className={styles.nom}>{utilisateur.nom_affichage}</h1>
             <p className={styles.courriel}>{utilisateur.courriel}</p>

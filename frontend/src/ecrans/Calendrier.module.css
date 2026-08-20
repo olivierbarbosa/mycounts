@@ -1,10 +1,14 @@
 .page {
   min-height: 100dvh;
   padding: var(--espace-xl);
-  padding-top: calc(
-    var(--disposition-reserve-bulle) + var(--espace-xl) + env(safe-area-inset-top, 0px)
-  );
-  padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+  /* Pas de réserve de bulle ici, contrairement aux écrans d'onglet. Cet écran COUVRE les
+     bulles — il est au plan `--plan-ecran`, elles sont au-dessous : leur réserver 56 px de
+     vide poussait le retour et le titre d'une hauteur de pouce vers le bas, sans que rien
+     n'occupe la place. Même valeur que les paramètres, qui n'ont jamais eu ce défaut. */
+  padding-top: calc(var(--espace-m) + env(safe-area-inset-top, 0px));
+  /* Plus de réserve de 160 px : elle tenait compte de la barre d'onglets et du bouton
+     flottant, dont ni l'une ni l'autre n'est visible sous cet écran. */
+  padding-bottom: calc(var(--espace-xxl) + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--espace-xl);
@@ -131,24 +135,34 @@
   font-weight: var(--typo-gras-moyen);
 }
 
+/* Ligne du grand titre, sous la barre de retour. */
+.ligneDuTitre {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+}
+
 .ajouter {
-  position: fixed;
-  right: var(--espace-xl);
-  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-  width: 56px;
-  height: 56px;
+  /* Poussé au bout de la ligne : `margin-left: auto` plutôt qu'un `flex: 1` sur le titre,
+     qui étirerait la zone cliquable du titre sur toute la largeur restante. */
+  margin-left: auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: var(--rayon-pilule);
+  border-radius: 50%;
   border: none;
   background: var(--couleur-degrade-accent);
   color: var(--couleur-accent-contraste);
-  font-size: 26px;
-  line-height: 1;
   box-shadow:
     inset 0 0 0 1px var(--couleur-contour-clair),
-    0 10px 28px var(--couleur-verre-bord-sombre);
-  z-index: 11;
+    0 6px 20px var(--couleur-verre-bord-sombre);
+  transition: scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.ajouter:active {
+  scale: 0.94;
 }
 
 @media (min-width: 600px) {
@@ -166,11 +180,6 @@
     padding-left: calc(var(--disposition-largeur-rail) + var(--espace-xxl));
     padding-right: var(--espace-xxl);
     padding-bottom: var(--espace-xxl);
-  }
-
-  .ajouter {
-    bottom: var(--espace-xxl);
-    right: var(--espace-xxl);
   }
 }
 
@@ -223,4 +232,64 @@
   color: var(--couleur-accent-contraste);
   font-size: 14px;
   font-weight: var(--typo-gras-fort);
+}
+
+/* Coquille de page poussée : le calendrier s'ouvre depuis une bulle en haut à droite,
+   comme les paramètres depuis celle du profil. Les images clés viennent de global.css,
+   seul auteur de ce mouvement. */
+.panneau {
+  position: fixed;
+  inset: 0;
+  z-index: var(--plan-ecran);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: var(--couleur-fond);
+  background-image: var(--fond-degrade-page);
+}
+
+.enteteEcran {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+  /* Plaqué en haut, sans marge au-dessus du titre : c'est la même barre de retour que
+     dans les sous-menus des paramètres. Deux écrans poussés qui placeraient leur retour
+     à deux hauteurs différentes se liraient comme deux applications. */
+  margin-bottom: var(--espace-s);
+}
+
+.rond {
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  transition: scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.rond:active {
+  scale: 0.96;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rond {
+    transition: none;
+  }
+  .rond:active {
+    scale: 1;
+  }
+}
+
+/* État d'attente du contenu, l'en-tête étant déjà à l'écran. Discret par construction :
+   il ne dure que le temps d'un aller-retour, et un bloc voyant qui apparaît puis
+   disparaît en 200 ms se remarque plus que l'attente qu'il annonce. */
+.attente {
+  margin: 0;
+  padding: var(--espace-xxl) 0;
+  text-align: center;
+  color: var(--couleur-texte-faible);
+  font-size: 14px;
 }

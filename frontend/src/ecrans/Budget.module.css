@@ -1,8 +1,11 @@
 .page {
   min-height: 100dvh;
   padding: var(--espace-xl);
-  padding-top: calc(var(--espace-xl) + env(safe-area-inset-top, 0px));
-  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  padding-top: calc(
+    var(--disposition-reserve-bulle) + var(--espace-xl) + env(safe-area-inset-top, 0px)
+  );
+  /* Réserve la barre d'onglets : sans elle, le dernier plafond passe sous le verre. */
+  padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--espace-xl);
@@ -16,12 +19,6 @@
   letter-spacing: -0.02em;
 }
 
-.sousTitre {
-  margin: 0;
-  color: var(--couleur-texte-attenue);
-  font-size: 14px;
-}
-
 .liste {
   display: flex;
   flex-direction: column;
@@ -31,73 +28,170 @@
   padding: 0;
 }
 
+/* Une ligne et non une carte. Chaque plafond occupait une plaque de verre de 16 px de
+   marge intérieure portant six lignes : le nom, un pourcentage, la jauge, « 212 € sur
+   400 € », l'à-venir, puis un bouton « Retirer » toujours visible. Trois budgets
+   remplissaient l'écran. Ce qui reste dit la même chose en deux lignes, et le retrait a
+   rejoint l'édition — il n'a rien à faire sous les yeux en permanence. */
 .plafond {
   display: flex;
   flex-direction: column;
   gap: var(--espace-s);
-  padding: var(--espace-l);
-  border-radius: var(--rayon-moyen);
-  background: var(--couleur-surface);
-  backdrop-filter: blur(var(--verre-flou));
-  -webkit-backdrop-filter: blur(var(--verre-flou));
-  border: 1px solid var(--couleur-bordure);
-  box-shadow: inset 0 1px 0 var(--couleur-lueur-bordure);
-}
-
-.entetePlafond {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--espace-m);
+  padding: var(--espace-s) 0;
 }
 
 .nom {
-  font-size: 15px;
-  font-weight: var(--typo-gras-fort);
-}
-
-/* La jauge : une barre neutre, remplie proportionnellement. La couleur de remplissage
-   n'est PAS le seul signal — le texte sous la barre dit toujours l'état en toutes
-   lettres. */
-.jauge {
-  height: 8px;
-  border-radius: var(--rayon-pilule);
-  background: var(--couleur-surface-haute);
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+  text-align: left;
 }
 
-.remplissage {
-  height: 100%;
-  border-radius: var(--rayon-pilule);
-  background: var(--couleur-accent);
-  transition: width 260ms ease-out;
-}
-
-.remplissageAlerte {
-  background: var(--couleur-alerte);
-}
-
-.remplissageDepasse {
-  background: var(--couleur-debit);
-}
-
-.detail {
+.resume {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--espace-xs) var(--espace-l);
-  align-items: baseline;
+  align-items: center;
+  gap: var(--espace-m);
+  width: 100%;
+  min-height: var(--cible-tactile);
 }
 
-.mention {
+/* Le nom occupe la place restante, les chiffres se calent contre le crayon. */
+.resume .nom {
+  flex: 1;
+}
+
+/* Encre neutre pour les quantités : la couleur est réservée à l'état. */
+.chiffres {
+  flex: 0 0 auto;
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--couleur-texte-attenue);
+  white-space: nowrap;
+}
+
+/* Édition en place et ajout partagent leur géométrie : ce sont le même geste, à ceci près
+   que l'un choisit sa catégorie et que l'autre la connaît déjà. */
+/* Édition en place et ajout partagent leur géométrie : ce sont le même geste, à ceci près
+   que l'un choisit sa catégorie et que l'autre la connaît déjà. L'ajout se pose donc au
+   FORMAT d'une ligne de budget, à la suite de la liste — et non dans un bloc de
+   formulaire distinct qui aurait dit qu'on quitte la liste pour faire autre chose. */
+.ligneEdition,
+.ajout {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+}
+
+/* Le sélecteur prend la place restante, le montant reste étroit : c'est le nom de la
+   catégorie qui est long, jamais la somme. */
+.ajout .choix {
+  flex: 1;
+  min-width: 0;
+}
+
+.ajout .saisie,
+.ligneEdition .saisie {
+  flex: 0 1 110px;
+  min-width: 0;
+}
+
+/* Le retrait ne vit QUE dans l'édition : c'est l'action la plus rare et la seule
+   irréversible de l'écran, elle n'a pas à occuper une ligne sur chaque budget. */
+.retirer {
+  flex: 0 0 auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-debit);
+}
+
+/* Bouton d'ajout NOMMÉ, sous la liste. Il ne reprend pas le dégradé d'accent : l'action
+   principale de l'application est le `+` de la barre, et deux boutons pleins également
+   accentués sur le même écran se disputeraient le regard sans que rien ne dise lequel
+   prime. Celui-ci est donc un bouton bordé — présent, secondaire. */
+.ajouter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-s);
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte);
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+  transition:
+    border-color 160ms ease-out,
+    scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.ajouter:hover {
+  border-color: var(--couleur-accent-clair);
+}
+
+.ajouter:active {
+  scale: 0.98;
+}
+
+/* Le crayon, au bout de chaque ligne. Cible pleine de 44 px pour un dessin de 16 : c'est
+   la cible qu'on vise, pas le trait. */
+.crayon {
+  flex: 0 0 auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--couleur-texte-faible);
+  transition:
+    color 160ms ease-out,
+    background-color 160ms ease-out;
+}
+
+.crayon:hover {
+  color: var(--couleur-texte);
+  background: color-mix(in srgb, var(--couleur-texte) 8%, transparent);
+}
+
+/* Abandon d'une saisie en cours : même géométrie que le crayon, encre atténuée. */
+.abandonner {
+  flex: 0 0 auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: transparent;
   color: var(--couleur-texte-attenue);
 }
 
-/* L'à-venir se distingue visuellement du consommé : ce sont deux natures d'information,
-   et les fondre en une seule ligne serait exactement ce que le domaine refuse. */
-.aVenir {
-  font-size: 13px;
-  color: var(--couleur-alerte);
+/* Le total, sous le titre : la réponse d'ensemble, avant le détail par catégorie. */
+.total {
+  margin: 0;
+  font-size: 15px;
+  color: var(--couleur-texte);
+}
+
+/* La restriction est écrite, pas sous-entendue : ce total ne porte que sur les catégories
+   plafonnées, et ressemblerait sinon à celui de l'accueil sans jamais lui être égal. */
+.precisionTotal {
+  display: block;
+  color: var(--couleur-texte-faible);
+  font-size: 12px;
 }
 
 .alerte {
@@ -111,13 +205,6 @@
   font-size: 13px;
   color: var(--couleur-debit);
   font-weight: var(--typo-gras-moyen);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--espace-s);
-  align-items: center;
 }
 
 .saisie,
@@ -137,10 +224,14 @@
 }
 
 .valider {
-  min-height: var(--cible-tactile);
-  padding: 0 var(--espace-xl);
+  flex: 0 0 auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: none;
-  border-radius: var(--rayon-pilule);
+  border-radius: 50%;
   background: var(--couleur-degrade-accent);
   color: var(--couleur-accent-contraste);
   /* Contour interne d'un pixel : il détache le bouton du fond sans agrandir la cible.
@@ -161,16 +252,6 @@
   opacity: 0.55;
 }
 
-.action {
-  min-height: var(--cible-tactile);
-  padding: 0 var(--espace-m);
-  border-radius: var(--rayon-pilule);
-  border: 1px solid var(--couleur-bordure);
-  background: transparent;
-  color: var(--couleur-texte-attenue);
-  font-size: 13px;
-}
-
 .vide {
   display: flex;
   flex-direction: column;
@@ -187,6 +268,18 @@
 
 .vide p {
   margin: 0;
+}
+
+.actionVide {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
 }
 
 .erreur {
@@ -213,47 +306,8 @@
   }
 }
 
-/* Coquille de page poussée, identique à celle des paramètres : les deux écrans arrivent
-   de la droite et repartent par là. Les images clés viennent de global.css, seul auteur
-   de ce mouvement. */
-.panneau {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background-color: var(--couleur-fond);
-  background-image: var(--fond-degrade-page);
-}
-
 .entete {
   display: flex;
   align-items: center;
   gap: var(--espace-m);
-}
-
-.rond {
-  width: var(--cible-tactile);
-  height: var(--cible-tactile);
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--couleur-bordure);
-  border-radius: 50%;
-  background: var(--couleur-surface);
-  color: var(--couleur-texte);
-  transition: scale 160ms cubic-bezier(0.2, 0, 0, 1);
-}
-
-.rond:active {
-  scale: 0.96;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rond {
-    transition: none;
-  }
-  .rond:active {
-    scale: 1;
-  }
 }

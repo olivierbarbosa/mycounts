@@ -8,6 +8,7 @@ import type {
 } from '../api/client'
 import { ErreurApi, api } from '../api/client'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
+import { fermetureExterieure } from './fermetureExterieure'
 import styles from './FeuilleSaisie.module.css'
 
 type Props = {
@@ -134,6 +135,7 @@ export function FeuilleRecurrence({
   return (
     <div
       className={styles.voile}
+      onClick={fermetureExterieure(surFermeture)}
       role="dialog"
       aria-modal="true"
       aria-label={aModifier ? 'Modifier un prélèvement' : 'Ajouter un prélèvement'}

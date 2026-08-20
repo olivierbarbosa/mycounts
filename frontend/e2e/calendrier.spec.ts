@@ -26,6 +26,16 @@ async function ouvrirAgenda(page: import('@playwright/test').Page) {
   await expect(page.getByRole('heading', { name: 'Calendrier' })).toBeVisible()
 }
 
+/** L'écran du calendrier, et lui seul.
+ *
+ *  Il RECOUVRE l'accueil, il ne le remplace pas : le DOM de l'accueil reste monté
+ *  derrière, avec sa propre liste d'opérations. Un `page.locator('li', …)` cherche dans le
+ *  document entier et tombait donc sur la ligne de l'accueil, où il n'y a évidemment aucun
+ *  bouton « Confirmer ». Le test ne mesurait plus l'écran qu'il croyait mesurer — la forme
+ *  d'erreur la plus fréquente de ce projet. */
+const agenda = (page: import('@playwright/test').Page) =>
+  page.getByRole('dialog', { name: 'Calendrier' })
+
 async function creerRecurrence(
   page: import('@playwright/test').Page,
   libelle: string,
@@ -37,7 +47,11 @@ async function creerRecurrence(
   await page.getByLabel('Libellé', { exact: true }).fill(libelle)
   await page.getByLabel('Première échéance').fill(ancre)
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // La FEUILLE, nommément, et non « aucun dialogue » : le calendrier qui l'a ouverte est
+  // lui-même un dialogue modal — comme les paramètres et le détail d'épargne — et il reste
+  // ouvert derrière elle. Compter les dialogues faisait donc attendre la fermeture d'un
+  // écran que ce helper n'a jamais eu l'intention de fermer.
+  await expect(page.getByRole('dialog', { name: /prélèvement/ })).toHaveCount(0)
 }
 
 /* Placé en tête du fichier à dessein : les tests suivants créent des prélèvements
@@ -87,7 +101,7 @@ test('créer un prélèvement et le voir dans le calendrier', async ({ page }) =
 
   await creerRecurrence(page, libelle, '10,99', dans10)
 
-  const ligne = page.locator('li', { hasText: libelle }).first()
+  const ligne = agenda(page).locator('li', { hasText: libelle }).first()
   await expect(ligne).toBeVisible()
   await expect(ligne).toContainText('−10')
 })
@@ -99,8 +113,8 @@ test('une échéance échue remonte dans « à confirmer » sans job manuel', as
   await ouvrirAgenda(page)
   await creerRecurrence(page, libelle, '7,50', HIER)
 
-  await expect(page.getByText('À confirmer', { exact: false })).toBeVisible()
-  const ligne = page.locator('li', { hasText: libelle }).first()
+  await expect(agenda(page).getByText('À confirmer', { exact: false })).toBeVisible()
+  const ligne = agenda(page).locator('li', { hasText: libelle }).first()
   await expect(ligne.getByRole('button', { name: 'Confirmer', exact: true })).toBeVisible()
 })
 
@@ -122,7 +136,7 @@ test('confirmer ne déplace pas le solde projeté', async ({ page }) => {
   }
 
   const avant = await lire()
-  const ligne = page.locator('li', { hasText: libelle }).first()
+  const ligne = agenda(page).locator('li', { hasText: libelle }).first()
   await ligne.getByRole('button', { name: 'Confirmer', exact: true }).click()
   await expect(ligne.getByRole('button', { name: 'Confirmer', exact: true })).toHaveCount(0)
   const apres = await lire()
@@ -178,7 +192,7 @@ test('la feuille ne propose que des prélèvements, jamais de revenu', async ({ 
   await ouvrirAgenda(page)
   await page.getByRole('button', { name: 'Ajouter un prélèvement' }).click()
 
-  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: /prélèvement/ })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Revenu', exact: true })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Nouveau prélèvement' })).toBeVisible()
 })
@@ -205,7 +219,7 @@ test('un prélèvement saisi sans signe est enregistré en négatif', async ({ p
     new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10),
   )
 
-  const ligne = page.locator('li', { hasText: libelle }).first()
+  const ligne = agenda(page).locator('li', { hasText: libelle }).first()
   await expect(ligne).toContainText('−24')
 })
 
@@ -220,7 +234,7 @@ test('modifier un prélèvement conserve son rythme à la réouverture', async (
   await page.getByLabel('Libellé', { exact: true }).fill(libelle)
   await page.getByLabel('Fréquence').selectOption({ label: 'Tous les 3 mois' })
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: /prélèvement/ })).toHaveCount(0)
 
   await page.getByRole('button', { name: `Modifier le prélèvement ${libelle}` }).click()
   await expect(page.getByRole('heading', { name: 'Modifier le prélèvement' })).toBeVisible()
@@ -240,10 +254,13 @@ test('modifier le montant d’un prélèvement met à jour le calendrier', async
 
   await page.getByRole('button', { name: `Modifier le prélèvement ${libelle}` }).click()
   await page.getByLabel('Montant', { exact: true }).fill('30,00')
-  await page.getByRole('dialog').getByRole('button', { name: 'Modifier', exact: true }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page
+    .getByRole('dialog', { name: /prélèvement/ })
+    .getByRole('button', { name: 'Modifier', exact: true })
+    .click()
+  await expect(page.getByRole('dialog', { name: /prélèvement/ })).toHaveCount(0)
 
-  const ligne = page.locator('li', { hasText: libelle }).first()
+  const ligne = agenda(page).locator('li', { hasText: libelle }).first()
   await expect(ligne).toContainText('−30')
 })
 

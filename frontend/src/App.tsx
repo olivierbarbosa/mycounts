@@ -1,4 +1,4 @@
-import { CalendarDays, House, PiggyBank } from 'lucide-react'
+import { CalendarDays, ChartPie, House, PiggyBank, Wallet } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
@@ -10,7 +10,8 @@ import type {
 } from './api/client'
 import { api } from './api/client'
 import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
-import { BulleAvatar, type Origine } from './composants/BulleAvatar'
+import { Bulle, initialesDeLUtilisateur } from './composants/Bulle'
+import type { Origine } from './composants/EcranDeBulle'
 import { FeuilleOperation } from './composants/FeuilleOperation'
 import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
 import { FeuilleAjustement } from './composants/FeuilleAjustement'
@@ -20,13 +21,15 @@ import { Budget } from './ecrans/Budget'
 import { Calendrier } from './ecrans/Calendrier'
 import { DetailEpargne } from './ecrans/DetailEpargne'
 import { Connexion } from './ecrans/Connexion'
+import { Enveloppes } from './ecrans/Enveloppes'
 import { Epargne } from './ecrans/Epargne'
 import { PremierCompte } from './ecrans/PremierCompte'
 import { Parametres } from './ecrans/Parametres'
 
 const ONGLETS: readonly Onglet[] = [
   { cle: 'accueil', libelle: 'Accueil', Icone: House },
-  { cle: 'calendrier', libelle: 'Calendrier', Icone: CalendarDays },
+  { cle: 'budget', libelle: 'Budget', Icone: ChartPie },
+  { cle: 'enveloppes', libelle: 'Enveloppe', Icone: Wallet },
   { cle: 'epargne', libelle: 'Épargne', Icone: PiggyBank },
 ]
 
@@ -54,7 +57,10 @@ export function App() {
   // il doit naître. Deux états séparés auraient pu se contredire — panneau ouvert sans
   // origine, et une transition partant du coin haut-gauche de l'écran.
   const [origineParametres, setOrigineParametres] = useState<Origine | null>(null)
-  const [budgetsOuverts, setBudgetsOuverts] = useState(false)
+  // Même règle que pour les paramètres : l'origine porte l'ouverture. Un booléen séparé
+  // aurait pu se contredire — écran ouvert sans origine, et une éclosion partant du coin
+  // haut-gauche au lieu de la bulle touchée.
+  const [origineCalendrier, setOrigineCalendrier] = useState<Origine | null>(null)
   const [ajustementOuvert, setAjustementOuvert] = useState(false)
   const [livretChoisi, setLivretChoisi] = useState<string | null>(null)
   const [rafraichissement, setRafraichissement] = useState(0)
@@ -114,28 +120,22 @@ export function App() {
             categories={categories}
             rafraichissement={rafraichissement}
             surSaisie={() => setSaisieOuverte(true)}
-            surBudgets={() => setBudgetsOuverts(true)}
+            surBudgets={() => setOnglet('budget')}
             surAjustement={() => setAjustementOuvert(true)}
             surOperationChoisie={setOperationChoisie}
           />
         )}
 
-        {onglet === 'calendrier' && (
-          <Calendrier
-            comptes={comptes}
+        {onglet === 'budget' && (
+          <Budget
             categories={categories}
             rafraichissement={rafraichissement}
-            surChangement={() => setRafraichissement((n) => n + 1)}
-            surNouvelleRecurrence={() => {
-              setRecurrenceAModifier(undefined)
-              setOperationChoisie(undefined)
-              setRecurrenceOuverte(true)
-            }}
-            surModificationRecurrence={(recurrence) => {
-              setRecurrenceAModifier(recurrence)
-              setRecurrenceOuverte(true)
-            }}
+            surReferentielsChanges={chargerReferentiels}
           />
+        )}
+
+        {onglet === 'enveloppes' && (
+          <Enveloppes categories={categories} rafraichissement={rafraichissement} />
         )}
 
         {onglet === 'epargne' && (
@@ -150,11 +150,25 @@ export function App() {
         )}
       </div>
 
-      <BulleAvatar nom={utilisateur.nom_affichage} surOuverture={setOrigineParametres} />
+      <Bulle
+        cote="gauche"
+        rang={0}
+        libelle={`Paramètres de ${utilisateur.nom_affichage}`}
+        surOuverture={setOrigineParametres}
+      >
+        <span aria-hidden>{initialesDeLUtilisateur(utilisateur.nom_affichage)}</span>
+      </Bulle>
+
+      {/* Le calendrier a quitté la barre pour une bulle : les prélèvements se consultent,
+          ils ne sont pas une destination qu'on visite aussi souvent que ses dépenses. */}
+      <Bulle cote="droite" rang={0} libelle="Calendrier" surOuverture={setOrigineCalendrier}>
+        <CalendarDays size={20} strokeWidth={2} aria-hidden />
+      </Bulle>
 
       <BarreOnglets
         onglets={ONGLETS}
         actif={onglet}
+        surAjout={() => setSaisieOuverte(true)}
         surChangement={(cle) => {
           const depart = ONGLETS.findIndex((o) => o.cle === onglet)
           const arrivee = ONGLETS.findIndex((o) => o.cle === cle)
@@ -162,6 +176,26 @@ export function App() {
           setOnglet(cle)
         }}
       />
+
+      {origineCalendrier !== null && (
+        <Calendrier
+          origine={origineCalendrier}
+          comptes={comptes}
+          categories={categories}
+          rafraichissement={rafraichissement}
+          surChangement={() => setRafraichissement((n) => n + 1)}
+          surFermeture={() => setOrigineCalendrier(null)}
+          surNouvelleRecurrence={() => {
+            setRecurrenceAModifier(undefined)
+            setOperationChoisie(undefined)
+            setRecurrenceOuverte(true)
+          }}
+          surModificationRecurrence={(recurrence) => {
+            setRecurrenceAModifier(recurrence)
+            setRecurrenceOuverte(true)
+          }}
+        />
+      )}
 
       {livretChoisi !== null && (
         <DetailEpargne compteId={livretChoisi} surFermeture={() => setLivretChoisi(null)} />
@@ -175,14 +209,6 @@ export function App() {
             setAjustementOuvert(false)
             void apresEcriture()
           }}
-        />
-      )}
-
-      {budgetsOuverts && (
-        <Budget
-          categories={categories}
-          rafraichissement={rafraichissement}
-          surFermeture={() => setBudgetsOuverts(false)}
         />
       )}
 
@@ -206,6 +232,7 @@ export function App() {
         <FeuilleSaisie
           comptes={comptes}
           categories={categories}
+          surReferentielsChanges={chargerReferentiels}
           surFermeture={() => setSaisieOuverte(false)}
           surEnregistrement={apresEcriture}
         />

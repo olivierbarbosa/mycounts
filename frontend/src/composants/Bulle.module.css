@@ -1,0 +1,86 @@
+/* Matériau et taille communs à TOUTES les bulles du haut : deux objets qui se ressemblent
+   doivent se comporter pareil, et la seule façon de le garantir est qu'ils partagent leur
+   feuille au lieu de la recopier. Seule la position distingue les deux côtés. */
+.bulle {
+  position: fixed;
+  top: calc(var(--espace-m) + env(safe-area-inset-top, 0px));
+  z-index: var(--plan-bulle);
+
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: var(--couleur-surface-haute);
+  backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+
+  color: var(--couleur-texte);
+  font-size: 14px;
+  font-weight: var(--typo-gras-fort);
+  letter-spacing: 0.02em;
+
+  /* Seules ces deux propriétés sont animées : le compositeur les joue sans repeindre, et
+     la bulle est posée au-dessus d'un fond flouté qu'une repeinte obligerait à refaire. */
+  transition:
+    scale 160ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 160ms ease-out;
+}
+
+/* Les rangées s'écartent depuis LEUR bord : le rang 0 y est collé, les suivants s'en
+   éloignent d'une cible tactile plus un intervalle. Une seule arithmétique, deux sens. */
+.bulleGauche {
+  composes: bulle;
+  left: calc(var(--espace-m) + var(--rang) * (var(--cible-tactile) + var(--espace-s)));
+}
+
+.bulleDroite {
+  composes: bulle;
+  right: calc(var(--espace-m) + var(--rang) * (var(--cible-tactile) + var(--espace-s)));
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .bulle {
+    background: var(--couleur-surface-opaque);
+  }
+}
+
+.bulle:hover {
+  border-color: var(--couleur-accent-clair);
+}
+
+/* 0,96 et pas moins : en dessous, l'enfoncement se lit comme un défaut d'affichage. */
+.bulle:active {
+  scale: 0.96;
+}
+
+/* Au-delà de 1024 px, le coin haut-gauche appartient au rail et à sa marque : la rangée
+   de gauche se range juste à sa droite, au sommet du contenu, plutôt que de se poser
+   dessus. Celle de droite garde son bord, qui n'appartient à personne. */
+@media (min-width: 1024px) {
+  .bulle {
+    top: var(--espace-l);
+  }
+
+  .bulleGauche {
+    left: calc(
+      var(--disposition-largeur-rail) + var(--espace-l) + var(--rang) *
+        (var(--cible-tactile) + var(--espace-s))
+    );
+  }
+
+  .bulleDroite {
+    right: calc(var(--espace-l) + var(--rang) * (var(--cible-tactile) + var(--espace-s)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bulle {
+    transition: none;
+  }
+  .bulle:active {
+    scale: 1;
+  }
+}

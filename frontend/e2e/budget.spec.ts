@@ -41,10 +41,19 @@ async function saisirDepense(page: Page, libelle: string, montant: string, categ
 }
 
 async function ouvrirBudgets(page: Page) {
-  // Le libellé du lien change selon qu'il existe déjà un plafond ou non : « Gérer » quand
-  // il y en a, « Fixer un plafond » quand le bloc est vide. Les deux mènent au même écran.
-  await page.getByRole('button', { name: /Gérer|Fixer un plafond/ }).click()
-  await expect(page.getByRole('dialog', { name: 'Budgets' })).toBeVisible()
+  // Budget est un ONGLET depuis la refonte du 20 août 2026, plus un panneau poussé
+  // par-dessus l'accueil : il n'y a donc plus de `dialog` à attendre, mais un titre.
+  // L'accueil y mène toujours — le libellé du lien change selon qu'il existe déjà un
+  // plafond ou non, et les deux formes mènent au même écran.
+  await page.getByRole('button', { name: /Gérer les plafonds|Aucun plafond/ }).click()
+  await expect(page.getByRole('heading', { name: 'Budgets', level: 1 })).toBeVisible()
+}
+
+/** Déplie le formulaire d'ajout, qui n'est visible qu'à la demande depuis la refonte. */
+async function ouvrirAjout(page: Page) {
+  const bouton = page.getByRole('button', { name: /Ajouter un budget|Fixer un plafond/ })
+  if (await bouton.isVisible()) await bouton.click()
+  await expect(page.getByLabel('Catégorie à plafonner')).toBeVisible()
 }
 
 test('l’à-venir ne s’additionne jamais au consommé', async ({ page }) => {
@@ -110,14 +119,18 @@ test('un plafond se fixe et se retire depuis l’écran des budgets', async ({ p
   // Il faut un plafond existant pour que le bloc « Budgets » — et donc « Gérer » —
   // apparaisse sur l'accueil. Les tests précédents en ont laissé.
   await ouvrirBudgets(page)
+  await ouvrirAjout(page)
 
   await page.getByLabel('Catégorie à plafonner').selectOption({ label: categorie })
   await page.getByLabel('Montant du plafond').fill('250,00')
-  await page.getByRole('button', { name: 'Fixer' }).click()
+  await page.getByRole('button', { name: 'Fixer ce plafond' }).click()
 
   const ligne = page.locator('li', { hasText: categorie })
   await expect(ligne).toContainText('250')
 
+  // Le retrait vit désormais DANS l'édition : c'est l'action la plus rare et la seule
+  // irréversible de l'écran, elle n'occupe plus une ligne sur chaque budget.
+  await ligne.getByRole('button', { name: `Modifier le plafond de ${categorie}` }).click()
   await ligne.getByRole('button', { name: `Retirer le plafond de ${categorie}` }).click()
   await expect(page.locator('li', { hasText: categorie })).toHaveCount(0)
 })
@@ -129,10 +142,11 @@ test('un plafond négatif est refusé avant tout envoi', async ({ page }) => {
   await connecter(page)
   await creerCategorie(page, categorie)
   await ouvrirBudgets(page)
+  await ouvrirAjout(page)
 
   await page.getByLabel('Catégorie à plafonner').selectOption({ label: categorie })
   await page.getByLabel('Montant du plafond').fill('-50,00')
-  await page.getByRole('button', { name: 'Fixer' }).click()
+  await page.getByRole('button', { name: 'Fixer ce plafond' }).click()
 
   await expect(page.getByRole('alert')).toContainText('limite')
   await expect(page.locator('li', { hasText: categorie })).toHaveCount(0)
@@ -149,9 +163,13 @@ test('l’écran des budgets reste atteignable sans aucun plafond', async ({ pag
   for (const plafond of plafonds) await page.request.delete(`/api/plafonds/${plafond.id}`)
   await page.reload()
 
-  const bloc = page.getByRole('heading', { name: 'Budgets' }).locator('..')
-  await expect(bloc, 'un bloc vide doit proposer l’action').toContainText('Fixer un plafond')
+  // Le titre « Budgets » a quitté l'accueil à la refonte du 20 août 2026 : il surmontait
+  // des jauges qui portent déjà le nom de leur catégorie. C'est donc l'ÉTAT VIDE qui est
+  // mesuré ici, et lui seul importait — il est la seule porte vers l'écran des plafonds
+  // tant qu'aucun n'existe.
+  const invite = page.getByRole('button', { name: /Aucun plafond/ })
+  await expect(invite, 'un bloc vide doit proposer l’action').toBeVisible()
 
-  await page.getByRole('button', { name: 'Fixer un plafond' }).click()
-  await expect(page.getByRole('dialog', { name: 'Budgets' })).toBeVisible()
+  await invite.click()
+  await expect(page.getByRole('heading', { name: 'Budgets', level: 1 })).toBeVisible()
 })

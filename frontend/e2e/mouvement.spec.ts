@@ -155,7 +155,9 @@ test('la page entre du côté d’où l’on vient dans la barre', async ({ page
   )
 
   // L'autre sens : c'est lui qui distingue une direction calculée d'une valeur figée.
-  await page.getByRole('button', { name: 'Calendrier' }).click()
+  // « Accueil » et non « Calendrier » : ce dernier a quitté la barre d'onglets pour une
+  // bulle du haut le 20 août 2026, et n'y a donc plus de rang d'où venir ou aller.
+  await page.getByRole('button', { name: 'Accueil' }).click()
   expect(await entreeDeLaPage(page), 'revenir à gauche doit faire entrer par la gauche').toBe(
     'translateX(-100%)',
   )

@@ -1,0 +1,73 @@
+/* Le sélecteur reprend la géométrie des autres champs des feuilles : c'en est un, et il
+   doit s'aligner sur ses voisins sans que l'appelant ait à le rhabiller. */
+.choix {
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: var(--espace-s) var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  /* 16 px au moins : en dessous, iOS agrandit la page à la mise au point du champ et ne
+     la réduit jamais ensuite. */
+  font-size: 16px;
+}
+
+.creation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+}
+
+.ligne {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+}
+
+.saisie {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--cible-tactile);
+  padding: var(--espace-s) var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-accent-clair);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  font-size: 16px;
+}
+
+.valider {
+  flex: 0 0 auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+}
+
+.valider:disabled {
+  opacity: 0.55;
+}
+
+.abandonner {
+  flex: 0 0 auto;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 13px;
+}

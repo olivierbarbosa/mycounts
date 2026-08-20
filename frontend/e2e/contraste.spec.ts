@@ -18,19 +18,24 @@ const SEUIL_AA_GRAND = 3 // ≥ 24 px, ou ≥ 18,66 px en gras
 
 /* Dérogation, explicite et bornée, pour le rouge des débits du thème sombre.
  *
- * Olivier a choisi de conserver `#FB7185` et le halo à pleine intensité après avoir vu le
- * chiffre : sous le halo, ce rouge mesure 3,23:1 là où AA en demande 4,5. L'éclaircir le
- * faisait passer, au prix d'un rose nettement plus pâle. C'est une décision prise en
- * connaissance de cause le 20 août 2026, pas un oubli.
+ * Olivier a choisi de conserver `#FB7185` après avoir vu le chiffre — la seconde fois, la
+ * première portait sur la palette lavande. Sous le halo bleu, ce rouge mesure 3,51:1 là où
+ * AA en demande 4,5. `#FDA4AF` le faisait passer à 5,00:1, au prix d'un rose nettement
+ * plus pâle. C'est une décision prise en connaissance de cause le 20 août 2026.
  *
  * Ce n'est pas une exemption. Le seuil est abaissé à la valeur RÉELLEMENT MESURÉE : toute
  * dégradation supplémentaire de ce rouge — un halo plus clair, une opacité de texte plus
  * basse — repassera sous ce plancher et fera rougir ce test. Ce qu'il ne couvre plus, en
- * revanche, c'est l'écart entre 3,2 et 4,5, et cette ligne est le seul endroit où il est
- * écrit.
+ * revanche, c'est l'écart entre 3,5 et 4,5, et cette ligne est le seul endroit où il est
+ * écrit. Concrètement, ce sont les centimes des montants, en 10 px, qui en pâtissent.
+ *
+ * Une note sur la façon de mesurer, parce que je m'y suis trompé le jour même : sur le
+ * fond NU `#0F172A`, ce même rouge donne 6,63:1, et j'en avais conclu que la dérogation
+ * était devenue inutile. Les montants ne sont jamais posés sur le fond nu — le halo passe
+ * dessous et l'éclaircit. Une mesure sur aplat ne dit rien du rendu.
  */
 const DEBIT_SOMBRE = [251, 113, 133]
-const PLANCHER_DEBIT = 3.2
+const PLANCHER_DEBIT = 3.5
 
 const POSITIONS = ['claire', 'moyenne', 'opaque'] as const
 
@@ -199,11 +204,38 @@ const MESURE = ([seuilNormal, seuilGrand, debit, plancherDebit]: [
   return resultats
 }
 
+/**
+ * Garantit que l'accueil porte des montants des DEUX signes avant qu'on ne le mesure.
+ *
+ * Sans cela, ce fichier ne prouvait presque rien quand il tournait seul : le foyer d'essai
+ * est réinitialisé vide, et une page sans opération n'affiche ni vert ni rouge — les deux
+ * couleurs les plus difficiles à faire passer. Le défaut n'apparaissait qu'en suite
+ * complète, après que d'autres tests avaient laissé des données derrière eux, ce qui
+ * ressemblait à une interférence entre tests alors que c'était l'inverse : la mesure
+ * isolée était la mesure aveugle.
+ */
+async function garantirDesMontants(page: import('@playwright/test').Page) {
+  const comptes = (await (await page.request.get('/api/comptes')).json()) as { id: string }[]
+  const compte_id = comptes[0].id
+  const aujourdhui = new Date().toISOString().slice(0, 10)
+  for (const montant_centimes of [-4299, 1250]) {
+    await page.request.post('/api/operations', {
+      data: {
+        compte_id,
+        libelle: `Contraste ${montant_centimes}`,
+        montant_centimes,
+        date_operation: aujourdhui,
+      },
+    })
+  }
+}
+
 for (const theme of THEMES) {
   for (const position of POSITIONS) {
     test(`contraste AA — thème ${theme}, transparence « ${position} »`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: theme })
       await connecter(page)
+      await garantirDesMontants(page)
       await page.evaluate((p) => localStorage.setItem('mycounts.transparence', p), position)
       await page.reload()
       // Attendre le CONTENU, pas seulement la navigation : celle-ci s'affiche pendant
