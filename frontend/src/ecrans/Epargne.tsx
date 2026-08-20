@@ -46,12 +46,22 @@ export function Epargne({ rafraichissement, surVirement }: Props) {
     <main className={styles.page}>
       <header className={styles.entete}>
         <p className={styles.libelle}>Épargne totale</p>
-        <Montant centimes={epargne.total_centimes} taille="display" neutre />
+        <Montant
+          centimes={epargne.total_centimes}
+          taille="display"
+          neutre
+          signeExplicitePositif={false}
+        />
         <p className={styles.borne}>
           {/* Le versé s'accompagne toujours de sa période : « 200 € versés » ne se lit
               pas sans savoir depuis quand. */}
-          <Montant centimes={epargne.verse_sur_la_periode_centimes} taille="ligne" neutre /> versés
-          depuis le {DATE_COURTE.format(dateCivile(epargne.periode.debut))}
+          <Montant
+            centimes={epargne.verse_sur_la_periode_centimes}
+            taille="ligne"
+            neutre
+            signeExplicitePositif={false}
+          />{' '}
+          versés depuis le {DATE_COURTE.format(dateCivile(epargne.periode.debut))}
         </p>
       </header>
 
@@ -70,7 +80,12 @@ export function Epargne({ rafraichissement, surVirement }: Props) {
             {epargne.comptes.map((compte) => (
               <li key={compte.id} className={styles.ligne}>
                 <span className={styles.nom}>{compte.nom}</span>
-                <Montant centimes={compte.solde_centimes} taille="titre" neutre />
+                <Montant
+                  centimes={compte.solde_centimes}
+                  taille="titre"
+                  neutre
+                  signeExplicitePositif={false}
+                />
               </li>
             ))}
           </ul>

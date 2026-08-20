@@ -92,6 +92,13 @@ class Compte(Base):
     type_compte: Mapped[TypeCompte] = mapped_column(
         String(16), default=TypeCompte.COURANT, server_default=TypeCompte.COURANT.value
     )
+    # Produit tel qu'il existe chez les banques : Livret A, PEL, compte-titres… Il NOMME,
+    # il ne calcule pas — c'est `type_compte` que les agrégats lisent. Les deux sont
+    # séparés parce qu'un produit peut changer de nom sans que rien ne bouge dans les
+    # totaux, et parce qu'un produit absent du catalogue doit rester possible.
+    produit: Mapped[str] = mapped_column(
+        String(32), default="compte_courant", server_default="compte_courant"
+    )
     cree_le: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -219,6 +219,87 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/comptes/catalogue': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Catalogue Des Comptes
+     * @description Produits bancaires proposés à la création d'un compte.
+     *
+     *     Servi par le serveur et non écrit dans l'interface : c'est le catalogue qui décide
+     *     qu'un PEA ne compte pas dans le solde du quotidien, et cette règle appartient au
+     *     domaine. Une liste recopiée côté client en ferait un second auteur.
+     */
+    get: operations['catalogue_des_comptes_api_comptes_catalogue_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/comptes/soldes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Soldes Des Comptes
+     * @description Solde RÉEL de chaque compte, archivés compris.
+     *
+     *     Le réel et non le projeté : une carte de compte répond à « combien y a-t-il dessus »,
+     *     pas à « combien restera-t-il ». Y projeter des échéances ferait diverger le chiffre de
+     *     ce que la banque affiche, qui est la seule référence pour un rapprochement.
+     */
+    get: operations['soldes_des_comptes_api_comptes_soldes_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/comptes/{compte_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Supprimer Compte
+     * @description Supprime un compte VIDE.
+     *
+     *     Un compte qui porte des opérations n'est pas supprimé : ses lignes disparaîtraient
+     *     des soldes et des totaux passés, et un mois clos changerait de montant après coup.
+     *     L'archivage existe pour cela — il retire le compte des propositions sans toucher à
+     *     son histoire.
+     */
+    delete: operations['supprimer_compte_api_comptes__compte_id__delete']
+    options?: never
+    head?: never
+    /**
+     * Modifier Compte
+     * @description Renomme un compte, change son produit, ou l'archive.
+     *
+     *     Changer de produit peut faire passer un compte du quotidien à l'épargne — c'est
+     *     voulu : c'est le seul moyen de corriger une création faite trop vite. L'argent ne
+     *     bouge pas, seul l'écran qui le totalise change.
+     */
+    patch: operations['modifier_compte_api_comptes__compte_id__patch']
+    trace?: never
+  }
   '/api/epargne': {
     parameters: {
       query?: never
@@ -535,6 +616,8 @@ export interface components {
     }
     /** ComptePublic */
     ComptePublic: {
+      /** Archive */
+      archive: boolean
       /**
        * Id
        * Format: uuid
@@ -544,6 +627,10 @@ export interface components {
       nom: string
       /** Prive */
       prive: boolean
+      /** Produit */
+      produit: string
+      /** Produit Libelle */
+      produit_libelle: string
       type_compte: components['schemas']['TypeCompte']
     }
     /**
@@ -577,13 +664,17 @@ export interface components {
        */
       prive: boolean
       /**
+       * Produit
+       * @description Clé du catalogue des produits bancaires. Le comportement du compte — argent du quotidien ou mis de côté — en est déduit et n'est pas envoyé séparément.
+       * @default compte_courant
+       */
+      produit: string
+      /**
        * Solde Ouverture Centimes
        * @description Solde du compte au moment de sa création, en centimes. Enregistré comme une opération d'ouverture — un solde reste une somme d'opérations. Zéro n'en crée aucune.
        * @default 0
        */
       solde_ouverture_centimes: number
-      /** @default courant */
-      type_compte: components['schemas']['TypeCompte']
     }
     /** DemandeConnexion */
     DemandeConnexion: {
@@ -783,6 +874,18 @@ export interface components {
       teinte?: components['schemas']['TeinteCategorie'] | null
     }
     /**
+     * ModificationCompte
+     * @description Correction d'un compte existant. Champs absents = inchangés.
+     */
+    ModificationCompte: {
+      /** Archive */
+      archive?: boolean | null
+      /** Nom */
+      nom?: string | null
+      /** Produit */
+      produit?: string | null
+    }
+    /**
      * ModificationOperation
      * @description Champs corrigeables d'une opération.
      *
@@ -912,6 +1015,14 @@ export interface components {
       /** Restant Centimes */
       restant_centimes: number
     }
+    /** ProduitPublic */
+    ProduitPublic: {
+      /** Cle */
+      cle: string
+      /** Libelle */
+      libelle: string
+      type_compte: components['schemas']['TypeCompte']
+    }
     /** RecurrencePublique */
     RecurrencePublique: {
       /** Active */
@@ -960,6 +1071,16 @@ export interface components {
       solde_projete: number
       /** Solde Reel */
       solde_reel: number
+    }
+    /** SoldeDeCompte */
+    SoldeDeCompte: {
+      /**
+       * Compte Id
+       * Format: uuid
+       */
+      compte_id: string
+      /** Solde Centimes */
+      solde_centimes: number
     }
     /**
      * TeinteCategorie
@@ -1432,6 +1553,136 @@ export interface operations {
     responses: {
       /** @description Successful Response */
       201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ComptePublic']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  catalogue_des_comptes_api_comptes_catalogue_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProduitPublic'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  soldes_des_comptes_api_comptes_soldes_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SoldeDeCompte'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  supprimer_compte_api_comptes__compte_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        compte_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  modifier_compte_api_comptes__compte_id__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        compte_id: string
+      }
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ModificationCompte']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
         headers: {
           [name: string]: unknown
         }

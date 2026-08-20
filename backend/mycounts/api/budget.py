@@ -16,27 +16,42 @@ from mycounts.api.budget_schemas import (
     DemandeVirement,
     EpargnePublique,
     ModificationCategorie,
+    ModificationCompte,
     ModificationOperation,
     OperationPublique,
     PeriodePublique,
+    ProduitPublic,
     ResumePublic,
+    SoldeDeCompte,
     VirementCree,
 )
 from mycounts.api.dependances import PrincipalCourant, SessionBase
+from mycounts.domain import comptes as domaine_comptes
 from mycounts.domain.agregats import Agregat, calculer
 from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.montants import Cents
 from mycounts.domain.resume import ResumePeriode, resumer
 from mycounts.jobs.materialisation import materialiser
+from mycounts.models.budget import Compte
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot
 
 routeur = APIRouter(tags=["budget"])
 
 
-def _en_compte(compte: object) -> ComptePublic:
-    return ComptePublic.model_validate(compte, from_attributes=True)
+def _en_compte(compte: Compte) -> ComptePublic:
+    return ComptePublic(
+        id=compte.id,
+        nom=compte.nom,
+        prive=compte.prive,
+        type_compte=compte.type_compte,
+        produit=compte.produit,
+        # Le libellé vient du catalogue et n'est jamais stocké : le figer en base
+        # obligerait à réécrire toutes les lignes le jour où un produit change de nom.
+        produit_libelle=domaine_comptes.produit(compte.produit).libelle,
+        archive=compte.archive,
+    )
 
 
 @routeur.get("/comptes", response_model=list[ComptePublic])
@@ -48,12 +63,16 @@ def lister_comptes(session: SessionBase, principal: PrincipalCourant) -> list[Co
 def creer_compte(
     demande: DemandeCompte, session: SessionBase, principal: PrincipalCourant
 ) -> ComptePublic:
+    produit = _produit_ou_400(demande.produit)
     compte = depot.creer_compte(
         session,
         principal,
         nom=demande.nom,
         prive=demande.prive,
-        type_compte=demande.type_compte,
+        produit=produit.cle,
+        # Déduit, jamais reçu : le catalogue est seul auteur de ce qu'un produit fait
+        # dans les calculs.
+        type_compte=produit.type_compte,
     )
     if demande.solde_ouverture_centimes != 0:
         # Le solde de départ est une opération, jamais une colonne : sinon le solde
@@ -69,6 +88,115 @@ def creer_compte(
         )
     session.commit()
     return _en_compte(compte)
+
+
+def _produit_ou_400(cle: str) -> domaine_comptes.ProduitBancaire:
+    try:
+        return domaine_comptes.produit(cle)
+    except ValueError as cause:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(cause)
+        ) from cause
+
+
+@routeur.get("/comptes/catalogue", response_model=list[ProduitPublic])
+def catalogue_des_comptes(principal: PrincipalCourant) -> list[ProduitPublic]:
+    """Produits bancaires proposés à la création d'un compte.
+
+    Servi par le serveur et non écrit dans l'interface : c'est le catalogue qui décide
+    qu'un PEA ne compte pas dans le solde du quotidien, et cette règle appartient au
+    domaine. Une liste recopiée côté client en ferait un second auteur.
+    """
+    del principal
+    return [
+        ProduitPublic(cle=p.cle, libelle=p.libelle, type_compte=p.type_compte)
+        for p in domaine_comptes.CATALOGUE
+    ]
+
+
+@routeur.get("/comptes/soldes", response_model=list[SoldeDeCompte])
+def soldes_des_comptes(
+    session: SessionBase, principal: PrincipalCourant
+) -> list[SoldeDeCompte]:
+    """Solde RÉEL de chaque compte, archivés compris.
+
+    Le réel et non le projeté : une carte de compte répond à « combien y a-t-il dessus »,
+    pas à « combien restera-t-il ». Y projeter des échéances ferait diverger le chiffre de
+    ce que la banque affiche, qui est la seule référence pour un rapprochement.
+    """
+    jour = aujourd_hui()
+    return [
+        SoldeDeCompte(
+            compte_id=compte.id,
+            solde_centimes=int(
+                calculer(
+                    Agregat.SOLDE_REEL,
+                    depot.operations_pour_calcul(session, principal, comptes=[compte.id]),
+                    aujourd_hui=jour,
+                    fin_de_fenetre=jour,
+                )
+            ),
+        )
+        for compte in depot.comptes_visibles(session, principal)
+    ]
+
+
+@routeur.patch("/comptes/{compte_id}", response_model=ComptePublic)
+def modifier_compte(
+    compte_id: uuid.UUID,
+    demande: ModificationCompte,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> ComptePublic:
+    """Renomme un compte, change son produit, ou l'archive.
+
+    Changer de produit peut faire passer un compte du quotidien à l'épargne — c'est
+    voulu : c'est le seul moyen de corriger une création faite trop vite. L'argent ne
+    bouge pas, seul l'écran qui le totalise change.
+    """
+    compte = depot.compte_visible(session, principal, compte_id)
+    if compte is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
+
+    produit = None if demande.produit is None else _produit_ou_400(demande.produit)
+    depot.modifier_compte(
+        session,
+        compte,
+        nom=demande.nom,
+        produit=None if produit is None else produit.cle,
+        type_compte=None if produit is None else produit.type_compte,
+        archive=demande.archive,
+    )
+    session.commit()
+    return _en_compte(compte)
+
+
+@routeur.delete("/comptes/{compte_id}", status_code=status.HTTP_204_NO_CONTENT)
+def supprimer_compte(
+    compte_id: uuid.UUID, session: SessionBase, principal: PrincipalCourant
+) -> None:
+    """Supprime un compte VIDE.
+
+    Un compte qui porte des opérations n'est pas supprimé : ses lignes disparaîtraient
+    des soldes et des totaux passés, et un mois clos changerait de montant après coup.
+    L'archivage existe pour cela — il retire le compte des propositions sans toucher à
+    son histoire.
+    """
+    compte = depot.compte_visible(session, principal, compte_id)
+    if compte is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
+
+    if depot.compte_a_des_operations(session, compte_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Ce compte porte des opérations : le supprimer changerait des mois déjà "
+                "clos. Archivez-le pour le retirer des propositions."
+            ),
+        )
+
+    depot.supprimer_compte(session, compte)
+    session.commit()
 
 
 @routeur.get("/categories", response_model=list[CategoriePublique])

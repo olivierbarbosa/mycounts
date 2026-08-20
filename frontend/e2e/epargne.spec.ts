@@ -26,7 +26,9 @@ async function creerEpargne(page: Page, nom: string, ouverture: string) {
   await page.getByRole('button', { name: 'Comptes bancaires' }).click()
   await page.getByRole('button', { name: 'Ajouter un compte' }).click()
   await page.getByLabel('Nom du compte').fill(nom)
-  await page.getByLabel('Nature', { exact: true }).selectOption('epargne')
+  // Le PRODUIT, pas le comportement : c'est le catalogue qui traduit « Livret A » en
+  // « mis de côté ». Le test suit le même chemin que l'utilisateur.
+  await page.getByLabel('Type de compte').selectOption('livret_a')
   await page.getByLabel('Solde actuel (facultatif)').fill(ouverture)
   await page.getByRole('button', { name: 'Créer le compte' }).click()
   await expect(page.getByRole('button', { name: 'Ajouter un compte' })).toBeVisible()
@@ -34,12 +36,35 @@ async function creerEpargne(page: Page, nom: string, ouverture: string) {
   await page.getByRole('button', { name: 'Fermer' }).click()
 }
 
-test('la page Épargne dit quoi faire quand elle est vide', async ({ page }) => {
-  // Une page vide qui n'explique pas comment la remplir est une impasse. Ce test tourne
-  // avant les autres du fichier, tant qu'aucun livret n'existe.
+test('la page Épargne n’est jamais muette', async ({ page }) => {
+  // Une page vide qui n'explique pas comment la remplir est une impasse ; une page pleine
+  // qui prétendrait être vide serait pire.
+  //
+  // L'emptiness ne peut pas être garantie ici : la suite partage une base, et tout fichier
+  // qui passe avant celui-ci peut créer un livret — `comptes.spec.ts` le fait. Plutôt que
+  // de dépendre d'un ordre alphabétique qui a déjà cassé ce test trois fois, on vérifie
+  // l'invariant dans les deux états.
   await connecter(page)
+
+  // L'état attendu se lit par l'API, pas en comptant des éléments d'un DOM encore en
+  // cours de rendu : la première version lisait zéro pendant le chargement et exigeait
+  // alors le message de page vide sur une page qui allait afficher deux livrets.
+  const epargne = (await (await page.request.get('/api/epargne')).json()) as {
+    comptes: unknown[]
+  }
+
   await page.getByRole('button', { name: 'Épargne' }).click()
-  await expect(page.locator('main')).toContainText('Aucun compte d’épargne')
+  const principal = page.locator('main')
+  await expect(principal).toContainText('Épargne totale')
+
+  if (epargne.comptes.length === 0) {
+    await expect(principal).toContainText('Aucun compte d’épargne')
+  } else {
+    await expect(
+      principal,
+      'des livrets sont affichés : la page ne peut pas dire qu’il n’y en a aucun',
+    ).not.toContainText('Aucun compte d’épargne')
+  }
 })
 
 test('virer vers l’épargne ne crée aucune dépense', async ({ page }) => {

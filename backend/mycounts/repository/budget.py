@@ -47,6 +47,7 @@ def creer_compte(
     nom: str,
     prive: bool = True,
     type_compte: TypeCompte = TypeCompte.COURANT,
+    produit: str = "compte_courant",
 ) -> Compte:
     compte = Compte(
         foyer_id=principal.foyer_id,
@@ -54,10 +55,57 @@ def creer_compte(
         nom=nom,
         prive=prive,
         type_compte=type_compte,
+        produit=produit,
     )
     session.add(compte)
     session.flush()
     return compte
+
+
+def modifier_compte(
+    session: Session,
+    compte: Compte,
+    *,
+    nom: str | None = None,
+    produit: str | None = None,
+    type_compte: TypeCompte | None = None,
+    archive: bool | None = None,
+) -> Compte:
+    """Corrige un compte. Les champs laissés à `None` ne sont pas touchés.
+
+    `None` et non une valeur par défaut : sans cette distinction, renommer un compte
+    remettrait silencieusement son produit à celui du catalogue par défaut.
+    """
+    if nom is not None:
+        compte.nom = nom
+    if produit is not None:
+        compte.produit = produit
+    if type_compte is not None:
+        compte.type_compte = type_compte
+    if archive is not None:
+        compte.archive = archive
+    session.flush()
+    return compte
+
+
+def compte_a_des_operations(session: Session, compte_id: uuid.UUID) -> bool:
+    """Y compris les opérations ANNULÉES.
+
+    Une annulée reste une ligne en base — c'est elle qui empêche la matérialisation de
+    recréer l'échéance. Supprimer le compte l'emporterait, et le prélèvement reviendrait
+    au passage suivant du job.
+    """
+    return (
+        session.execute(
+            select(Operation.id).where(Operation.compte_id == compte_id).limit(1)
+        ).first()
+        is not None
+    )
+
+
+def supprimer_compte(session: Session, compte: Compte) -> None:
+    session.delete(compte)
+    session.flush()
 
 
 def comptes_visibles(

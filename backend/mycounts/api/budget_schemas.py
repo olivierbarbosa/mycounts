@@ -23,12 +23,23 @@ class ComptePublic(BaseModel):
     nom: str
     prive: bool
     type_compte: TypeCompte
+    """Comportement dans les calculs. DÉDUIT du produit, jamais choisi séparément."""
+
+    produit: str
+    produit_libelle: str
+    archive: bool
 
 
 class DemandeCompte(BaseModel):
     nom: str = Field(min_length=1, max_length=80)
     prive: bool = True
-    type_compte: TypeCompte = TypeCompte.COURANT
+    produit: str = Field(
+        default="compte_courant",
+        description=(
+            "Clé du catalogue des produits bancaires. Le comportement du compte — argent "
+            "du quotidien ou mis de côté — en est déduit et n'est pas envoyé séparément."
+        ),
+    )
     solde_ouverture_centimes: int = Field(
         default=0,
         description=(
@@ -275,3 +286,22 @@ class EpargnePublique(BaseModel):
     verse_sur_la_periode_centimes: int
     periode: PeriodePublique
     comptes: list[CompteEpargne]
+
+
+class ModificationCompte(BaseModel):
+    """Correction d'un compte existant. Champs absents = inchangés."""
+
+    nom: str | None = Field(default=None, min_length=1, max_length=80)
+    produit: str | None = None
+    archive: bool | None = None
+
+
+class ProduitPublic(BaseModel):
+    cle: str
+    libelle: str
+    type_compte: TypeCompte
+
+
+class SoldeDeCompte(BaseModel):
+    compte_id: uuid.UUID
+    solde_centimes: int

@@ -21,6 +21,9 @@ export type VirementCree = components['schemas']['VirementCree']
 export type EpargnePublique = components['schemas']['EpargnePublique']
 export type CompteEpargne = components['schemas']['CompteEpargne']
 export type DemandeCompte = components['schemas']['DemandeCompte']
+export type ModificationCompte = components['schemas']['ModificationCompte']
+export type ProduitPublic = components['schemas']['ProduitPublic']
+export type SoldeDeCompte = components['schemas']['SoldeDeCompte']
 export type UniteRecurrence = components['schemas']['UniteRecurrence']
 export type PlafondPublic = components['schemas']['PlafondPublic']
 
@@ -104,6 +107,20 @@ export const api = {
    *  ajouter un paramètre à chaque champ nouveau, et un appelant sur deux l'oubliait. */
   creerCompte: (demande: DemandeCompte) =>
     appeler<ComptePublic>('/comptes', { method: 'POST', body: JSON.stringify(demande) }),
+
+  /** Produits bancaires proposés. Servis par le serveur : c'est le catalogue du domaine
+   *  qui décide qu'un PEA ne compte pas dans le solde du quotidien, pas l'écran. */
+  catalogueDesComptes: () => appeler<ProduitPublic[]>('/comptes/catalogue'),
+
+  soldesDesComptes: () => appeler<SoldeDeCompte[]>('/comptes/soldes'),
+
+  modifierCompte: (id: string, demande: ModificationCompte) =>
+    appeler<ComptePublic>(`/comptes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(demande),
+    }),
+
+  supprimerCompte: (id: string) => appeler<void>(`/comptes/${id}`, { method: 'DELETE' }),
 
   categories: () => appeler<CategoriePublique[]>('/categories'),
 

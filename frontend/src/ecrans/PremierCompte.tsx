@@ -41,8 +41,8 @@ export function PremierCompte({ surCreation }: Props) {
         nom: nom.trim(),
         prive: true,
         // Le tout premier compte est celui du quotidien : c'est là que tombent la paie
-        // et les prélèvements. Un livret se crée ensuite, dans les Réglages.
-        type_compte: 'courant',
+        // et les prélèvements. Un livret se crée ensuite, depuis les paramètres.
+        produit: 'compte_courant',
         solde_ouverture_centimes: centimes,
       })
       surCreation()

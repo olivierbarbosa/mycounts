@@ -10,15 +10,26 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--espace-s);
+  gap: var(--espace-m);
 }
 
-.ligne {
+/* Une carte par compte : le nom, ce qu'il y a dessus, et ce qu'il est. Une ligne unique
+   obligeait à tout tasser sur 390 px, et les actions n'y tenaient pas. */
+.carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.enteteCarte {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--espace-m);
-  font-size: 15px;
 }
 
 .nom {
@@ -26,12 +37,46 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
 }
 
-.type {
-  flex: 0 0 auto;
+.produit {
   color: var(--couleur-texte-attenue);
   font-size: 13px;
+}
+
+.destructif {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-debit);
+  font-size: 15px;
+}
+
+.destructif:hover {
+  border-color: var(--couleur-debit);
+}
+
+.confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface-haute);
+  border: 1px solid var(--couleur-debit);
+}
+
+.question {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
 }
 
 .formulaire {
@@ -73,7 +118,8 @@
 
 .actions {
   display: flex;
-  gap: var(--espace-m);
+  flex-wrap: wrap;
+  gap: var(--espace-s);
 }
 
 .principal {
@@ -91,6 +137,10 @@
 }
 
 .secondaire {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-s);
   min-height: var(--cible-tactile);
   padding: 0 var(--espace-l);
   border-radius: var(--rayon-pilule);

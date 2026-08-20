@@ -24,14 +24,19 @@ FIN_FENETRE = AUJOURD_HUI + dt.timedelta(days=30)
 
 
 def creer_compte_api(
-    client: TestClient, nom: str, *, ouverture: int = 0, type_compte: str = "courant"
+    client: TestClient, nom: str, *, ouverture: int = 0, produit: str = "compte_courant"
 ) -> str:
+    """Le comportement du compte se déduit du PRODUIT, il ne s'envoie pas.
+
+    Le test suit la même règle que l'application : demander « un Livret A » plutôt que
+    « un compte d'épargne » vérifie au passage que le catalogue traduit correctement.
+    """
     reponse = client.post(
         "/api/comptes",
         json={
             "nom": nom,
             "prive": True,
-            "type_compte": type_compte,
+            "produit": produit,
             "solde_ouverture_centimes": ouverture,
         },
     )
@@ -57,7 +62,7 @@ def test_un_virement_ne_touche_ni_aux_depenses_ni_au_total_du_foyer(
 ) -> None:
     principal = session_ouverte(client, session_bd)
     courant = creer_compte_api(client, "Courant", ouverture=100_000)
-    epargne = creer_compte_api(client, "Livret A", type_compte="epargne")
+    epargne = creer_compte_api(client, "Livret A", produit="livret_a")
 
     depenses_avant = int(client.get("/api/resume").json()["depenses_de_periode"])
     courant_avant = solde_du_compte(session_bd, principal, courant)
@@ -144,7 +149,7 @@ def test_un_montant_nul_ou_negatif_est_refuse(client: TestClient, session_bd: Se
     """
     session_ouverte(client, session_bd)
     source = creer_compte_api(client, "Courant")
-    destination = creer_compte_api(client, "Livret A", type_compte="epargne")
+    destination = creer_compte_api(client, "Livret A", produit="livret_a")
 
     for montant in (0, -5_000):
         reponse = client.post(
@@ -187,7 +192,7 @@ def test_un_compte_dun_autre_foyer_est_introuvable(
 def test_le_type_dun_compte_est_rendu_par_lapi(client: TestClient, session_bd: Session) -> None:
     session_ouverte(client, session_bd)
     creer_compte_api(client, "Courant")
-    creer_compte_api(client, "Livret A", type_compte="epargne")
+    creer_compte_api(client, "Livret A", produit="livret_a")
 
     par_nom = {c["nom"]: c["type_compte"] for c in client.get("/api/comptes").json()}
     assert par_nom == {"Courant": TypeCompte.COURANT, "Livret A": TypeCompte.EPARGNE}
@@ -205,7 +210,7 @@ def test_lepargne_ne_gonfle_pas_le_solde_de_laccueil(
     creer_compte_api(client, "Courant", ouverture=100_000)
     avant = client.get("/api/resume").json()
 
-    creer_compte_api(client, "Livret A", ouverture=50_000, type_compte="epargne")
+    creer_compte_api(client, "Livret A", ouverture=50_000, produit="livret_a")
     apres = client.get("/api/resume").json()
 
     assert apres["solde_reel"] == avant["solde_reel"]
@@ -222,7 +227,7 @@ def test_lepargne_totalise_ses_comptes_et_ce_qui_y_a_ete_verse(
 ) -> None:
     session_ouverte(client, session_bd)
     courant = creer_compte_api(client, "Courant", ouverture=100_000)
-    livret = creer_compte_api(client, "Livret A", ouverture=50_000, type_compte="epargne")
+    livret = creer_compte_api(client, "Livret A", ouverture=50_000, produit="livret_a")
 
     avant = client.get("/api/epargne").json()
     assert avant["total_centimes"] == 50_000
@@ -258,7 +263,7 @@ def test_un_virement_sortant_de_lepargne_ne_compte_pas_comme_verse(
     """
     session_ouverte(client, session_bd)
     courant = creer_compte_api(client, "Courant", ouverture=100_000)
-    livret = creer_compte_api(client, "Livret A", ouverture=50_000, type_compte="epargne")
+    livret = creer_compte_api(client, "Livret A", ouverture=50_000, produit="livret_a")
 
     for source, destination in ((courant, livret), (livret, courant)):
         client.post(
