@@ -216,3 +216,22 @@ test('témoin : la sonde de contraste sait détecter un texte illisible', async 
   expect(cobaye, 'le cobaye n’a pas été mesuré').toBeDefined()
   expect(cobaye!.rapport).toBeLessThan(2)
 })
+
+for (const theme of THEMES) {
+  test(`contraste AA du panneau des paramètres — thème ${theme}`, async ({ page }) => {
+    // Le panneau est un écran entier de texte que la sonde ne voyait pas : elle mesurait
+    // l'accueil, où il n'est pas ouvert. Un écran neuf non mesuré est un écran où le
+    // contraste n'est plus garanti par rien.
+    await page.emulateMedia({ colorScheme: theme })
+    await connecter(page)
+    await page.getByRole('button', { name: /^Paramètres de / }).click()
+    await expect(page.getByRole('dialog', { name: 'Paramètres' })).toBeVisible()
+
+    const mesures = await page.evaluate(MESURE, [SEUIL_AA, SEUIL_AA_GRAND])
+    expect(mesures.length, 'aucun texte mesuré : la sonde est cassée').toBeGreaterThan(5)
+    expect(
+      mesures.filter((m) => m.rapport < m.seuil),
+      `textes sous le seuil dans les paramètres — thème ${theme}`,
+    ).toEqual([])
+  })
+}

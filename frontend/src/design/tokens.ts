@@ -105,6 +105,21 @@ export const couleursSombres = {
  *  qui se voient sur les écrans OLED des téléphones, et il donne au verre quelque chose à
  *  flouter — un flou sur un aplat parfait ne se distingue pas d'un aplat.
  */
+/** Grandeurs de disposition partagées par plusieurs écrans.
+ *
+ *  La largeur du rail était recopiée dans trois feuilles de style : celle de la barre qui
+ *  le dessine, et celles des écrans qui décalent leur contenu pour ne pas passer dessous.
+ *  Trois auteurs pour une même mesure, dont deux qui n'auraient appris un changement que
+ *  par un chevauchement à l'écran.
+ */
+export const disposition = {
+  /** Largeur du rail latéral, au-delà de 1024 px. */
+  largeurRail: '232px',
+  /** Place réservée en haut de chaque écran pour la bulle d'avatar, qui est fixe et ne
+   *  pousse donc rien : sans cette réserve, elle recouvrirait le premier titre. */
+  reserveBulle: '56px',
+}
+
 export const textureSombre = {
   grainOpacite: '0.055',
 }
@@ -238,6 +253,7 @@ ${enVariables('espace', espacements)}
 ${enVariables('typo', typographie)}
 ${enVariables('verre', verre)}
 ${enVariables('texture', textureClaire)}
+${enVariables('disposition', disposition)}
   --cible-tactile: ${cibleTactileMinimale};
   --verre-opacite: var(--verre-opacite-moyenne);
   color-scheme: light dark;

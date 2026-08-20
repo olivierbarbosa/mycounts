@@ -1,0 +1,272 @@
+/* Panneau des paramètres.
+   Il entre par la droite, comme les écrans poussés d'iOS : le mouvement dit d'où la page
+   vient et où le retour la renverra. C'est la seule information que porte l'animation —
+   le bouton de retour, lui, est toujours visible, parce qu'une navigation ne peut pas
+   reposer sur un geste que l'utilisateur n'a pas vu. */
+.panneau {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: var(--couleur-fond);
+  background-image: var(--fond-degrade-page);
+  animation: entree-par-la-droite 260ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.sortant {
+  /* La sortie est plus douce que l'entrée : elle raccompagne, elle n'annonce rien. */
+  animation: sortie-vers-la-droite 260ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes entree-par-la-droite {
+  from {
+    transform: translateX(100%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes sortie-vers-la-droite {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0.4;
+  }
+}
+
+.pile {
+  position: relative;
+  min-height: 100dvh;
+}
+
+.racine,
+.sousPage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-l);
+  padding: var(--espace-l);
+  padding-top: calc(var(--espace-m) + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(var(--espace-xxl) + env(safe-area-inset-bottom, 0px));
+}
+
+/* La sous-page recouvre la racine et arrive de la droite, à l'identique du panneau : la
+   même mécanique à tous les niveaux, donc rien de nouveau à apprendre en descendant. */
+.sousPage {
+  position: absolute;
+  inset: 0;
+  min-height: 100dvh;
+  background-color: var(--couleur-fond);
+  background-image: var(--fond-degrade-page);
+  animation: entree-par-la-droite 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.entete {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+}
+
+.rond {
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  transition: scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.rond:active {
+  scale: 0.96;
+}
+
+.titrePage {
+  margin: 0;
+  font-size: 20px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.identite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-xs);
+  text-align: center;
+}
+
+/* Le zoom de l'avatar. Il part petit et occupe sa place d'un seul mouvement : c'est ce
+   qui relie visuellement la bulle du coin à la page qui vient de s'ouvrir. `scale` seul
+   est animé — aucune couleur nouvelle, donc rien à remesurer côté contraste. */
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  font-size: 28px;
+  font-weight: var(--typo-gras-fort);
+  animation: zoom-de-lavatar 320ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes zoom-de-lavatar {
+  from {
+    scale: 0.45;
+    opacity: 0;
+  }
+  to {
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+.nom {
+  margin: 0;
+  font-size: 20px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.courriel {
+  margin: 0;
+  font-size: 13px;
+  color: var(--couleur-texte-attenue);
+}
+
+.liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--rayon-moyen);
+  overflow: hidden;
+  border: 1px solid var(--couleur-bordure);
+}
+
+.entree {
+  width: 100%;
+  min-height: var(--cible-tactile);
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+  padding: var(--espace-m) var(--espace-l);
+  border: none;
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font-size: 16px;
+  text-align: left;
+  transition: background-color 140ms ease-out;
+}
+
+.entree:hover {
+  background: var(--couleur-surface-haute);
+}
+
+.icone {
+  flex: 0 0 auto;
+  color: var(--couleur-accent-clair);
+}
+
+.libelle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail {
+  flex: 0 0 auto;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+.chevron {
+  flex: 0 0 auto;
+  color: var(--couleur-texte-faible);
+}
+
+.carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  padding: var(--espace-l);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.libelleCarte {
+  font-size: 13px;
+  color: var(--couleur-texte-attenue);
+}
+
+.bouton {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-texte);
+  font-size: 15px;
+}
+
+.code {
+  margin: 0;
+  font-family: var(--typo-famille-chiffres);
+  font-size: 20px;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.deconnexion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+  border-radius: var(--rayon-pilule);
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-debit);
+  font-size: 15px;
+}
+
+/* Une glissade est de l'ambiance, jamais de l'information : le panneau reste atteignable
+   à l'identique quand le système demande moins de mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  .panneau,
+  .sortant,
+  .sousPage,
+  .avatar {
+    animation: none;
+  }
+  .rond {
+    transition: none;
+  }
+  .rond:active {
+    scale: 1;
+  }
+}
+
+@media (min-width: 600px) {
+  .racine,
+  .sousPage {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: var(--espace-xl);
+  }
+}

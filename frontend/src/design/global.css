@@ -7,6 +7,19 @@
   box-sizing: border-box;
 }
 
+/* Le dégradé de page, nommé une fois. Le corps le porte, et tout écran qui se superpose
+   à lui — le panneau des paramètres — le reprend au lieu d'un aplat : sans quoi ouvrir
+   les réglages ferait disparaître le fond de l'application, et l'écran paraîtrait venir
+   d'ailleurs. Le recopier en aurait fait un second auteur. */
+:root {
+  --fond-degrade-page: linear-gradient(
+    175deg,
+    var(--couleur-fond-haut) 0%,
+    var(--couleur-fond) 45%,
+    var(--couleur-fond-bas) 100%
+  );
+}
+
 html,
 body,
 #racine {
@@ -21,12 +34,7 @@ body {
   /* Les deux halos radiaux ont quitté cette pile pour `body::before`, où ils dérivent :
      une couche de `background-image` ne peut pas être animée par `transform`, et animer
      `background-position` repeindrait le fond à chaque image sous du verre flouté. */
-  background-image: linear-gradient(
-    175deg,
-    var(--couleur-fond-haut) 0%,
-    var(--couleur-fond) 45%,
-    var(--couleur-fond-bas) 100%
-  );
+  background-image: var(--fond-degrade-page);
   background-attachment: fixed;
   color: var(--couleur-texte);
   font-family: var(--typo-famille-texte);

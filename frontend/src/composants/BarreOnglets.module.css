@@ -98,7 +98,7 @@
     bottom: 0;
     left: 0;
     right: auto;
-    width: 232px;
+    width: var(--disposition-largeur-rail);
     transform: none;
     flex-direction: column;
     align-items: stretch;

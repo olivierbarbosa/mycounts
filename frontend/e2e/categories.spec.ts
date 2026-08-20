@@ -10,8 +10,23 @@ async function ouvrirReglages(page: import('@playwright/test').Page) {
     await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
     await page.getByRole('button', { name: 'Se connecter' }).click()
   }
-  await page.getByRole('button', { name: 'Réglages' }).click()
-  await expect(page.getByRole('heading', { name: 'Réglages' })).toBeVisible()
+  await ouvrirCategories(page)
+}
+
+/** Les réglages ne sont plus un onglet : ils s'ouvrent depuis la bulle d'avatar, et les
+ *  catégories sont un sous-menu de ce panneau. */
+/** Le panneau est modal : tant qu'il est ouvert, il intercepte les clics sur la barre
+ *  d'onglets. Le refermer fait partie du parcours, pas du décor. */
+async function fermerParametres(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Retour' }).click()
+  await page.getByRole('button', { name: 'Fermer' }).click()
+  await expect(page.getByRole('dialog', { name: 'Paramètres' })).toHaveCount(0)
+}
+
+async function ouvrirCategories(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: /^Paramètres de / }).click()
+  await page.getByRole('button', { name: 'Catégories' }).click()
+  await expect(page.getByRole('heading', { name: 'Catégories' })).toBeVisible()
 }
 
 test('créer une catégorie puis la retrouver dans la saisie', async ({ page }) => {
@@ -24,6 +39,7 @@ test('créer une catégorie puis la retrouver dans la saisie', async ({ page }) 
 
   // La catégorie doit être proposée à la saisie : une catégorie invisible du formulaire
   // ne sert à rien, et c'est exactement le genre de lien qu'un test d'API ne voit pas.
+  await fermerParametres(page)
   await page.getByRole('button', { name: 'Accueil' }).click()
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await expect(page.getByLabel('Catégorie')).toContainText(nom)
@@ -85,6 +101,7 @@ test('supprimer une catégorie utilisée est refusé avec une explication', asyn
   await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
   await expect(page.getByLabel(`Nom de la catégorie ${nom}`)).toBeVisible()
 
+  await fermerParametres(page)
   await page.getByRole('button', { name: 'Accueil' }).click()
   await page.getByRole('button', { name: 'Saisir une opération' }).click()
   await page.getByLabel('Montant').fill('9,99')
@@ -93,7 +110,7 @@ test('supprimer une catégorie utilisée est refusé avec une explication', asyn
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page.getByText(`Op ${nom}`)).toBeVisible()
 
-  await page.getByRole('button', { name: 'Réglages' }).click()
+  await ouvrirCategories(page)
   const ligne = page.locator('li', { has: page.getByLabel(`Nom de la catégorie ${nom}`) })
   await ligne.getByRole('button', { name: 'Supprimer' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click()

@@ -22,13 +22,16 @@ async function connecter(page: Page) {
 
 /** Crée un compte d'épargne depuis les Réglages, comme le ferait l'utilisateur. */
 async function creerEpargne(page: Page, nom: string, ouverture: string) {
-  await page.getByRole('button', { name: 'Réglages' }).click()
+  await page.getByRole('button', { name: /^Paramètres de / }).click()
+  await page.getByRole('button', { name: 'Comptes bancaires' }).click()
   await page.getByRole('button', { name: 'Ajouter un compte' }).click()
   await page.getByLabel('Nom du compte').fill(nom)
   await page.getByLabel('Nature', { exact: true }).selectOption('epargne')
   await page.getByLabel('Solde actuel (facultatif)').fill(ouverture)
   await page.getByRole('button', { name: 'Créer le compte' }).click()
   await expect(page.getByRole('button', { name: 'Ajouter un compte' })).toBeVisible()
+  await page.getByRole('button', { name: 'Retour' }).click()
+  await page.getByRole('button', { name: 'Fermer' }).click()
 }
 
 /** « Dépensé sur la période », lu à l'écran d'accueil. */

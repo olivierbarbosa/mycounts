@@ -59,6 +59,21 @@ async function saisir(page: Page, libelle: string, montant: string) {
 async function defautsDe(page: Page, nom: string, ecran: Ecran) {
   const feuille = page.getByRole('dialog', { name: nom })
   await expect(feuille).toBeVisible()
+
+  // Attendre la fin des animations avant de mesurer. Sans cela, un panneau qui entre par
+  // la droite est mesuré alors qu'il est encore hors cadre, et TOUS ses boutons sont
+  // déclarés hors écran — un rouge parfaitement faux, du genre qui apprend à ne plus
+  // croire son garde-fou. Les animations sans fin sont écartées : leur promesse
+  // `finished` ne se résout jamais.
+  await feuille.evaluate((boite: HTMLElement) =>
+    Promise.all(
+      boite
+        .getAnimations({ subtree: true })
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .map((a) => a.finished),
+    ).then(() => undefined),
+  )
+
   return feuille.evaluate((boite: HTMLElement, e: Ecran) => {
     // La feuille elle-même, ou son unique enfant quand le rôle porte le voile.
     const defilante =
@@ -120,6 +135,16 @@ for (const telephone of TELEPHONES) {
       await page.getByRole('button', { name: 'Calendrier' }).click()
       await page.getByRole('button', { name: 'Ajouter un prélèvement' }).click()
       expect(await defautsDe(page, 'Ajouter un prélèvement', ecran)).toEqual(CONFORME)
+    })
+
+    test('la racine des paramètres tient dans l’écran', async ({ page }) => {
+      // Les sous-menus ont le droit de défiler — une liste de catégories n'a pas de
+      // longueur bornée. La RACINE, elle, doit tenir : c'est le menu qui distribue tout
+      // le reste, et devoir le faire défiler pour trouver « Se déconnecter » annulerait
+      // l'intérêt d'être passé par une bulle.
+      await connecter(page)
+      await page.getByRole('button', { name: /^Paramètres de / }).click()
+      expect(await defautsDe(page, 'Paramètres', ecran)).toEqual(CONFORME)
     })
 
     test('la confirmation de suppression reste entièrement visible', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { CalendarDays, House, PiggyBank, Settings } from 'lucide-react'
+import { CalendarDays, House, PiggyBank } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
@@ -10,6 +10,7 @@ import type {
 } from './api/client'
 import { api } from './api/client'
 import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
+import { BulleAvatar } from './composants/BulleAvatar'
 import { FeuilleOperation } from './composants/FeuilleOperation'
 import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
 import { FeuilleSaisie } from './composants/FeuilleSaisie'
@@ -18,14 +19,17 @@ import { Calendrier } from './ecrans/Calendrier'
 import { Connexion } from './ecrans/Connexion'
 import { Epargne } from './ecrans/Epargne'
 import { PremierCompte } from './ecrans/PremierCompte'
-import { Reglages } from './ecrans/Reglages'
+import { Parametres } from './ecrans/Parametres'
 
 const ONGLETS: readonly Onglet[] = [
   { cle: 'accueil', libelle: 'Accueil', Icone: House },
   { cle: 'calendrier', libelle: 'Calendrier', Icone: CalendarDays },
   { cle: 'epargne', libelle: 'Épargne', Icone: PiggyBank },
-  { cle: 'reglages', libelle: 'Réglages', Icone: Settings },
 ]
+
+/* Les réglages ont quitté la barre d'onglets pour la bulle d'avatar : trois onglets se
+   lisent d'un coup d'œil là où quatre demandent de choisir, et le paramétrage n'est pas
+   une destination qu'on visite aussi souvent que ses dépenses. */
 
 export function App() {
   const [utilisateur, setUtilisateur] = useState<UtilisateurPublic | null>(null)
@@ -39,6 +43,7 @@ export function App() {
   const [operationChoisie, setOperationChoisie] = useState<OperationPublique>()
   // Compteur d'invalidation : incrémenté après chaque écriture, il force les écrans à
   // relire le serveur. Recalculer un solde côté client dupliquerait la règle métier.
+  const [parametresOuverts, setParametresOuverts] = useState(false)
   const [rafraichissement, setRafraichissement] = useState(0)
 
   const chargerReferentiels = useCallback(async () => {
@@ -122,20 +127,27 @@ export function App() {
         />
       )}
 
-      {onglet === 'reglages' && (
-        <Reglages
+      <BulleAvatar
+        nom={utilisateur.nom_affichage}
+        surOuverture={() => setParametresOuverts(true)}
+      />
+
+      <BarreOnglets onglets={ONGLETS} actif={onglet} surChangement={setOnglet} />
+
+      {parametresOuverts && (
+        <Parametres
           utilisateur={utilisateur}
           categories={categories}
           comptes={comptes}
           surChangement={apresEcriture}
+          surFermeture={() => setParametresOuverts(false)}
           surDeconnexion={() => {
+            setParametresOuverts(false)
             setUtilisateur(null)
             setComptes([])
           }}
         />
       )}
-
-      <BarreOnglets onglets={ONGLETS} actif={onglet} surChangement={setOnglet} />
 
       {saisieOuverte && (
         <FeuilleSaisie

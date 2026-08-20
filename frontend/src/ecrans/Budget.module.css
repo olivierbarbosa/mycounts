@@ -207,7 +207,7 @@
   .page {
     max-width: none;
     margin: 0;
-    padding-left: calc(232px + var(--espace-xxl));
+    padding-left: calc(var(--disposition-largeur-rail) + var(--espace-xxl));
     padding-right: var(--espace-xxl);
     padding-bottom: var(--espace-xxl);
   }
