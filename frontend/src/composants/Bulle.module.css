@@ -10,6 +10,17 @@
   height: var(--cible-tactile);
   display: grid;
   place-items: center;
+  /* Le padding par défaut du navigateur pour `<button>` vaut `1px 6px`. Invisible tant
+     que la bulle ne portait que deux lettres centrées ; dès qu'elle a contenu une image
+     devant remplir le disque, il l'a rétrécie à 30 × 40 dans un rond de 44 — un ovale
+     décalé. Un style hérité de l'agent utilisateur ne se voit que le jour où son contenu
+     change de nature. */
+  padding: 0;
+  /* Le padding par défaut du navigateur pour `<button>` vaut `1px 6px`. Invisible tant
+     que la bulle ne portait que deux lettres centrées ; dès qu'elle a contenu une image
+     devant remplir le disque, il l'a rétrécie à 30 × 40 dans un rond de 44 — un ovale
+     décalé. Un style hérité de l'agent utilisateur ne se voit que le jour où son contenu
+     change de nature. */
 
   border: 1px solid var(--couleur-bordure);
   border-radius: 50%;

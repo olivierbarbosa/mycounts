@@ -146,3 +146,63 @@ test('le nom affiché se change et se voit aussitôt', async ({ page }) => {
     await page.request.patch('/api/auth/moi', { data: { nom_affichage: 'Essai' } })
   }
 })
+
+test('le portrait remplit exactement son disque, aux trois endroits', async ({ page }) => {
+  /* Mesuré, pas regardé.
+   *
+   * La bulle est un `<button>`, dont le navigateur remplit le padding par défaut à
+   * `1px 6px`. Invisible tant qu'elle ne portait que deux lettres centrées ; le jour où
+   * elle a contenu une image devant remplir le disque, celle-ci est sortie à 30 × 40 dans
+   * un rond de 44 — un ovale décalé, signalé par Olivier depuis son téléphone. Un style
+   * hérité de l'agent utilisateur ne se voit que quand le contenu change de nature, et
+   * aucun test d'alors ne mesurait de géométrie.
+   *
+   * Le critère est le CARRÉ, pas une taille : les trois disques ont des mesures
+   * différentes et légitimes. Ce qui ne l'est jamais, c'est une image plus large que haute
+   * dans un rond — `border-radius: 50%` en fait alors une ellipse.
+   */
+  await connecter(page)
+  try {
+    await page.request.put('/api/auth/moi/avatar', {
+      multipart: { fichier: { name: 'p.png', mimeType: 'image/png', buffer: PNG_MINUSCULE } },
+    })
+    await page.reload()
+
+    const bulle = page.getByRole('button', { name: /^Paramètres de / })
+    await expect(bulle.locator('img')).toBeVisible()
+    const carreeDansLaBulle = await bulle.locator('img').evaluate((img) => {
+      const image = img.getBoundingClientRect()
+      const disque = img.closest('button')!.getBoundingClientRect()
+      return {
+        carree: Math.abs(image.width - image.height) < 1,
+        // Deux pixels de tolérance : la bordure du disque, qui n'appartient pas à l'image.
+        remplit: disque.width - image.width <= 2 && disque.height - image.height <= 2,
+      }
+    })
+    expect(carreeDansLaBulle, 'le portrait de la bulle doit remplir son disque').toEqual({
+      carree: true,
+      remplit: true,
+    })
+
+    await bulle.click()
+    const panneau = page.getByRole('dialog', { name: 'Paramètres' })
+    await panneau.getByRole('button', { name: 'Mon compte' }).click()
+    await expect(panneau.getByRole('heading', { name: 'Supprimer mon compte' })).toBeVisible()
+    // L'éclosion du panneau est une transformation : mesurer pendant fausserait les tailles.
+    await page.waitForTimeout(700)
+
+    const formes = await panneau.evaluate((noeud) =>
+      [...noeud.querySelectorAll('img')].map((img) => {
+        const r = img.getBoundingClientRect()
+        return { carree: Math.abs(r.width - r.height) < 1, cote: Math.round(r.width) }
+      }),
+    )
+    expect(formes.length, 'l’en-tête et le profil portent chacun un portrait').toBe(2)
+    for (const forme of formes) {
+      expect(forme.carree, `portrait de ${forme.cote} px déformé`).toBe(true)
+      expect(forme.cote, 'un portrait réduit à rien passerait le test du carré').toBeGreaterThan(30)
+    }
+  } finally {
+    await nettoyer(page)
+  }
+})

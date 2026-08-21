@@ -14,6 +14,12 @@
 .remplit {
   display: grid;
   place-items: center;
+  /* `place-self: stretch` ANNULE le `place-items: center` du parent.
+     Sans lui, un enfant de grille centré est dimensionné par son contenu et `width: 100%`
+     se résout sur une piste déjà rétrécie : le portrait sortait à 30 × 40 dans un disque
+     de 44 × 44 — un ovale décalé, visible tel quel sur le téléphone d'Olivier. Étirer
+     l'enfant est ce qui rend la mesure du parent effective. */
+  place-self: stretch;
   width: 100%;
   height: 100%;
   overflow: hidden;

@@ -1445,3 +1445,33 @@ du dégradé qui couvre réellement l'élément, et s'arrête au premier fond OP
 ce qu'on mesurerait est caché — ainsi qu'au corps de page, dont le dégradé a son propre
 traitement avec le halo. Le témoin « la sonde sait détecter un texte illisible » reste
 vert : la correction ne l'a pas rendue complaisante.
+
+## #048 — Un style de navigateur qui n'attendait qu'un changement de contenu
+
+**Ce que je croyais.** Que le portrait était en place : trois emplacements, un composant
+unique, cinq tests verts, y compris deux qui vérifient que l'image apparaît bien dans le
+panneau et sur la bulle.
+
+**Ce qu'il s'est passé.** Olivier, capture à l'appui : « l'image de profil est bug sur le
+rond dans les écrans ». Dans la bulle, la photo sortait à 30 × 40 pixels dans un disque de
+44 — un ovale décalé, que `border-radius: 50%` achevait de déformer.
+
+**La cause.** La bulle est un `<button>`, et le navigateur lui applique `padding: 1px 6px`
+par défaut. `.bulle` ne l'a jamais remis à zéro. Pendant des mois, elle n'a porté que deux
+lettres centrées : `place-items: center` les posait au milieu, et six pixels de marge de
+part et d'autre ne se voyaient pas. Le jour où son contenu a dû REMPLIR le disque au lieu
+d'être centré dedans, la marge est devenue une déformation.
+
+**Ce que ça dit de plus général.** Un style hérité de l'agent utilisateur ne se manifeste
+que lorsque le contenu change de nature. Aucun test ne l'aurait vu : cinq mesuraient la
+présence de l'image, aucun sa GÉOMÉTRIE. « L'image est là » et « l'image est bien posée »
+sont deux affirmations différentes, et je n'avais écrit que la première.
+
+Une première tentative a d'ailleurs corrigé la mauvaise chose : `place-self: stretch` sur
+l'enfant, plausible et sans effet. C'est la mesure — 44 − 30 = 12 horizontal, 44 − 40 = 2
+vertical, une asymétrie qui ne peut venir que d'un padding `1px 6px` — qui a désigné le
+coupable. Deviner une cause plausible coûte plus cher que mesurer.
+
+**Le contrôle en place maintenant.** `padding: 0` sur `.bulle`, et un test e2e qui mesure
+la géométrie aux trois emplacements : l'image doit être CARRÉE et remplir son disque à la
+bordure près. Prouvé rouge en remettant le padding.
