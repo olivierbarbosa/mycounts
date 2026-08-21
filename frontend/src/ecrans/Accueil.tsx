@@ -83,9 +83,12 @@ function parJour(
  *    « 212 € sur 400 € » qui l'accompagnait doublait la hauteur du bloc pour redire ce que
  *    la barre montrait déjà. Les chiffres vivent sur l'onglet Budget ;
  *  - **il ne montre pas tous les plafonds**, voir `JAUGES_SUR_LACCUEIL` ;
- *  - **il ne montre pas le solde d'ouverture** dans la liste. C'est une ligne d'amorçage,
- *    pas une dépense : elle compte dans les soldes et n'a rien à faire dans le journal de
- *    ce qu'on a acheté ;
+ *  - **il ne montre ni le solde d'ouverture ni les ajustements** dans la liste. Ni l'un
+ *    ni l'autre n'est une dépense : ils comptent dans les soldes et n'ont rien à faire
+ *    dans le journal de ce qu'on a acheté. Conséquence à connaître, cet écran étant le
+ *    SEUL à lister les opérations : un ajustement n'est plus consultable ni supprimable
+ *    une fois écrit. Il reste corrigeable — en refaire un ramène le solde à la valeur
+ *    voulue, puisque l'écart est recalculé par le serveur à chaque fois ;
  *  - **il ne propose aucun formulaire.** Tout ce qui écrit passe par le `+` de la barre ou
  *    par une feuille — un écran de consultation qui contient un champ de saisie fait
  *    hésiter sur ce qu'on est en train de faire.
@@ -119,8 +122,19 @@ export function Accueil({
   const parCategorie = new Map(categories.map((c) => [c.id, c]))
   const parCompte = new Map(comptes.map((c) => [c.id, c]))
 
-  // L'amorçage n'est pas une opération du journal : voir le bloc de tête.
-  const journal = operations.filter((operation) => !operation.est_ouverture)
+  /* Le journal montre ce qu'on a ACHETÉ. Deux lignes en sont donc écartées, pour la même
+     raison : ni l'une ni l'autre n'est une dépense.
+
+     — l'amorçage, qui pose le solde de départ d'un compte ;
+     — l'AJUSTEMENT, qui recolle le solde à celui de la banque. Demandé par Olivier le
+       22 août 2026 : voir « −13,40 € » sous « Dépenses récentes » fait chercher un achat
+       qui n'existe pas, et fausse la lecture d'un écran dont c'est le seul propos.
+
+     Toutes deux comptent PLEINEMENT dans les soldes : les masquer ici ne les efface pas,
+     et l'accueil continue d'afficher un réel qui correspond au relevé. */
+  const journal = operations.filter(
+    (operation) => !operation.est_ouverture && !operation.est_ajustement,
+  )
 
   // TOUS les plafonds, et les plus tendus d'abord. Une version intermédiaire n'en montrait
   // que trois pour raccourcir l'écran : Olivier a tranché le 20 août 2026 après l'avoir vu

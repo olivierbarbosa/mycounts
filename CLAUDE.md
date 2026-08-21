@@ -152,6 +152,16 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 - **Une adresse électronique est validée par `normaliser_courriel()`**, dans le domaine.
   Le schéma d'API l'appelle via `AfterValidator` — pas d'`EmailStr`, qui ferait un second
   auteur de la règle.
+- **Le journal de l'accueil montre ce qu'on a ACHETÉ.** Ni l'amorçage ni les ajustements
+  n'y figurent : tous deux comptent pleinement dans les soldes, aucun n'est une dépense.
+  Conséquence assumée — cet écran étant le seul à lister les opérations, un ajustement
+  n'est plus consultable une fois écrit ; il reste corrigeable, l'écart étant recalculé par
+  le serveur à chaque nouvelle correction.
+- **Une modale se rend par `Portail`, dans `<body>`.** Un `z-index` n'est comparable
+  qu'entre frères d'un même contexte d'empilement, et les écrans d'onglet en créent un —
+  leur animation conserve un `transform`, fût-il l'identité. Une feuille écrite dans un
+  écran passait donc sous la barre de navigation avec le bon numéro de plan (ERREURS.md
+  #049).
 - **Un virement n'est ni une dépense ni un revenu** : l'argent change de poche sans
   quitter le foyer. Il reste dans les soldes des deux comptes, sort des dépenses et des
   plafonds.
