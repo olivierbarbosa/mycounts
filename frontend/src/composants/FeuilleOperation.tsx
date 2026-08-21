@@ -1,5 +1,5 @@
 import { Trash2, X } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 
 import type { CategoriePublique, ComptePublic, OperationPublique } from '../api/client'
 import { ErreurApi, api } from '../api/client'
@@ -42,6 +42,32 @@ export function FeuilleOperation({
     (Math.abs(operation.montant_centimes) / 100).toFixed(2).replace('.', ','),
   )
   const [libelle, setLibelle] = useState(operation.libelle)
+  /* Le nom de l'auteur, ou `null` s'il n'y a rien à dire — c'est-à-dire si c'est soi, ou
+     si le foyer n'a qu'un membre.
+
+     Résolu ICI et non servi avec l'opération : le nom imposerait une jointure sur chaque
+     ligne de chaque liste, pour un renseignement qu'on ne lit qu'en ouvrant une ligne.
+     Cette feuille s'ouvre à la demande, sur une liste de membres qui tient en une
+     requête. */
+  const [auteur, setAuteur] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (operation.cree_par_id == null) return
+    let vivant = true
+    void api
+      .membresDuFoyer()
+      .then((membres) => {
+        if (!vivant) return
+        const lui = membres.find((m) => m.id === operation.cree_par_id)
+        setAuteur(lui === undefined || lui.est_vous ? null : lui.nom_affichage)
+      })
+      // Silencieux : ne pas savoir qui a saisi n'empêche pas de lire l'opération, et une
+      // alerte pour cela ferait douter du reste de l'écran.
+      .catch(() => undefined)
+    return () => {
+      vivant = false
+    }
+  }, [operation.cree_par_id])
   const [date, setDate] = useState(operation.date_operation)
   const [categorieId, setCategorieId] = useState(operation.categorie_id ?? '')
   const [confirmeSuppression, setConfirmeSuppression] = useState(false)
@@ -135,6 +161,16 @@ export function FeuilleOperation({
                   <span className={styles.cle}>Compte</span>
                   <span className={styles.valeur}>{compte?.nom ?? '—'}</span>
                 </span>
+                {/* « Saisi par » n'apparaît que si l'auteur est QUELQU'UN D'AUTRE.
+                    Dans un foyer d'une personne — la majorité des cas — la ligne dirait
+                    « saisi par vous » sous chaque opération : un renseignement dont on
+                    connaît déjà la réponse occupe la place de ceux qu'on ignore. */}
+                {auteur !== null && (
+                  <span className={styles.fait}>
+                    <span className={styles.cle}>Saisi par</span>
+                    <span className={styles.valeur}>{auteur}</span>
+                  </span>
+                )}
                 <span className={styles.fait}>
                   <span className={styles.cle}>État</span>
                   <span className={styles.valeur}>{ETATS[operation.etat] ?? operation.etat}</span>

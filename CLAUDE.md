@@ -25,12 +25,16 @@ une bulle du haut, avec glissement de retour au doigt. Onglet Foyer : bascule en
 comptes personnels et comptes joints, liste des membres, invitation, dissolution du
 partage et suppression définitive de son compte.
 
-**Manque** : couverture des enveloppes par compte et déclaration de virement (lots E2 et
-E4) ; TOTP obligatoire et codes de secours (décidé, repoussé à la clôture) ; « voir qui
-modifie quoi » (`cree_par_id` existe sur trois
-tables, rien ne l'expose) ; filtrage des plafonds et enveloppes par `vue` (les colonnes et
-la migration existent, aucune requête ne les lit) ; chiffrement de la base ; import de
-relevé au format PDF, non tranché ; déploiement VPS.
+**Manque** : pilotage des enveloppes dans le temps (`date_cible` n'entre dans aucun
+calcul) et capacité d'épargne mensuelle ; couverture par compte et déclaration de virement
+(lots E2 et E4) ; TOTP obligatoire et codes de secours ; mot de passe oublié ; chiffrement
+des libellés et des noms — les montants restent en clair, sans quoi soldes et plafonds
+quitteraient SQL (tranché le 22 août 2026) ; quitter un foyer ; historique des corrections
+de solde ; logos et icônes PWA ; déploiement VPS.
+
+**Import PDF : abandonné**, tranché le 22 août 2026. Le CSV de la Caisse d'Épargne suffit,
+et un relevé PDF n'a aucune structure garantie — chaque refonte de maquette casserait
+l'extraction.
 
 **Un utilisateur appartient à UN seul foyer.** `Utilisateur.foyer_id`, non nullable. La vue
 « comptes joints » est un FILTRE sur `Compte.prive`, pas une entité : il n'existe pas
@@ -152,6 +156,16 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 - **Une adresse électronique est validée par `normaliser_courriel()`**, dans le domaine.
   Le schéma d'API l'appelle via `AfterValidator` — pas d'`EmailStr`, qui ferait un second
   auteur de la règle.
+- **Plafonds et enveloppes suivent la VUE**, comme le reste — `_plafonds_autorises` et
+  `Enveloppe.vue` en sont les auteurs. Les deux n'ont pas la même règle de propriété, et
+  l'unicité en base la dictait déjà : un plafond PERSONNEL n'appartient qu'à soi, un
+  plafond de FOYER est commun (`uq_plafond_de_foyer_par_categorie` n'en admet qu'un par
+  catégorie, tous membres confondus). La `vue` est DÉDUITE du périmètre à la création,
+  jamais demandée.
+- **`Operation.cree_par_id` est exposé, le nom ne l'est pas.** Le résoudre côté serveur
+  imposerait une jointure sur chaque ligne de chaque liste pour un renseignement qu'on ne
+  lit qu'en ouvrant une opération. L'écran de détail interroge les membres, une fois, et
+  n'affiche « Saisi par » que si l'auteur est quelqu'un d'autre.
 - **Le journal de l'accueil montre ce qu'on a ACHETÉ.** Ni l'amorçage ni les ajustements
   n'y figurent : tous deux comptent pleinement dans les soldes, aucun n'est une dépense.
   Conséquence assumée — cet écran étant le seul à lister les opérations, un ajustement

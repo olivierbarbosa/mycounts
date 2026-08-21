@@ -1875,6 +1875,8 @@ export interface components {
              * Format: uuid
              */
             compte_id: string;
+            /** Cree Par Id */
+            cree_par_id?: string | null;
             /**
              * Date Operation
              * Format: date

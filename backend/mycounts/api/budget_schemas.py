@@ -115,6 +115,18 @@ class OperationPublique(BaseModel):
     virement_id: uuid.UUID | None = None
     est_ajustement: bool = False
 
+    cree_par_id: uuid.UUID | None = None
+    """Qui a saisi cette opération.
+
+    La colonne existait depuis l'origine sur trois tables et n'était exposée nulle part :
+    le modèle savait répondre à « qui a fait ça », l'application ne posait jamais la
+    question. Sur un compte JOINT, c'est pourtant la première qu'on se pose devant une
+    ligne qu'on ne reconnaît pas.
+
+    L'identifiant seul, pas le nom : le résoudre ici imposerait une jointure sur chaque
+    opération de chaque liste, pour un renseignement qu'on ne lit qu'en ouvrant une ligne.
+    L'écran de détail interroge les membres, une fois, à l'ouverture."""
+
 
 class PeriodePublique(BaseModel):
     debut: dt.date

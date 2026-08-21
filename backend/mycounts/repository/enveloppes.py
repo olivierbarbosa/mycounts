@@ -26,7 +26,15 @@ def enveloppes_du_foyer(
     recalcule depuis ses mouvements, donc les afficher toutes déclencherait une requête
     par enveloppe — le nombre de requêtes grandirait avec le nombre d'enveloppes.
     """
-    conditions = [Enveloppe.foyer_id == principal.foyer_id]
+    # `vue` existait depuis `06db5cb0ed21` et aucune requête ne la lisait : les
+    # enveloppes personnelles apparaissaient dans la vue foyer, sur un écran qui annonce
+    # ne montrer que l'argent commun. Une enveloppe découpe une ÉPARGNE, et les deux
+    # épargnes sont étanches ; les mélanger donnait un découpage dont la somme dépassait
+    # ce qu'il découpe.
+    conditions = [
+        Enveloppe.foyer_id == principal.foyer_id,
+        Enveloppe.vue == principal.vue,
+    ]
     if not archivees:
         conditions.append(Enveloppe.archive.is_(False))
     return list(
@@ -44,7 +52,11 @@ def enveloppe_visible(
 ) -> Enveloppe | None:
     return session.execute(
         select(Enveloppe)
-        .where(Enveloppe.id == enveloppe_id, Enveloppe.foyer_id == principal.foyer_id)
+        .where(
+            Enveloppe.id == enveloppe_id,
+            Enveloppe.foyer_id == principal.foyer_id,
+            Enveloppe.vue == principal.vue,
+        )
         .options(selectinload(Enveloppe.mouvements))
     ).scalar_one_or_none()
 
@@ -66,6 +78,11 @@ def creer_enveloppe(
     enveloppe = Enveloppe(
         foyer_id=principal.foyer_id,
         cree_par_id=principal.utilisateur_id,
+        # Déduite du périmètre regardé, jamais demandée : c'est là que l'utilisateur a
+        # déjà dit de quelle épargne il parle. La redemander dans le formulaire
+        # permettrait de la contredire et de créer une enveloppe qui disparaît de l'écran
+        # où on vient de la poser.
+        vue=principal.vue,
         nom=nom,
         categorie_id=categorie_id,
         compte_prefere_id=compte_prefere_id,
