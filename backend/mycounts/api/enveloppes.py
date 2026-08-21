@@ -11,9 +11,11 @@ quoi il est PROMIS. Les confondre ferait apparaître de l'argent qui n'existe pa
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 
 from fastapi import APIRouter, HTTPException, status
 
+from mycounts.api.budget import resume_de_la_periode
 from mycounts.api.dependances import PrincipalCourant, SessionBase
 from mycounts.api.enveloppes_schemas import (
     DemandeEnveloppe,
@@ -64,6 +66,41 @@ def _en_calcul(enveloppe: Enveloppe) -> EnveloppeCalcul:
             else Cents(enveloppe.contribution_mensuelle_centimes)
         ),
     )
+
+
+def _capacite_epargne(session: SessionBase, principal: PrincipalCourant) -> int:
+    """Ce qu'on peut mettre de côté : le solde PROJETÉ du quotidien, jamais négatif.
+
+    Projeté et non réel — ce qui reste aujourd'hui n'est pas ce qui restera après les
+    prélèvements de la fin du mois. Placer le réel viderait le compte courant juste avant
+    l'échéance du loyer.
+
+    Le calcul est celui de l'accueil, pas un second : deux définitions de « ce qu'il me
+    reste » finiraient par ne plus donner le même chiffre, et l'utilisateur croirait à une
+    erreur de l'une des deux pages.
+    """
+    return max(0, resume_de_la_periode(session, principal).solde_projete)
+
+
+def _compte_epargne_suggere(
+    session: SessionBase, principal: PrincipalCourant, enveloppes: Sequence[Enveloppe]
+) -> uuid.UUID | None:
+    """Vers quel compte proposer le virement.
+
+    La préférence des enveloppes d'abord, et seulement si elles s'ACCORDENT : deux
+    enveloppes qui visent deux livrets différents ne désignent aucun gagnant, et en
+    choisir un au hasard poserait un défaut que l'utilisateur ne saurait pas d'où il vient.
+    À défaut, le premier compte d'épargne — un seul candidat est une réponse, pas une
+    supposition.
+
+    Une préférence de couverture ne déclenche AUCUN mouvement automatique : elle
+    pré-remplit un formulaire, que l'utilisateur valide.
+    """
+    prefers = {e.compte_prefere_id for e in enveloppes if e.compte_prefere_id is not None}
+    if len(prefers) == 1:
+        return prefers.pop()
+    epargnes = depot_budget.ids_des_comptes(session, principal, type_compte=TypeCompte.EPARGNE)
+    return epargnes[0] if epargnes else None
 
 
 def _epargne_totale(session: SessionBase, principal: PrincipalCourant) -> Cents:
@@ -356,6 +393,8 @@ def preparation(session: SessionBase, principal: PrincipalCourant) -> Preparatio
             )
             for ligne in proposition.lignes
         ],
+        capacite_epargne_centimes=_capacite_epargne(session, principal),
+        compte_epargne_suggere_id=_compte_epargne_suggere(session, principal, enveloppes),
         disponible_avant_centimes=int(proposition.disponible_avant),
         disponible_apres_centimes=int(proposition.disponible_apres),
         total_recommande_centimes=int(proposition.total_recommande),

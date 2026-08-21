@@ -151,6 +151,29 @@ class PreparationPublique(BaseModel):
     total_libere_centimes: int
     attend_des_choix: bool
 
+    capacite_epargne_centimes: int
+    """Ce qu'on peut mettre de côté ce mois-ci : le solde PROJETÉ du quotidien.
+
+    Projeté et non réel : ce qui reste aujourd'hui n'est pas ce qui restera après les
+    prélèvements de la fin du mois. Placer le réel viderait le compte courant juste avant
+    l'échéance du loyer — la mesure la plus dangereuse serait ici la plus optimiste.
+
+    Jamais négatif : un mois déficitaire ne propose pas de placer une somme négative, il
+    ne propose rien. Zéro dit « rien à placer », ce qui est exact.
+
+    Répond à « chaque mois, l'application doit calculer combien je peux théoriquement
+    mettre de côté » — demandé le 22 août 2026. Le montant n'est PAS déduit du disponible
+    des enveloppes : celui-ci découpe l'épargne déjà là, celui-là dit ce qui pourrait la
+    rejoindre. Les additionner promettrait deux fois le même argent."""
+
+    compte_epargne_suggere_id: uuid.UUID | None = None
+    """Vers quel compte proposer le virement. `None` s'il n'y a aucun compte d'épargne.
+
+    Choisi parmi les `compte_prefere_id` des enveloppes quand elles s'accordent, sinon le
+    premier compte d'épargne. Une préférence de couverture n'a jamais déclenché de
+    mouvement automatique et n'en déclenche toujours pas : elle ne fait que pré-remplir un
+    formulaire que l'utilisateur valide."""
+
 
 class ChoixDeLigne(BaseModel):
     """Ce que l'utilisateur retient d'une ligne, après l'avoir vue."""

@@ -14,6 +14,8 @@ seul plafond foyer par catégorie, tous membres confondus.
 
 from __future__ import annotations
 
+import datetime as dt
+
 from fastapi.testclient import TestClient
 from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
 from mycounts.repository import auth as depot_auth
@@ -207,3 +209,63 @@ def test_une_enveloppe_datee_recoit_un_rythme(client: TestClient, session_bd: Se
     liste = client.get("/api/enveloppes").json()["enveloppes"]
     travaux = next(e for e in liste if e["nom"] == "Travaux")
     assert travaux["contribution_theorique_centimes"] is None
+
+
+def test_la_preparation_dit_ce_quon_peut_mettre_de_cote(
+    client: TestClient, session_bd: Session
+) -> None:
+    """« Chaque mois, l'application doit calculer combien je peux théoriquement mettre de
+    côté. »
+
+    La propriété mesurée est que ce montant EST le solde projeté du quotidien, et non un
+    second calcul qui lui ressemble. Deux définitions de « ce qu'il me reste » finiraient
+    par diverger, et l'écart passerait pour une panne de l'une des deux pages.
+
+    Projeté et non réel, c'est le point : le premier tient compte des prélèvements encore
+    à venir dans la période. Placer le réel viderait le compte courant juste avant
+    l'échéance du loyer.
+    """
+    session_ouverte(client, session_bd)
+    client.post(
+        "/api/comptes",
+        json={
+            "nom": "Courant",
+            "prive": True,
+            "produit": "compte_courant",
+            "solde_ouverture_centimes": 50_000,
+        },
+    )
+    epargne = client.post(
+        "/api/comptes", json={"nom": "LEP", "prive": True, "produit": "lep"}
+    ).json()
+    client.post("/api/enveloppes", json={"nom": "Japon", "cible_centimes": 200_000})
+
+    resume = client.get("/api/resume").json()
+    preparation = client.get("/api/enveloppes/preparation").json()
+    assert preparation["capacite_epargne_centimes"] == max(0, resume["solde_projete"])
+    # Et le virement est proposé vers le seul compte d'épargne existant.
+    assert preparation["compte_epargne_suggere_id"] == epargne["id"]
+
+
+def test_un_mois_deficitaire_ne_propose_pas_de_placer_une_somme_negative(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Zéro dit « rien à placer », ce qui est exact. Un négatif se lirait comme une
+    consigne de retirer, que rien ici ne demande."""
+    session_ouverte(client, session_bd)
+    compte = client.post(
+        "/api/comptes", json={"nom": "Courant", "prive": True, "produit": "compte_courant"}
+    ).json()
+    client.post(
+        "/api/operations",
+        json={
+            "compte_id": compte["id"],
+            "libelle": "Découvert",
+            "montant_centimes": -40_000,
+            "date_operation": dt.date.today().isoformat(),
+        },
+    )
+
+    preparation = client.get("/api/enveloppes/preparation").json()
+    assert client.get("/api/resume").json()["solde_projete"] < 0, "le décor doit être déficitaire"
+    assert preparation["capacite_epargne_centimes"] == 0

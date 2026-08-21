@@ -418,7 +418,7 @@ def lister_operations(
 ) -> list[OperationPublique]:
     depuis = jusqu_a = None
     if periode_courante:
-        resume = _resumer(session, principal)
+        resume = resume_de_la_periode(session, principal)
         depuis, jusqu_a = resume.periode.debut, resume.periode.fin
 
     return [
@@ -532,7 +532,17 @@ def supprimer_operation(
     session.commit()
 
 
-def _resumer(session: SessionBase, principal: PrincipalCourant) -> ResumePeriode:
+def resume_de_la_periode(
+    session: SessionBase, principal: PrincipalCourant
+) -> ResumePeriode:
+    """Les quatre grandeurs de la période, sur les comptes COURANTS.
+
+    Public depuis le 22 août 2026 : la préparation des enveloppes a besoin du solde
+    projeté pour dire ce qu'on peut mettre de côté. Elle importe donc ce calcul-ci plutôt
+    que d'en écrire un second — deux définitions de « ce qu'il me reste » finiraient par
+    ne plus donner le même chiffre, et l'écart passerait pour une panne de l'une des deux
+    pages.
+    """
     # Même rattrapage que pour l'agenda : une échéance échue non matérialisée serait
     # absente du solde réel comme de la part à confirmer. Idempotent.
     materialiser(session, foyer_id=principal.foyer_id)
@@ -560,7 +570,7 @@ def epargne(session: SessionBase, principal: PrincipalCourant) -> EpargnePubliqu
     de nulle part.
     """
     comptes_epargne = depot.ids_des_comptes(session, principal, type_compte=TypeCompte.EPARGNE)
-    periode = _resumer(session, principal).periode
+    periode = resume_de_la_periode(session, principal).periode
     aujourd_hui_ = aujourd_hui()
 
     par_compte: list[CompteEpargne] = []
@@ -664,7 +674,7 @@ def detail_epargne(
 
 @routeur.get("/resume", response_model=ResumePublic)
 def resume(session: SessionBase, principal: PrincipalCourant) -> ResumePublic:
-    r = _resumer(session, principal)
+    r = resume_de_la_periode(session, principal)
     return ResumePublic(
         periode=PeriodePublique(
             debut=r.periode.debut, fin=r.periode.fin, fin_estimee=r.periode.fin_estimee

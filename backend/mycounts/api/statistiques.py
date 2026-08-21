@@ -105,9 +105,9 @@ def statistiques(session: SessionBase, principal: PrincipalCourant) -> Statistiq
     sans elle, « 320 € de sorties » ne dit pas si c'est beaucoup. C'est la comparaison qui
     porte l'information, pas le chiffre seul.
     """
-    from mycounts.api.budget import _resumer
+    from mycounts.api.budget import resume_de_la_periode
 
-    resume = _resumer(session, principal)
+    resume = resume_de_la_periode(session, principal)
     debut, fin = resume.periode.debut, resume.periode.fin
     duree = fin - debut
 

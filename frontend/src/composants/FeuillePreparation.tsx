@@ -117,6 +117,29 @@ export function FeuillePreparation({ surFermeture, surApplication }: Props) {
             </p>
           ) : (
             <>
+              {/* Ce qu'on peut mettre de côté ce mois-ci, AVANT ce qu'on répartit.
+                  Deux grandeurs distinctes, et les additionner promettrait deux fois le
+                  même argent : « à répartir » découpe l'épargne DÉJÀ là, « à placer » dit
+                  ce qui pourrait la rejoindre depuis le compte courant.
+
+                  Le montant est le solde PROJETÉ du quotidien — ce qui restera après les
+                  prélèvements de la fin du mois, jamais ce qui traîne aujourd'hui. */}
+              {proposition.capacite_epargne_centimes > 0 && (
+                <p className={styles.capacite}>
+                  Ce mois-ci, vous pouvez placer{' '}
+                  <Montant
+                    centimes={proposition.capacite_epargne_centimes}
+                    taille="ligne"
+                    neutre
+                    signeExplicitePositif={false}
+                  />{' '}
+                  <span className={styles.precision}>
+                    d’après ce qui restera sur le quotidien en fin de période. Le virement reste
+                    à faire, ici rien ne bouge tout seul.
+                  </span>
+                </p>
+              )}
+
               <p className={styles.resume}>
                 <Montant
                   centimes={proposition.disponible_avant_centimes}

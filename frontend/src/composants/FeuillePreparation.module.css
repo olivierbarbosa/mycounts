@@ -205,3 +205,16 @@
 .valider:disabled {
   opacity: 0.55;
 }
+
+/* La capacité d'épargne du mois. Encadrée et distincte du « à répartir » : ce sont deux
+   sommes différentes, et les voir dans le même style ferait croire qu'elles s'ajoutent —
+   l'une découpe l'épargne déjà là, l'autre dit ce qui pourrait la rejoindre. */
+.capacite {
+  margin: 0;
+  padding: var(--espace-m);
+  border: 1px dashed var(--couleur-bordure);
+  border-radius: var(--rayon-moyen);
+  color: var(--couleur-texte);
+  font-size: 14px;
+  line-height: 1.5;
+}

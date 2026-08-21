@@ -1976,6 +1976,10 @@ export interface components {
         PreparationPublique: {
             /** Attend Des Choix */
             attend_des_choix: boolean;
+            /** Capacite Epargne Centimes */
+            capacite_epargne_centimes: number;
+            /** Compte Epargne Suggere Id */
+            compte_epargne_suggere_id?: string | null;
             /** Disponible Apres Centimes */
             disponible_apres_centimes: number;
             /** Disponible Avant Centimes */
