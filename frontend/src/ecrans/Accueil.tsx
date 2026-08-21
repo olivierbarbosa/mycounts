@@ -9,6 +9,7 @@ import type {
   ResumePublic,
 } from '../api/client'
 import { api } from '../api/client'
+import { dateCivile } from '../design/dates'
 import { Jauge } from '../composants/Jauge'
 import { Montant } from '../composants/Montant'
 import styles from './Accueil.module.css'
@@ -39,15 +40,6 @@ const moisLong = new Intl.DateTimeFormat('fr-FR', { month: 'long' })
 function jourEtMois(date: Date, format: Intl.DateTimeFormat): string {
   const jour = date.getDate()
   return `${jour === 1 ? '1er' : jour} ${format.format(date)}`
-}
-
-/** Parse une date ISO en date LOCALE, sans passer par UTC.
- *
- *  `new Date('2026-08-19')` est interprété en UTC et peut afficher le 18 selon le fuseau
- *  du navigateur. Le serveur envoie une date civile : elle doit rester telle quelle. */
-function dateCivile(iso: string): Date {
-  const [annee, mois, jour] = iso.split('-').map(Number)
-  return new Date(annee, mois - 1, jour)
 }
 
 /** Regroupe les opérations par jour, dans l'ordre où elles arrivent.

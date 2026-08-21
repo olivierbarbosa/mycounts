@@ -181,3 +181,29 @@ def test_une_operation_dit_qui_la_saisie(client: TestClient, session_bd: Session
     lignes = client.get("/api/operations", headers=FOYER).json()
     saisie = next(o for o in lignes if o["libelle"] == "Courses de Bruno")
     assert saisie["cree_par_id"] == bruno_id, "l’auteur doit survivre au changement de lecteur"
+
+
+def test_une_enveloppe_datee_recoit_un_rythme(client: TestClient, session_bd: Session) -> None:
+    """« J'ai un voyage au Japon en novembre 2026, il me faut 2 000 €. »
+
+    La `date_cible` était stockée, saisissable, renvoyée par l'API — et lue par aucun
+    calcul. Ce test mesure le chemin COMPLET : l'écran écrit une échéance, le serveur en
+    déduit un rythme mensuel, et le rend.
+    """
+    session_ouverte(client, session_bd)
+    creee = client.post(
+        "/api/enveloppes",
+        json={"nom": "Japon", "cible_centimes": 200_000, "date_cible": "2099-12-31"},
+    )
+    assert creee.status_code == 201, creee.text
+
+    japon = next(e for e in creee.json()["enveloppes"] if e["nom"] == "Japon")
+    assert japon["contribution_theorique_centimes"] is not None
+    assert japon["contribution_theorique_centimes"] > 0
+
+    # Une enveloppe SANS échéance n'en reçoit aucun : un objectif sans date est un
+    # plancher, qu'aucun rythme ne presse.
+    client.post("/api/enveloppes", json={"nom": "Travaux", "cible_centimes": 500_000})
+    liste = client.get("/api/enveloppes").json()["enveloppes"]
+    travaux = next(e for e in liste if e["nom"] == "Travaux")
+    assert travaux["contribution_theorique_centimes"] is None

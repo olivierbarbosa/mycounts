@@ -30,7 +30,13 @@ from mycounts.domain.agregats import Agregat, calculer
 from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.enveloppes import Enveloppe as EnveloppeCalcul
-from mycounts.domain.enveloppes import Mouvement, TypeMouvement, preparer_la_periode, repartir
+from mycounts.domain.enveloppes import (
+    Mouvement,
+    TypeMouvement,
+    contribution_theorique,
+    preparer_la_periode,
+    repartir,
+)
 from mycounts.domain.montants import Cents
 from mycounts.models.budget import Enveloppe
 from mycounts.repository import budget as depot_budget
@@ -48,6 +54,7 @@ def _en_calcul(enveloppe: Enveloppe) -> EnveloppeCalcul:
             for m in enveloppe.mouvements
         ),
         cible=None if enveloppe.cible_centimes is None else Cents(enveloppe.cible_centimes),
+        date_cible=enveloppe.date_cible,
         usage=enveloppe.usage,
         rollover=enveloppe.rollover,
         priorite=enveloppe.priorite,
@@ -113,6 +120,11 @@ def _repartition(session: SessionBase, principal: PrincipalCourant) -> Repartiti
                 date_cible=modele.date_cible,
                 solde_centimes=int(calcul.solde),
                 place_centimes=None if calcul.place is None else int(calcul.place),
+                contribution_theorique_centimes=(
+                    None
+                    if (theorique := contribution_theorique(calcul, aujourd_hui())) is None
+                    else int(theorique)
+                ),
                 part=etat.part(calcul),
                 archive=modele.archive,
                 usage=modele.usage,
@@ -321,7 +333,13 @@ def preparation(session: SessionBase, principal: PrincipalCourant) -> Preparatio
     etat = repartir(_epargne_totale(session, principal), calculs)
 
     proposition = preparer_la_periode(
-        etat.non_affecte, calculs, _plafonds_par_enveloppe(session, principal, enveloppes)
+        etat.non_affecte,
+        calculs,
+        _plafonds_par_enveloppe(session, principal, enveloppes),
+        # Passé TOUJOURS depuis l'API : sans lui, une enveloppe qui ne porte qu'un objectif
+        # et une échéance ne reçoit aucune recommandation, alors qu'elle contient tout ce
+        # qu'il faut pour en calculer une.
+        aujourd_hui(),
     )
     par_nom = {e.nom: e.id for e in enveloppes}
 

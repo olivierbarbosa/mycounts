@@ -10,7 +10,9 @@ Deux tests centraux, tous deux capables de rendre la réponse inverse :
 
 from __future__ import annotations
 
+import datetime as dt
 import itertools
+from dataclasses import replace
 
 import pytest
 from mycounts.domain.enveloppes import (
@@ -22,6 +24,8 @@ from mycounts.domain.enveloppes import (
     TypeMouvement,
     UsageEnveloppe,
     budget_mensuel,
+    contribution_theorique,
+    mois_restants,
     ordre_de_service,
     preparer_la_periode,
     reliquat_au_changement_de_periode,
@@ -445,3 +449,97 @@ class TestPreparerLaPeriode:
         preparation = preparer_la_periode(Cents(100_000), enveloppes)
         assert preparation.lignes[0].a_liberer == Cents(0)
         assert len(preparation.lignes) == 1
+
+
+# --- Pilotage dans le temps -------------------------------------------------------
+#
+# La `date_cible` était stockée depuis l'origine et lue par AUCUN calcul : on pouvait la
+# saisir, elle ne changeait rien. « J'ai un voyage au Japon en novembre 2026, il me faut
+# 2 000 € » ne produisait donc aucune recommandation mensuelle.
+
+
+def test_les_mois_restants_se_comptent_en_mois_civils() -> None:
+    """Une échéance est une date du CALENDRIER — personne ne compte son projet en périodes
+    de paie. C'est le seul endroit du module où le mois civil l'emporte."""
+    aout = dt.date(2026, 8, 22)
+    assert mois_restants(dt.date(2026, 11, 30), aout) == 3
+    assert mois_restants(dt.date(2026, 9, 1), aout) == 1
+    assert mois_restants(dt.date(2027, 8, 22), aout) == 12
+
+
+def test_une_echeance_passee_reclame_le_reste_maintenant() -> None:
+    """Le plancher à 1 n'est pas une précaution contre la division par zéro — c'en est une
+    aussi — mais une décision : rendre 0 ferait disparaître la recommandation au moment
+    précis où elle devient urgente."""
+    assert mois_restants(dt.date(2026, 5, 1), dt.date(2026, 8, 22)) == 1
+
+
+def test_la_contribution_theorique_arrondit_vers_le_HAUT() -> None:
+    """À 1 999,99 € en novembre, on n'a pas les 2 000 € du billet.
+
+    Vérifié sur une division qui ne tombe pas juste : 2 000 € en 3 mois font 666,67 € et
+    non 666,66 — trois versements de 666,66 laisseraient deux centimes manquants.
+    """
+    japon = enveloppe("Japon", cible=200_000)
+    objet = replace(japon, date_cible=dt.date(2026, 11, 30))
+    assert contribution_theorique(objet, dt.date(2026, 8, 22)) == Cents(66_667)
+
+
+def test_la_contribution_theorique_tient_compte_de_ce_qui_est_deja_mis() -> None:
+    """Elle porte sur ce qui MANQUE, pas sur l'objectif : sinon elle réclamerait la même
+    somme chaque mois jusqu'à la fin, et le projet serait financé deux fois."""
+    japon = enveloppe("Japon", m(TypeMouvement.ALLOCATION, 50_000), cible=200_000)
+    objet = replace(japon, date_cible=dt.date(2026, 11, 30))
+    # Reste 1 500 € sur 3 mois.
+    assert contribution_theorique(objet, dt.date(2026, 8, 22)) == Cents(50_000)
+
+
+def test_sans_date_ou_sans_cible_il_ny_a_rien_a_deduire() -> None:
+    """Une cible sans échéance est un PLANCHER — « au moins 5 000 € pour les travaux » —
+    qu'aucun rythme ne presse. Inventer une date déciderait à la place de l'utilisateur.
+    """
+    travaux = enveloppe("Travaux", cible=500_000)
+    assert contribution_theorique(travaux, dt.date(2026, 8, 22)) is None
+
+    sans_objectif = replace(enveloppe("Flou"), date_cible=dt.date(2026, 11, 30))
+    assert contribution_theorique(sans_objectif, dt.date(2026, 8, 22)) is None
+
+
+def test_une_valeur_deduite_ne_recouvre_jamais_une_valeur_choisie() -> None:
+    """L'ordre des trois sources, mesuré dans les trois cas.
+
+    C'est le test qui protège la règle : la contribution théorique vient en DERNIER parce
+    qu'elle est la seule que l'utilisateur n'a pas écrite. Un code qui la placerait en
+    tête passerait les tests précédents sans qu'aucun ne s'en aperçoive.
+    """
+    datee = replace(enveloppe("Japon", cible=200_000), date_cible=dt.date(2026, 11, 30))
+    jour = dt.date(2026, 8, 22)
+
+    # 1. La contribution écrite sur l'enveloppe l'emporte sur tout.
+    choisie = replace(datee, contribution_mensuelle=Cents(10_000))
+    assert budget_mensuel(choisie, Cents(30_000), jour) == Cents(10_000)
+
+    # 2. À défaut, le plafond de la catégorie.
+    assert budget_mensuel(datee, Cents(30_000), jour) == Cents(30_000)
+
+    # 3. À défaut des deux, ce que l'échéance impose.
+    assert budget_mensuel(datee, None, jour) == Cents(66_667)
+
+    # Et sans date de référence, rien n'est déduit : le domaine ne devine pas le jour.
+    assert budget_mensuel(datee, None, None) is None
+
+
+def test_une_enveloppe_datee_recoit_enfin_une_recommandation() -> None:
+    """Le défaut, pris par le bout où il se voyait.
+
+    Avant le 22 août 2026, cette enveloppe — un objectif, une échéance, rien d'autre —
+    recevait `recommande = 0` : `budget_mensuel` rendait `None`, et `souhaite` retombait
+    sur la place entière, aussitôt rabotée par le disponible. Elle demandait donc tout,
+    tout de suite, au lieu de son rythme.
+    """
+    japon = replace(enveloppe("Japon", cible=200_000), date_cible=dt.date(2026, 11, 30))
+    proposition = preparer_la_periode(Cents(500_000), [japon], None, dt.date(2026, 8, 22))
+
+    (ligne,) = proposition.lignes
+    assert ligne.recommande == Cents(66_667), "le rythme, pas la totalité"
+    assert not ligne.limitee_par_le_disponible

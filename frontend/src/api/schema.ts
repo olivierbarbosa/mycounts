@@ -1541,6 +1541,8 @@ export interface components {
             compte_prefere_id: string | null;
             /** Contribution Mensuelle Centimes */
             contribution_mensuelle_centimes: number | null;
+            /** Contribution Theorique Centimes */
+            contribution_theorique_centimes?: number | null;
             /** Date Cible */
             date_cible: string | null;
             /**

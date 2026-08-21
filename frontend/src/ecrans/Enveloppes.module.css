@@ -405,3 +405,15 @@
     scale: 1;
   }
 }
+
+/* Le rythme imposé par l'échéance, sous le manque. Distinct de `.details` : celui-ci dit
+   un ÉTAT — ce qui manque — quand celui-là dit une CONSIGNE, ce qu'il faut faire chaque
+   mois. Les confondre dans un même style reviendrait à les confondre tout court. */
+.rythme {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  color: var(--couleur-accent-clair);
+  font-size: 12px;
+  font-weight: var(--typo-gras-moyen);
+}

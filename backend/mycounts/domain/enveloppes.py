@@ -23,6 +23,7 @@ reprise déguisée, invisible dans un journal filtré par type.
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -125,6 +126,14 @@ class Enveloppe:
     Zéro par défaut, donc toutes à égalité tant qu'on n'y touche pas. À égalité, c'est le
     nom qui tranche — sans quoi l'ordre serait celui de l'insertion en base, c'est-à-dire
     un ordre qu'aucun utilisateur ne peut prévoir ni corriger.
+    """
+
+    date_cible: dt.date | None = None
+    """L'échéance du projet. « Le Japon, c'est en novembre 2026. »
+
+    Stockée depuis l'origine et lue par AUCUN calcul jusqu'au 22 août 2026 : on pouvait la
+    saisir, elle ne changeait rien. Elle sert maintenant à `contribution_theorique`, qui
+    répond à la seule question que pose une échéance — combien par mois pour y être.
     """
 
     contribution_mensuelle: Cents | None = None
@@ -319,30 +328,82 @@ class Preparation:
         return any(ligne.demande_un_choix for ligne in self.lignes)
 
 
+def mois_restants(echeance: dt.date, aujourd_hui: dt.date) -> int:
+    """Nombre de mois CIVILS entiers d'ici l'échéance, au minimum 1.
+
+    Le mois civil et non la période budgétaire, contrairement au reste du module : une
+    échéance est une date du calendrier — « le voyage est en novembre » — et personne ne
+    compte son projet en périodes de paie. `bornes_du_mois()` et `domain/periode.py` ne
+    sont pas interchangeables, et c'est ici le premier qui répond à la question posée.
+
+    **Minimum 1**, y compris pour une échéance passée. Diviser par zéro lèverait ; rendre
+    zéro ferait disparaître la recommandation au moment précis où elle devient urgente.
+    Une échéance dépassée réclame le reste MAINTENANT, ce qu'un diviseur de 1 exprime
+    exactement.
+    """
+    mois = (echeance.year - aujourd_hui.year) * 12 + (echeance.month - aujourd_hui.month)
+    return max(1, mois)
+
+
+def contribution_theorique(enveloppe: Enveloppe, aujourd_hui: dt.date) -> Cents | None:
+    """Ce qu'il faudrait y mettre chaque mois pour tenir l'échéance.
+
+    `None` sans cible ou sans date : les deux sont nécessaires. Une cible sans échéance est
+    un plancher — « au moins 5 000 € pour les travaux » — qu'aucun rythme ne presse, et
+    inventer une date reviendrait à décider à la place de l'utilisateur.
+
+    Arrondi au SUPÉRIEUR, et en entiers : `-(-reste // mois)` plutôt qu'un `ceil()` sur un
+    flottant, que le garde-fou n°6 refuse dans le domaine à bon droit. L'arrondi vers le
+    haut est le seul qui tienne la promesse — à 1 999,99 € en novembre, on n'a pas les
+    2 000 € du billet.
+    """
+    place = enveloppe.place
+    if place is None or enveloppe.date_cible is None:
+        return None
+    if int(place) == 0:
+        return Cents(0)
+    return Cents(-(-int(place) // mois_restants(enveloppe.date_cible, aujourd_hui)))
+
+
 def budget_mensuel(
-    enveloppe: Enveloppe, plafond_de_la_categorie: Cents | None = None
+    enveloppe: Enveloppe,
+    plafond_de_la_categorie: Cents | None = None,
+    aujourd_hui: dt.date | None = None,
 ) -> Cents | None:
     """Ce qu'on prévoit de mettre dans cette enveloppe à chaque période.
 
-    Deux sources, dans cet ordre : la contribution propre à l'enveloppe si elle est fixée,
-    sinon le plafond de sa catégorie. L'ordre n'est pas arbitraire — une contribution
-    écrite sur l'enveloppe est une décision PRISE POUR ELLE, alors qu'un plafond de
-    catégorie vaut pour toutes les dépenses de cette catégorie, enveloppe ou non. Le
-    particulier l'emporte sur le général.
+    Trois sources, dans cet ordre, et jamais additionnées :
 
-    `None` quand ni l'une ni l'autre n'existe : la préparation ne recommandera alors rien
-    plutôt que zéro. Inventer un montant là où l'utilisateur n'en a fixé aucun serait une
+    1. **la contribution propre à l'enveloppe**, si elle est fixée. C'est une décision
+       PRISE POUR ELLE, qui l'emporte sur toute déduction ;
+    2. **le plafond de sa catégorie**, qui vaut pour toutes les dépenses de cette
+       catégorie, enveloppe ou non. Le particulier l'emporte sur le général ;
+    3. **la contribution théorique**, déduite de l'échéance. Ajoutée le 22 août 2026 :
+       jusque-là, une enveloppe portant « 2 000 € pour novembre 2026 » et rien d'autre ne
+       recevait AUCUNE recommandation, alors qu'elle contenait tout ce qu'il faut pour en
+       calculer une. La date était saisissable et morte.
+
+    Elle vient en DERNIER, et c'est délibéré : c'est la seule des trois que l'utilisateur
+    n'a pas écrite. Une valeur déduite ne doit jamais recouvrir une valeur choisie.
+
+    `None` quand aucune ne s'applique : la préparation ne recommandera alors rien plutôt
+    que zéro. Inventer un montant là où l'utilisateur n'a rien fixé ni daté serait une
     décision prise à sa place — c'est déjà la règle de `place`.
     """
     if enveloppe.contribution_mensuelle is not None:
         return enveloppe.contribution_mensuelle
-    return plafond_de_la_categorie
+    if plafond_de_la_categorie is not None:
+        return plafond_de_la_categorie
+    if aujourd_hui is None:
+        return None
+    return contribution_theorique(enveloppe, aujourd_hui)
 
 
 def preparer_la_periode(
     disponible: Cents,
     enveloppes: Sequence[Enveloppe],
     plafonds: dict[str, Cents] | None = None,
+    aujourd_hui: dt.date | None = None,
 ) -> Preparation:
     """Calcule la répartition proposée pour la période qui s'ouvre.
 
@@ -365,6 +426,11 @@ def preparer_la_periode(
     `plafonds` associe un identifiant de catégorie au plafond de la période — la seconde
     source de budget mensuel, quand l'enveloppe n'a pas de contribution propre. La clé est
     laissée à l'appelant : le domaine ne connaît pas les identifiants de la base.
+
+    `aujourd_hui` ouvre la troisième source, la contribution déduite d'une échéance. Il est
+    facultatif pour que les tests du domaine qui ne parlent pas de dates n'aient pas à en
+    inventer une — mais l'API le passe TOUJOURS, sans quoi les enveloppes datées
+    resteraient sans recommandation.
     """
     plafonds = plafonds or {}
     reliquats = {e.nom: reliquat_au_changement_de_periode(e) for e in enveloppes}
@@ -381,7 +447,7 @@ def preparer_la_periode(
     lignes: list[LignePreparation] = []
     for enveloppe in ordre_de_service(enveloppes):
         reliquat = reliquats[enveloppe.nom]
-        budget = budget_mensuel(enveloppe, plafonds.get(enveloppe.nom))
+        budget = budget_mensuel(enveloppe, plafonds.get(enveloppe.nom), aujourd_hui)
 
         # Le solde de départ tient compte de ce qui vient d'être libéré : une enveloppe qui
         # rend 120 € puis en redemande 400 a bien 400 € de place, pas 280.

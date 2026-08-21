@@ -20,6 +20,7 @@ class DemandeEnveloppe(BaseModel):
     compte_prefere_id: uuid.UUID | None = None
     cible_centimes: int | None = Field(default=None, gt=0)
     date_cible: dt.date | None = None
+
     allocation_initiale_centimes: int = Field(
         default=0,
         ge=0,
@@ -92,6 +93,17 @@ class EnveloppePublique(BaseModel):
     place_centimes: int | None
     """Ce qu'il manque pour atteindre la cible. `None` s'il n'y a pas de cible — et non
     zéro, qui se lirait comme « enveloppe pleine »."""
+
+    contribution_theorique_centimes: int | None = None
+    """Ce qu'il faudrait y mettre CHAQUE MOIS pour tenir l'échéance.
+
+    `None` sans objectif ou sans date : les deux sont nécessaires. Une cible sans échéance
+    est un plancher — « au moins 5 000 € pour les travaux » — qu'aucun rythme ne presse.
+
+    Indicative, et rendue séparément de ce que la préparation recommande : les deux
+    diffèrent dès que l'épargne disponible ne suffit pas, et c'est précisément l'écart
+    qu'il faut pouvoir lire — « il faudrait 143 € par mois, je ne peux en mettre que 90 »
+    est un renseignement, « 90 » tout seul n'en est pas un."""
 
     part: int
     archive: bool

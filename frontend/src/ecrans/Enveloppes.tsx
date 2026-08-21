@@ -7,6 +7,7 @@ import { ChoixCategorie } from '../composants/ChoixCategorie'
 import { FeuillePreparation } from '../composants/FeuillePreparation'
 import { FeuilleReglagesEnveloppe } from '../composants/FeuilleReglagesEnveloppe'
 import { Montant } from '../composants/Montant'
+import { moisEtAnnee } from '../design/dates'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import styles from './Enveloppes.module.css'
 
@@ -428,6 +429,26 @@ export function Enveloppes({ categories, rafraichissement, surReferentielsChange
                   />
                 </span>
               ) : null}
+
+              {/* Le rythme qu'impose l'échéance. C'est la réponse à la seule question
+                  qu'une date pose — « combien par mois pour y être » — et elle restait
+                  sans réponse : la date était saisissable et lue par aucun calcul.
+
+                  Affichée à côté du manque, jamais à sa place : « il manque 1 500 € » et
+                  « il faut 500 € par mois » ne disent pas la même chose, et c'est leur
+                  écart qui fait décider. */}
+              {(enveloppe.contribution_theorique_centimes ?? 0) > 0 && (
+                <span className={styles.rythme}>
+                  <Montant
+                    centimes={enveloppe.contribution_theorique_centimes ?? 0}
+                    taille="ligne"
+                    neutre
+                    signeExplicitePositif={false}
+                  />
+                  {' par mois '}
+                  {enveloppe.date_cible !== null && `jusqu’à ${moisEtAnnee(enveloppe.date_cible)}`}
+                </span>
+              )}
             </li>
           ))}
         </ul>
