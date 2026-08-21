@@ -1475,3 +1475,35 @@ coupable. Deviner une cause plausible coûte plus cher que mesurer.
 **Le contrôle en place maintenant.** `padding: 0` sur `.bulle`, et un test e2e qui mesure
 la géométrie aux trois emplacements : l'image doit être CARRÉE et remplir son disque à la
 bordure près. Prouvé rouge en remettant le padding.
+
+## #049 — Le bon nombre, dans le mauvais contexte
+
+**Ce que je croyais.** Que l'ordre d'empilement était réglé depuis #038 : `tokens.ts` est
+l'auteur unique des `z-index`, les composants choisissent un RÔLE et jamais un nombre, et
+`feuille` (40) est déclaré au-dessus de `navigation` (10). Un défaut d'empilement ne
+pouvait plus venir que d'un nombre écrit ailleurs — et il n'y en avait pas.
+
+**Ce qu'il s'est passé.** Olivier : « les modales passent en dessous de la navbar » sur
+l'écran des enveloppes. La feuille portait bien `z-index: 40`. La barre portait bien 10.
+
+**La cause.** Un `z-index` n'est comparable qu'entre frères d'un même contexte
+d'empilement. Les écrans d'onglet portent une animation d'entrée déclarée avec
+`animation-fill-mode: both` : l'état final est conservé, donc `transform: translateX(0)`
+reste appliqué indéfiniment. Un `transform` non-`none` crée un contexte, fût-il l'identité
+— `matrix(1, 0, 0, 1, 0, 0)`, relevé tel quel. Les feuilles écrites DANS un écran d'onglet
+s'y trouvaient enfermées ; celles montées par `App`, comme la saisie, n'avaient rien.
+Le même composant marchait ou non selon l'endroit du fichier où on l'avait écrit.
+
+**Ce que ça dit de plus général.** Une donnée à auteur unique garantit que les nombres sont
+cohérents entre eux, pas qu'ils sont comparés. #038 avait réglé « deux nombres choisis dans
+deux fichiers » ; il restait « deux nombres justes dans deux mondes ». Et la sonde qui
+aurait pu l'attraper n'existait pas : aucun test ne demandait ce que l'utilisateur VOIT à
+un endroit donné. C'est `document.elementFromPoint` qui a tranché, là où la lecture des
+`z-index` déclarait tout conforme.
+
+**Le contrôle en place maintenant.** Les sept feuilles modales se rendent par `Portail`,
+dans `<body>`. Corriger le contexte fautif — retirer le `both`, poser un `z-index` sur le
+conteneur d'onglet — aurait réglé ce cas et laissé le suivant intact : le prochain
+`filter`, le prochain `will-change` recréeraient un contexte, et la feuille disparaîtrait
+sans que personne n'ait touché à la feuille. Un test e2e mesure désormais ce qui occupe le
+centre de la barre, feuille ouverte.

@@ -2,6 +2,7 @@ import { type CategoriePublique, type ComptePublic, type LigneImport } from '../
 import { fermetureExterieure } from './fermetureExterieure'
 import { Montant } from './Montant'
 import styles from './FeuilleLigneImportee.module.css'
+import { Portail } from './Portail'
 
 export type ReglagesDeLigne = {
   readonly categorieId: string
@@ -44,123 +45,125 @@ export function FeuilleLigneImportee({
   const estUneDepense = ligne.montant_centimes < 0
 
   return (
-    <div
-      className={styles.voile}
-      onClick={fermetureExterieure(surFermeture)}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Réglages de ${ligne.libelle}`}
-    >
-      <div className={styles.feuille}>
-        <header className={styles.entete}>
-          <span className={styles.libelle}>{ligne.libelle}</span>
-          <Montant centimes={ligne.montant_centimes} taille="titre" />
-        </header>
+    <Portail>
+      <div
+        className={styles.voile}
+        onClick={fermetureExterieure(surFermeture)}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Réglages de ${ligne.libelle}`}
+      >
+        <div className={styles.feuille}>
+          <header className={styles.entete}>
+            <span className={styles.libelle}>{ligne.libelle}</span>
+            <Montant centimes={ligne.montant_centimes} taille="titre" />
+          </header>
 
-        {ligne.doublon_probable !== null && (
-          <p className={styles.avertissement}>
-            Ressemble à « {ligne.doublon_probable} », déjà enregistré. Importer les deux compterait
-            la dépense en double.
-          </p>
-        )}
+          {ligne.doublon_probable !== null && (
+            <p className={styles.avertissement}>
+              Ressemble à « {ligne.doublon_probable} », déjà enregistré. Importer les deux
+              compterait la dépense en double.
+            </p>
+          )}
 
-        <div className={styles.champ}>
-          <span className={styles.etiquette}>Nature</span>
-          <div className={styles.bascule} role="group" aria-label="Nature de l’opération">
-            <button
-              type="button"
-              className={styles.choix}
-              aria-pressed={reglages.sens !== 'virement'}
-              onClick={() =>
-                surChangement({
-                  ...reglages,
-                  sens: estUneDepense ? 'depense' : 'revenu',
-                  contrepartieId: '',
-                })
-              }
-            >
-              {estUneDepense ? 'Dépense' : 'Revenu'}
-            </button>
-            <button
-              type="button"
-              className={styles.choix}
-              aria-pressed={reglages.sens === 'virement'}
-              onClick={() => surChangement({ ...reglages, sens: 'virement', categorieId: '' })}
-            >
-              Virement
-            </button>
-          </div>
-        </div>
-
-        {reglages.sens === 'virement' ? (
           <div className={styles.champ}>
-            <label className={styles.etiquette} htmlFor="contrepartie">
-              {estUneDepense ? 'Vers quel compte' : 'De quel compte'}
-            </label>
-            {/* Le relevé ne dit jamais l'autre compte : il montre ce qui est sorti, pas où
+            <span className={styles.etiquette}>Nature</span>
+            <div className={styles.bascule} role="group" aria-label="Nature de l’opération">
+              <button
+                type="button"
+                className={styles.choix}
+                aria-pressed={reglages.sens !== 'virement'}
+                onClick={() =>
+                  surChangement({
+                    ...reglages,
+                    sens: estUneDepense ? 'depense' : 'revenu',
+                    contrepartieId: '',
+                  })
+                }
+              >
+                {estUneDepense ? 'Dépense' : 'Revenu'}
+              </button>
+              <button
+                type="button"
+                className={styles.choix}
+                aria-pressed={reglages.sens === 'virement'}
+                onClick={() => surChangement({ ...reglages, sens: 'virement', categorieId: '' })}
+              >
+                Virement
+              </button>
+            </div>
+          </div>
+
+          {reglages.sens === 'virement' ? (
+            <div className={styles.champ}>
+              <label className={styles.etiquette} htmlFor="contrepartie">
+                {estUneDepense ? 'Vers quel compte' : 'De quel compte'}
+              </label>
+              {/* Le relevé ne dit jamais l'autre compte : il montre ce qui est sorti, pas où
                 c'est allé. Sans ce choix, la ligne serait écrite comme une opération
                 ordinaire — un virement à une seule jambe n'existe pas. */}
-            <select
-              id="contrepartie"
-              className={styles.selecteur}
-              value={reglages.contrepartieId}
-              onChange={(evenement) =>
-                surChangement({ ...reglages, contrepartieId: evenement.target.value })
-              }
-            >
-              <option value="">Choisir…</option>
-              {comptes
-                .filter((compte) => compte.id !== compteDuReleve)
-                .map((compte) => (
-                  <option key={compte.id} value={compte.id}>
-                    {compte.nom}
-                  </option>
-                ))}
-            </select>
-          </div>
-        ) : (
-          <div className={styles.champ}>
-            <label className={styles.etiquette} htmlFor="categorie-ligne">
-              Catégorie
-            </label>
-            <select
-              id="categorie-ligne"
-              className={styles.selecteur}
-              value={reglages.categorieId}
-              onChange={(evenement) =>
-                surChangement({ ...reglages, categorieId: evenement.target.value })
-              }
-            >
-              <option value="">Sans catégorie</option>
-              {categories
-                .filter((categorie) =>
-                  estUneDepense ? categorie.nature === 'depense' : categorie.nature === 'revenu',
-                )
-                .map((categorie) => (
-                  <option key={categorie.id} value={categorie.id}>
-                    {categorie.nom}
-                  </option>
-                ))}
-            </select>
-          </div>
-        )}
+              <select
+                id="contrepartie"
+                className={styles.selecteur}
+                value={reglages.contrepartieId}
+                onChange={(evenement) =>
+                  surChangement({ ...reglages, contrepartieId: evenement.target.value })
+                }
+              >
+                <option value="">Choisir…</option>
+                {comptes
+                  .filter((compte) => compte.id !== compteDuReleve)
+                  .map((compte) => (
+                    <option key={compte.id} value={compte.id}>
+                      {compte.nom}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          ) : (
+            <div className={styles.champ}>
+              <label className={styles.etiquette} htmlFor="categorie-ligne">
+                Catégorie
+              </label>
+              <select
+                id="categorie-ligne"
+                className={styles.selecteur}
+                value={reglages.categorieId}
+                onChange={(evenement) =>
+                  surChangement({ ...reglages, categorieId: evenement.target.value })
+                }
+              >
+                <option value="">Sans catégorie</option>
+                {categories
+                  .filter((categorie) =>
+                    estUneDepense ? categorie.nature === 'depense' : categorie.nature === 'revenu',
+                  )
+                  .map((categorie) => (
+                    <option key={categorie.id} value={categorie.id}>
+                      {categorie.nom}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
 
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.ignorer}
-            onClick={() => {
-              surChangement({ ...reglages, retenue: !reglages.retenue })
-              surFermeture()
-            }}
-          >
-            {reglages.retenue ? 'Ne pas importer' : 'Importer quand même'}
-          </button>
-          <button type="button" className={styles.valider} onClick={surFermeture}>
-            Terminé
-          </button>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.ignorer}
+              onClick={() => {
+                surChangement({ ...reglages, retenue: !reglages.retenue })
+                surFermeture()
+              }}
+            >
+              {reglages.retenue ? 'Ne pas importer' : 'Importer quand même'}
+            </button>
+            <button type="button" className={styles.valider} onClick={surFermeture}>
+              Terminé
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Portail>
   )
 }

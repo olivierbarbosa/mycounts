@@ -6,6 +6,7 @@ import { ErreurApi, api } from '../api/client'
 import { Montant } from '../composants/Montant'
 import { fermetureExterieure } from './fermetureExterieure'
 import styles from './FeuillePreparation.module.css'
+import { Portail } from './Portail'
 
 type Props = {
   readonly surFermeture: () => void
@@ -87,165 +88,167 @@ export function FeuillePreparation({ surFermeture, surApplication }: Props) {
   }
 
   return (
-    <div
-      className={styles.voile}
-      onClick={fermetureExterieure(surFermeture)}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Préparer le mois"
-    >
-      <form
-        className={styles.feuille}
-        onSubmit={(evenement) => {
-          evenement.preventDefault()
-          void appliquer()
-        }}
-        noValidate
+    <Portail>
+      <div
+        className={styles.voile}
+        onClick={fermetureExterieure(surFermeture)}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Préparer le mois"
       >
-        <h2 className={styles.titre}>Préparer le mois</h2>
+        <form
+          className={styles.feuille}
+          onSubmit={(evenement) => {
+            evenement.preventDefault()
+            void appliquer()
+          }}
+          noValidate
+        >
+          <h2 className={styles.titre}>Préparer le mois</h2>
 
-        {proposition === null ? (
-          <p className={styles.attente} aria-live="polite">
-            Calcul de la répartition…
-          </p>
-        ) : proposition.lignes.length === 0 ? (
-          <p className={styles.vide}>
-            Aucune enveloppe à préparer. Créez-en une, ou donnez-leur un objectif et un montant
-            mensuel pour que la préparation ait quelque chose à proposer.
-          </p>
-        ) : (
-          <>
-            <p className={styles.resume}>
-              <Montant
-                centimes={proposition.disponible_avant_centimes}
-                taille="titre"
-                neutre
-                signeExplicitePositif={false}
-              />{' '}
-              à répartir
-              {proposition.total_libere_centimes > 0 && (
-                <span className={styles.precision}>
-                  dont{' '}
-                  <Montant
-                    centimes={proposition.total_libere_centimes}
-                    taille="ligne"
-                    neutre
-                    signeExplicitePositif={false}
-                  />{' '}
-                  rendus par les enveloppes qui libèrent
-                </span>
-              )}
+          {proposition === null ? (
+            <p className={styles.attente} aria-live="polite">
+              Calcul de la répartition…
             </p>
-
-            <ul className={styles.liste}>
-              {proposition.lignes.map((ligne) => (
-                <li key={ligne.enveloppe_id} className={styles.ligne}>
-                  <span className={styles.nom}>{ligne.nom}</span>
-
-                  <span className={styles.montants}>
-                    {ligne.recommande_centimes > 0 ? (
-                      <Montant
-                        centimes={ligne.recommande_centimes}
-                        taille="ligne"
-                        neutre
-                        signeExplicitePositif={false}
-                      />
-                    ) : (
-                      <span className={styles.rien}>rien à ajouter</span>
-                    )}
+          ) : proposition.lignes.length === 0 ? (
+            <p className={styles.vide}>
+              Aucune enveloppe à préparer. Créez-en une, ou donnez-leur un objectif et un montant
+              mensuel pour que la préparation ait quelque chose à proposer.
+            </p>
+          ) : (
+            <>
+              <p className={styles.resume}>
+                <Montant
+                  centimes={proposition.disponible_avant_centimes}
+                  taille="titre"
+                  neutre
+                  signeExplicitePositif={false}
+                />{' '}
+                à répartir
+                {proposition.total_libere_centimes > 0 && (
+                  <span className={styles.precision}>
+                    dont{' '}
+                    <Montant
+                      centimes={proposition.total_libere_centimes}
+                      taille="ligne"
+                      neutre
+                      signeExplicitePositif={false}
+                    />{' '}
+                    rendus par les enveloppes qui libèrent
                   </span>
+                )}
+              </p>
 
-                  {/* La ligne DIT quand elle a été rognée. « 40 € » et « 40 € parce qu'il
-                      ne restait que ça » ne s'interprètent pas pareil, et seul le serveur
-                      sait laquelle des deux est vraie. */}
-                  {ligne.limitee_par_le_disponible && (
-                    <span className={styles.limite}>l’argent disponible n’a pas suffi</span>
-                  )}
+              <ul className={styles.liste}>
+                {proposition.lignes.map((ligne) => (
+                  <li key={ligne.enveloppe_id} className={styles.ligne}>
+                    <span className={styles.nom}>{ligne.nom}</span>
 
-                  {ligne.demande_un_choix && (
-                    <div className={styles.question}>
-                      <span className={styles.questionTexte}>
-                        Il reste{' '}
+                    <span className={styles.montants}>
+                      {ligne.recommande_centimes > 0 ? (
                         <Montant
-                          centimes={ligne.a_liberer_centimes}
+                          centimes={ligne.recommande_centimes}
                           taille="ligne"
                           neutre
                           signeExplicitePositif={false}
-                        />{' '}
-                        dedans.
-                      </span>
-                      <div
-                        className={styles.bascule}
-                        role="group"
-                        aria-label={`Reliquat de ${ligne.nom}`}
-                      >
-                        <button
-                          type="button"
-                          className={styles.choix}
-                          aria-pressed={(choix[ligne.enveloppe_id] ?? 'garder') === 'garder'}
-                          onClick={() =>
-                            setChoix((actuel) => ({ ...actuel, [ligne.enveloppe_id]: 'garder' }))
-                          }
+                        />
+                      ) : (
+                        <span className={styles.rien}>rien à ajouter</span>
+                      )}
+                    </span>
+
+                    {/* La ligne DIT quand elle a été rognée. « 40 € » et « 40 € parce qu'il
+                      ne restait que ça » ne s'interprètent pas pareil, et seul le serveur
+                      sait laquelle des deux est vraie. */}
+                    {ligne.limitee_par_le_disponible && (
+                      <span className={styles.limite}>l’argent disponible n’a pas suffi</span>
+                    )}
+
+                    {ligne.demande_un_choix && (
+                      <div className={styles.question}>
+                        <span className={styles.questionTexte}>
+                          Il reste{' '}
+                          <Montant
+                            centimes={ligne.a_liberer_centimes}
+                            taille="ligne"
+                            neutre
+                            signeExplicitePositif={false}
+                          />{' '}
+                          dedans.
+                        </span>
+                        <div
+                          className={styles.bascule}
+                          role="group"
+                          aria-label={`Reliquat de ${ligne.nom}`}
                         >
-                          Garder
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.choix}
-                          aria-pressed={choix[ligne.enveloppe_id] === 'liberer'}
-                          onClick={() =>
-                            setChoix((actuel) => ({ ...actuel, [ligne.enveloppe_id]: 'liberer' }))
-                          }
-                        >
-                          Libérer
-                        </button>
+                          <button
+                            type="button"
+                            className={styles.choix}
+                            aria-pressed={(choix[ligne.enveloppe_id] ?? 'garder') === 'garder'}
+                            onClick={() =>
+                              setChoix((actuel) => ({ ...actuel, [ligne.enveloppe_id]: 'garder' }))
+                            }
+                          >
+                            Garder
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.choix}
+                            aria-pressed={choix[ligne.enveloppe_id] === 'liberer'}
+                            onClick={() =>
+                              setChoix((actuel) => ({ ...actuel, [ligne.enveloppe_id]: 'liberer' }))
+                            }
+                          >
+                            Libérer
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
 
-            <p className={styles.total}>
-              Total proposé{' '}
-              <Montant
-                centimes={proposition.total_recommande_centimes}
-                taille="ligne"
-                neutre
-                signeExplicitePositif={false}
-              />
-              , il resterait{' '}
-              <Montant
-                centimes={proposition.disponible_apres_centimes}
-                taille="ligne"
-                neutre
-                signeExplicitePositif={false}
-              />{' '}
-              de non-affecté.
+              <p className={styles.total}>
+                Total proposé{' '}
+                <Montant
+                  centimes={proposition.total_recommande_centimes}
+                  taille="ligne"
+                  neutre
+                  signeExplicitePositif={false}
+                />
+                , il resterait{' '}
+                <Montant
+                  centimes={proposition.disponible_apres_centimes}
+                  taille="ligne"
+                  neutre
+                  signeExplicitePositif={false}
+                />{' '}
+                de non-affecté.
+              </p>
+            </>
+          )}
+
+          {erreur !== null && (
+            <p className={styles.erreur} role="alert">
+              {erreur}
             </p>
-          </>
-        )}
+          )}
 
-        {erreur !== null && (
-          <p className={styles.erreur} role="alert">
-            {erreur}
-          </p>
-        )}
-
-        <div className={styles.actions}>
-          <button type="button" className={styles.annuler} onClick={surFermeture}>
-            Annuler
-          </button>
-          <button
-            type="submit"
-            className={styles.valider}
-            disabled={enCours || proposition === null || proposition.lignes.length === 0}
-          >
-            <Check size={18} strokeWidth={2.4} aria-hidden />
-            Valider la répartition
-          </button>
-        </div>
-      </form>
-    </div>
+          <div className={styles.actions}>
+            <button type="button" className={styles.annuler} onClick={surFermeture}>
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className={styles.valider}
+              disabled={enCours || proposition === null || proposition.lignes.length === 0}
+            >
+              <Check size={18} strokeWidth={2.4} aria-hidden />
+              Valider la répartition
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portail>
   )
 }

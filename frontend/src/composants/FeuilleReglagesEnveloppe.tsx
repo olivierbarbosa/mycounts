@@ -6,6 +6,7 @@ import { SaisieInvalide, enCentimes } from '../design/saisie'
 import { ChoixCategorie } from './ChoixCategorie'
 import { fermetureExterieure } from './fermetureExterieure'
 import styles from './FeuilleSaisie.module.css'
+import { Portail } from './Portail'
 
 type Props = {
   readonly enveloppe: EnveloppePublique
@@ -135,149 +136,151 @@ export function FeuilleReglagesEnveloppe({
   }
 
   return (
-    <div
-      className={styles.voile}
-      onClick={fermetureExterieure(surFermeture)}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Réglages de ${enveloppe.nom}`}
-    >
-      <form className={styles.feuille} onSubmit={enregistrer} noValidate>
-        <h2 className={styles.titre}>Réglages de l’enveloppe</h2>
+    <Portail>
+      <div
+        className={styles.voile}
+        onClick={fermetureExterieure(surFermeture)}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Réglages de ${enveloppe.nom}`}
+      >
+        <form className={styles.feuille} onSubmit={enregistrer} noValidate>
+          <h2 className={styles.titre}>Réglages de l’enveloppe</h2>
 
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="reglage-nom">
-            Nom
-          </label>
-          <input
-            id="reglage-nom"
-            className={styles.saisie}
-            value={nom}
-            onChange={(e) => setNom(e.target.value)}
-            maxLength={80}
-            required
-          />
-        </div>
-
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="reglage-categorie">
-            Catégorie
-          </label>
-          <ChoixCategorie
-            id="reglage-categorie"
-            categories={categories}
-            nature="depense"
-            valeur={categorieId}
-            surChangement={setCategorieId}
-            surCreation={surReferentielsChanges}
-          />
-        </div>
-
-        <div className={styles.champ}>
-          <span className={styles.etiquette}>À quoi elle sert</span>
-          <div className={styles.bascule} role="group" aria-label="Usage de l’enveloppe">
-            {USAGE.map((choix) => (
-              <button
-                key={choix.cle}
-                type="button"
-                className={styles.sens}
-                aria-pressed={usage === choix.cle}
-                onClick={() => setUsage(choix.cle)}
-              >
-                {choix.titre}
-              </button>
-            ))}
+          <div className={styles.champ}>
+            <label className={styles.etiquette} htmlFor="reglage-nom">
+              Nom
+            </label>
+            <input
+              id="reglage-nom"
+              className={styles.saisie}
+              value={nom}
+              onChange={(e) => setNom(e.target.value)}
+              maxLength={80}
+              required
+            />
           </div>
-          <p className={styles.note}>{USAGE.find((c) => c.cle === usage)!.quoi}</p>
-        </div>
 
-        <div className={styles.champ}>
-          <span className={styles.etiquette}>À la fin du mois</span>
-          <div className={styles.bascule} role="group" aria-label="Report de fin de mois">
-            {ROLLOVER.map((choix) => (
-              <button
-                key={choix.cle}
-                type="button"
-                className={styles.sens}
-                aria-pressed={rollover === choix.cle}
-                onClick={() => setRollover(choix.cle)}
-              >
-                {choix.titre}
-              </button>
-            ))}
+          <div className={styles.champ}>
+            <label className={styles.etiquette} htmlFor="reglage-categorie">
+              Catégorie
+            </label>
+            <ChoixCategorie
+              id="reglage-categorie"
+              categories={categories}
+              nature="depense"
+              valeur={categorieId}
+              surChangement={setCategorieId}
+              surCreation={surReferentielsChanges}
+            />
           </div>
-          {/* La phrase suit le choix : trois modes nommés d'un mot ne se distinguent pas
+
+          <div className={styles.champ}>
+            <span className={styles.etiquette}>À quoi elle sert</span>
+            <div className={styles.bascule} role="group" aria-label="Usage de l’enveloppe">
+              {USAGE.map((choix) => (
+                <button
+                  key={choix.cle}
+                  type="button"
+                  className={styles.sens}
+                  aria-pressed={usage === choix.cle}
+                  onClick={() => setUsage(choix.cle)}
+                >
+                  {choix.titre}
+                </button>
+              ))}
+            </div>
+            <p className={styles.note}>{USAGE.find((c) => c.cle === usage)!.quoi}</p>
+          </div>
+
+          <div className={styles.champ}>
+            <span className={styles.etiquette}>À la fin du mois</span>
+            <div className={styles.bascule} role="group" aria-label="Report de fin de mois">
+              {ROLLOVER.map((choix) => (
+                <button
+                  key={choix.cle}
+                  type="button"
+                  className={styles.sens}
+                  aria-pressed={rollover === choix.cle}
+                  onClick={() => setRollover(choix.cle)}
+                >
+                  {choix.titre}
+                </button>
+              ))}
+            </div>
+            {/* La phrase suit le choix : trois modes nommés d'un mot ne se distinguent pas
               tout seuls, et « libération » ne veut rien dire pour qui n'a pas lu le
               modèle de données. */}
-          <p className={styles.note}>{ROLLOVER.find((c) => c.cle === rollover)!.quoi}</p>
-        </div>
+            <p className={styles.note}>{ROLLOVER.find((c) => c.cle === rollover)!.quoi}</p>
+          </div>
 
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="reglage-cible">
-            Objectif
-          </label>
-          <input
-            id="reglage-cible"
-            className={styles.saisie}
-            value={cible}
-            onChange={(e) => setCible(e.target.value)}
-            inputMode="decimal"
-            placeholder="1 500,00"
-            autoComplete="off"
-          />
-        </div>
+          <div className={styles.champ}>
+            <label className={styles.etiquette} htmlFor="reglage-cible">
+              Objectif
+            </label>
+            <input
+              id="reglage-cible"
+              className={styles.saisie}
+              value={cible}
+              onChange={(e) => setCible(e.target.value)}
+              inputMode="decimal"
+              placeholder="1 500,00"
+              autoComplete="off"
+            />
+          </div>
 
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="reglage-contribution">
-            Chaque mois
-          </label>
-          <input
-            id="reglage-contribution"
-            className={styles.saisie}
-            value={contribution}
-            onChange={(e) => setContribution(e.target.value)}
-            inputMode="decimal"
-            placeholder="100,00"
-            autoComplete="off"
-          />
-          <p className={styles.note}>
-            Ce que la préparation proposera d’y mettre à chaque paie, tant que l’objectif n’est pas
-            atteint.
-          </p>
-        </div>
+          <div className={styles.champ}>
+            <label className={styles.etiquette} htmlFor="reglage-contribution">
+              Chaque mois
+            </label>
+            <input
+              id="reglage-contribution"
+              className={styles.saisie}
+              value={contribution}
+              onChange={(e) => setContribution(e.target.value)}
+              inputMode="decimal"
+              placeholder="100,00"
+              autoComplete="off"
+            />
+            <p className={styles.note}>
+              Ce que la préparation proposera d’y mettre à chaque paie, tant que l’objectif n’est
+              pas atteint.
+            </p>
+          </div>
 
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="reglage-priorite">
-            Priorité
-          </label>
-          <input
-            id="reglage-priorite"
-            className={styles.saisie}
-            value={priorite}
-            onChange={(e) => setPriorite(e.target.value)}
-            inputMode="numeric"
-            autoComplete="off"
-          />
-          <p className={styles.note}>
-            Quand l’argent ne suffit pas, les plus petits numéros sont servis en premier.
-          </p>
-        </div>
+          <div className={styles.champ}>
+            <label className={styles.etiquette} htmlFor="reglage-priorite">
+              Priorité
+            </label>
+            <input
+              id="reglage-priorite"
+              className={styles.saisie}
+              value={priorite}
+              onChange={(e) => setPriorite(e.target.value)}
+              inputMode="numeric"
+              autoComplete="off"
+            />
+            <p className={styles.note}>
+              Quand l’argent ne suffit pas, les plus petits numéros sont servis en premier.
+            </p>
+          </div>
 
-        {erreur !== null && (
-          <p className={styles.erreur} role="alert">
-            {erreur}
-          </p>
-        )}
+          {erreur !== null && (
+            <p className={styles.erreur} role="alert">
+              {erreur}
+            </p>
+          )}
 
-        <div className={styles.actions}>
-          <button type="button" className={styles.annuler} onClick={surFermeture}>
-            Annuler
-          </button>
-          <button type="submit" className={styles.valider} disabled={enCours}>
-            Enregistrer
-          </button>
-        </div>
-      </form>
-    </div>
+          <div className={styles.actions}>
+            <button type="button" className={styles.annuler} onClick={surFermeture}>
+              Annuler
+            </button>
+            <button type="submit" className={styles.valider} disabled={enCours}>
+              Enregistrer
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portail>
   )
 }

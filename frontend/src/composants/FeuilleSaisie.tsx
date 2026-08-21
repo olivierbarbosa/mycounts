@@ -7,6 +7,7 @@ import { SaisieInvalide, enCentimes } from '../design/saisie'
 import { fermetureExterieure } from './fermetureExterieure'
 import { ChoixCategorie } from './ChoixCategorie'
 import styles from './FeuilleSaisie.module.css'
+import { Portail } from './Portail'
 
 type Props = {
   readonly comptes: readonly ComptePublic[]
@@ -168,240 +169,242 @@ export function FeuilleSaisie({
   }
 
   return (
-    <div
-      className={styles.voile}
-      onClick={fermetureExterieure(surFermeture)}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Saisir une opération"
-    >
-      <form className={styles.feuille} onSubmit={soumettre} noValidate>
-        <h2 className={styles.titre}>
-          {sensImpose === 'virement' ? 'Virement' : 'Nouvelle opération'}
-        </h2>
+    <Portail>
+      <div
+        className={styles.voile}
+        onClick={fermetureExterieure(surFermeture)}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Saisir une opération"
+      >
+        <form className={styles.feuille} onSubmit={soumettre} noValidate>
+          <h2 className={styles.titre}>
+            {sensImpose === 'virement' ? 'Virement' : 'Nouvelle opération'}
+          </h2>
 
-        {sensImpose === undefined && (
-          <div className={styles.bascule} role="group" aria-label="Nature de l'opération">
-            <button
-              type="button"
-              className={styles.sens}
-              aria-pressed={sens === 'depense'}
-              onClick={() => {
-                setSens('depense')
-                setCategorieId('')
-              }}
-            >
-              Dépense
-            </button>
-            <button
-              type="button"
-              className={styles.sens}
-              aria-pressed={sens === 'revenu'}
-              onClick={() => {
-                setSens('revenu')
-                setCategorieId('')
-              }}
-            >
-              Revenu
-            </button>
-            <button
-              type="button"
-              className={styles.sens}
-              aria-pressed={sens === 'virement'}
-              disabled={!virementPossible}
-              title={virementPossible ? undefined : 'Il faut au moins deux comptes pour virer.'}
-              onClick={() => {
-                setSens('virement')
-                setCategorieId('')
-              }}
-            >
-              Virement
-            </button>
-          </div>
-        )}
+          {sensImpose === undefined && (
+            <div className={styles.bascule} role="group" aria-label="Nature de l'opération">
+              <button
+                type="button"
+                className={styles.sens}
+                aria-pressed={sens === 'depense'}
+                onClick={() => {
+                  setSens('depense')
+                  setCategorieId('')
+                }}
+              >
+                Dépense
+              </button>
+              <button
+                type="button"
+                className={styles.sens}
+                aria-pressed={sens === 'revenu'}
+                onClick={() => {
+                  setSens('revenu')
+                  setCategorieId('')
+                }}
+              >
+                Revenu
+              </button>
+              <button
+                type="button"
+                className={styles.sens}
+                aria-pressed={sens === 'virement'}
+                disabled={!virementPossible}
+                title={virementPossible ? undefined : 'Il faut au moins deux comptes pour virer.'}
+                onClick={() => {
+                  setSens('virement')
+                  setCategorieId('')
+                }}
+              >
+                Virement
+              </button>
+            </div>
+          )}
 
-        {/* Le montant en grand et sans étiquette visible : c'est le seul champ dont
+          {/* Le montant en grand et sans étiquette visible : c'est le seul champ dont
             personne ne se demande ce qu'il attend, et le seul qu'on tape à coup sûr.
             L'étiquette reste portée par `aria-label` — la retirer du DOM la retirerait
             aussi aux lecteurs d'écran, ce qui n'est pas la même simplification. */}
-        <input
-          id="montant"
-          className={styles.montantGrand}
-          value={montant}
-          onChange={(e) => setMontant(e.target.value)}
-          inputMode="decimal"
-          placeholder="0,00"
-          autoComplete="off"
-          aria-label="Montant"
-          autoFocus
-          required
-        />
+          <input
+            id="montant"
+            className={styles.montantGrand}
+            value={montant}
+            onChange={(e) => setMontant(e.target.value)}
+            inputMode="decimal"
+            placeholder="0,00"
+            autoComplete="off"
+            aria-label="Montant"
+            autoFocus
+            required
+          />
 
-        <input
-          id="libelle"
-          className={styles.saisie}
-          value={libelle}
-          onChange={(e) => setLibelle(e.target.value)}
-          maxLength={140}
-          placeholder={sens === 'virement' ? 'Virement' : 'Libellé'}
-          aria-label="Libellé"
-          required
-        />
+          <input
+            id="libelle"
+            className={styles.saisie}
+            value={libelle}
+            onChange={(e) => setLibelle(e.target.value)}
+            maxLength={140}
+            placeholder={sens === 'virement' ? 'Virement' : 'Libellé'}
+            aria-label="Libellé"
+            required
+          />
 
-        {sens !== 'virement' && (
-          <div className={styles.champ}>
-            <label className={styles.etiquette} htmlFor="categorie">
-              Catégorie
-            </label>
-            {/* Une catégorie manquante se crée ICI : c'est en saisissant une dépense
+          {sens !== 'virement' && (
+            <div className={styles.champ}>
+              <label className={styles.etiquette} htmlFor="categorie">
+                Catégorie
+              </label>
+              {/* Une catégorie manquante se crée ICI : c'est en saisissant une dépense
                 qu'on découvre qu'elle manque, et repartir dans les paramètres pour
                 revenir ensuite tout ressaisir est le chemin qui fait renoncer. */}
-            <ChoixCategorie
-              id="categorie"
-              categories={categories}
-              nature={sortie ? 'depense' : 'revenu'}
-              valeur={categorieId}
-              surChangement={setCategorieId}
-              surCreation={surReferentielsChanges}
-            />
-          </div>
-        )}
+              <ChoixCategorie
+                id="categorie"
+                categories={categories}
+                nature={sortie ? 'depense' : 'revenu'}
+                valeur={categorieId}
+                surChangement={setCategorieId}
+                surCreation={surReferentielsChanges}
+              />
+            </div>
+          )}
 
-        {sens === 'virement' && (
-          <div className={styles.champ}>
-            <label className={styles.etiquette} htmlFor="source">
-              Du compte
-            </label>
-            <select
-              id="source"
-              className={styles.choix}
-              value={sourceId}
-              onChange={(e) => setSourceId(e.target.value)}
-            >
-              {comptes.map((compte) => (
-                <option key={compte.id} value={compte.id}>
-                  {compte.nom}
-                </option>
-              ))}
-            </select>
+          {sens === 'virement' && (
+            <div className={styles.champ}>
+              <label className={styles.etiquette} htmlFor="source">
+                Du compte
+              </label>
+              <select
+                id="source"
+                className={styles.choix}
+                value={sourceId}
+                onChange={(e) => setSourceId(e.target.value)}
+              >
+                {comptes.map((compte) => (
+                  <option key={compte.id} value={compte.id}>
+                    {compte.nom}
+                  </option>
+                ))}
+              </select>
 
-            {/* L'inversion est un geste, pas deux sélections à refaire : c'est l'erreur
+              {/* L'inversion est un geste, pas deux sélections à refaire : c'est l'erreur
                 la plus probable au moment de virer, et la plus pénible à corriger. */}
-            <button
-              type="button"
-              className={styles.inverser}
-              onClick={() => {
-                setSourceId(destinationId)
-                setDestinationId(sourceId)
-              }}
-            >
-              <ArrowDownUp size={16} strokeWidth={2} aria-hidden />
-              Inverser le sens
-            </button>
+              <button
+                type="button"
+                className={styles.inverser}
+                onClick={() => {
+                  setSourceId(destinationId)
+                  setDestinationId(sourceId)
+                }}
+              >
+                <ArrowDownUp size={16} strokeWidth={2} aria-hidden />
+                Inverser le sens
+              </button>
 
-            <label className={styles.etiquette} htmlFor="destination">
-              Vers le compte
-            </label>
-            <select
-              id="destination"
-              className={styles.choix}
-              value={destinationId}
-              onChange={(e) => setDestinationId(e.target.value)}
-            >
-              {comptes.map((compte) => (
-                <option key={compte.id} value={compte.id}>
-                  {compte.nom}
-                </option>
-              ))}
-            </select>
-            <p className={styles.note}>
-              Un virement n’est ni une dépense ni un revenu : il ne compte dans aucun plafond.
-            </p>
-          </div>
-        )}
+              <label className={styles.etiquette} htmlFor="destination">
+                Vers le compte
+              </label>
+              <select
+                id="destination"
+                className={styles.choix}
+                value={destinationId}
+                onChange={(e) => setDestinationId(e.target.value)}
+              >
+                {comptes.map((compte) => (
+                  <option key={compte.id} value={compte.id}>
+                    {compte.nom}
+                  </option>
+                ))}
+              </select>
+              <p className={styles.note}>
+                Un virement n’est ni une dépense ni un revenu : il ne compte dans aucun plafond.
+              </p>
+            </div>
+          )}
 
-        {/* Le repli. Son libellé n'annonce pas « Options » mais montre les VALEURS —
+          {/* Le repli. Son libellé n'annonce pas « Options » mais montre les VALEURS —
             « Aujourd'hui · Compte courant ». Un intitulé générique obligerait à déplier
             pour vérifier, ce qui rendrait le repli plus coûteux que les deux champs qu'il
             remplace. */}
-        <button
-          type="button"
-          className={styles.repli}
-          onClick={() => setOptionsOuvertes((ouvert) => !ouvert)}
-          aria-expanded={optionsOuvertes}
-        >
-          <span className={styles.repliResume}>{resumeDesOptions}</span>
-          <ChevronDown
-            size={16}
-            strokeWidth={2}
-            aria-hidden
-            className={optionsOuvertes ? styles.chevronOuvert : styles.chevron}
-          />
-        </button>
-
-        {optionsOuvertes && (
-          <div className={styles.options}>
-            <div className={styles.champ}>
-              <label className={styles.etiquette} htmlFor="date">
-                Date de l’opération
-              </label>
-              <input
-                id="date"
-                className={styles.saisie}
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
-            </div>
-
-            {sens !== 'virement' && comptes.length > 1 && (
-              <div className={styles.champ}>
-                <label className={styles.etiquette} htmlFor="compte">
-                  Compte
-                </label>
-                <select
-                  id="compte"
-                  className={styles.choix}
-                  value={compteId}
-                  onChange={(e) => setCompteId(e.target.value)}
-                >
-                  {comptes.map((compte) => (
-                    <option key={compte.id} value={compte.id}>
-                      {compte.nom}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        )}
-
-        {laCategorieDitLaPaie && (
-          <p className={styles.note}>
-            Cette opération ouvrira une nouvelle période budgétaire à sa date, comme toute paie.
-          </p>
-        )}
-
-        {erreur !== null && (
-          <p className={styles.erreur} role="alert">
-            {erreur}
-          </p>
-        )}
-
-        <div className={styles.actions}>
-          <button type="button" className={styles.annuler} onClick={surFermeture}>
-            Annuler
-          </button>
           <button
-            className={styles.valider}
-            type="submit"
-            disabled={enCours || montant.trim() === '' || libelle.trim() === ''}
+            type="button"
+            className={styles.repli}
+            onClick={() => setOptionsOuvertes((ouvert) => !ouvert)}
+            aria-expanded={optionsOuvertes}
           >
-            {enCours ? 'Enregistrement…' : 'Enregistrer'}
+            <span className={styles.repliResume}>{resumeDesOptions}</span>
+            <ChevronDown
+              size={16}
+              strokeWidth={2}
+              aria-hidden
+              className={optionsOuvertes ? styles.chevronOuvert : styles.chevron}
+            />
           </button>
-        </div>
-      </form>
-    </div>
+
+          {optionsOuvertes && (
+            <div className={styles.options}>
+              <div className={styles.champ}>
+                <label className={styles.etiquette} htmlFor="date">
+                  Date de l’opération
+                </label>
+                <input
+                  id="date"
+                  className={styles.saisie}
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              {sens !== 'virement' && comptes.length > 1 && (
+                <div className={styles.champ}>
+                  <label className={styles.etiquette} htmlFor="compte">
+                    Compte
+                  </label>
+                  <select
+                    id="compte"
+                    className={styles.choix}
+                    value={compteId}
+                    onChange={(e) => setCompteId(e.target.value)}
+                  >
+                    {comptes.map((compte) => (
+                      <option key={compte.id} value={compte.id}>
+                        {compte.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
+          {laCategorieDitLaPaie && (
+            <p className={styles.note}>
+              Cette opération ouvrira une nouvelle période budgétaire à sa date, comme toute paie.
+            </p>
+          )}
+
+          {erreur !== null && (
+            <p className={styles.erreur} role="alert">
+              {erreur}
+            </p>
+          )}
+
+          <div className={styles.actions}>
+            <button type="button" className={styles.annuler} onClick={surFermeture}>
+              Annuler
+            </button>
+            <button
+              className={styles.valider}
+              type="submit"
+              disabled={enCours || montant.trim() === '' || libelle.trim() === ''}
+            >
+              {enCours ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portail>
   )
 }

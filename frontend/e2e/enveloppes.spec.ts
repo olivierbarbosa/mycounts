@@ -338,3 +338,39 @@ test('répondre « libérer » rend le reliquat au non-affecté', async ({ page 
   expect(apres.non_affecte_centimes - avant.non_affecte_centimes).toBe(12_000)
   expect(apres.solde_reel).toBe(avant.solde_reel)
 })
+
+test('une feuille modale couvre la barre de navigation', async ({ page }) => {
+  /* Signalé par Olivier : « les modales passent en dessous de la navbar ».
+   *
+   * Le `z-index` n'était pas en cause — il valait bien 40 contre 10 pour la barre. Un
+   * `z-index` n'est comparable qu'entre frères du même contexte d'empilement, et les
+   * écrans d'onglet en créent un : leur animation d'entrée conserve son état final
+   * (`animation-fill-mode: both`), donc un `transform` reste posé indéfiniment, fût-il
+   * l'identité. Toute feuille écrite dans un écran d'onglet s'y trouvait enfermée.
+   *
+   * La mesure porte sur ce que l'utilisateur VOIT — quel élément occupe le point — et non
+   * sur des nombres : c'est précisément parce que les nombres étaient justes que le défaut
+   * a pu exister (ERREURS.md #049).
+   */
+  const nom = `Empilement ${Date.now()}`
+  await ouvrirEnveloppes(page)
+  await creerEnveloppe(page, nom, '100,00')
+
+  const ligne = page.locator('li', { hasText: nom }).first()
+  await ligne.getByRole('button', { name: `Ajuster l’enveloppe ${nom}` }).click()
+  await ligne.getByRole('button', { name: `Réglages de ${nom}` }).click()
+  await expect(page.getByRole('dialog', { name: `Réglages de ${nom}` })).toBeVisible()
+
+  const couvre = await page.evaluate(() => {
+    const barre = document.querySelector('nav')
+    if (barre === null) return null
+    const boite = barre.getBoundingClientRect()
+    const dessus = document.elementFromPoint(boite.x + boite.width / 2, boite.y + boite.height / 2)
+    return dessus?.closest('[role="dialog"]') !== null
+  })
+  // `null` au format bureau, où la navigation est un rail latéral que la feuille ne
+  // recouvre pas : le test ne vaut que là où les deux se superposent.
+  if (couvre !== null) {
+    expect(couvre, 'la feuille doit passer AU-DESSUS de la barre').toBe(true)
+  }
+})

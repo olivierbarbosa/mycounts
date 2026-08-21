@@ -6,6 +6,7 @@ import { SaisieInvalide, enCentimes } from '../design/saisie'
 import { Montant } from './Montant'
 import { fermetureExterieure } from './fermetureExterieure'
 import styles from './FeuilleSaisie.module.css'
+import { Portail } from './Portail'
 
 type Props = {
   readonly comptes: readonly ComptePublic[]
@@ -67,74 +68,76 @@ export function FeuilleAjustement({ comptes, surFermeture, surEnregistrement }: 
   }
 
   return (
-    <div
-      className={styles.voile}
-      onClick={fermetureExterieure(surFermeture)}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Corriger le solde"
-    >
-      <form className={styles.feuille} onSubmit={soumettre} noValidate>
-        <h2 className={styles.titre}>Corriger le solde</h2>
+    <Portail>
+      <div
+        className={styles.voile}
+        onClick={fermetureExterieure(surFermeture)}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Corriger le solde"
+      >
+        <form className={styles.feuille} onSubmit={soumettre} noValidate>
+          <h2 className={styles.titre}>Corriger le solde</h2>
 
-        {comptes.length > 1 && (
+          {comptes.length > 1 && (
+            <div className={styles.champ}>
+              <label className={styles.etiquette} htmlFor="ajustement-compte">
+                Compte
+              </label>
+              <select
+                id="ajustement-compte"
+                className={styles.choix}
+                value={compteId}
+                onChange={(e) => setCompteId(e.target.value)}
+              >
+                {comptes.map((compte) => (
+                  <option key={compte.id} value={compte.id}>
+                    {compte.nom}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className={styles.champ}>
-            <label className={styles.etiquette} htmlFor="ajustement-compte">
-              Compte
+            <label className={styles.etiquette} htmlFor="ajustement-solde">
+              Solde affiché par votre banque
             </label>
-            <select
-              id="ajustement-compte"
-              className={styles.choix}
-              value={compteId}
-              onChange={(e) => setCompteId(e.target.value)}
-            >
-              {comptes.map((compte) => (
-                <option key={compte.id} value={compte.id}>
-                  {compte.nom}
-                </option>
-              ))}
-            </select>
+            <input
+              id="ajustement-solde"
+              className={styles.saisie}
+              value={saisie}
+              onChange={(e) => setSaisie(e.target.value)}
+              inputMode="decimal"
+              placeholder="1 234,56"
+              autoComplete="off"
+              required
+            />
+            {actuel !== undefined && (
+              <p className={styles.note}>
+                L’application compte{' '}
+                <Montant centimes={actuel} taille="ligne" neutre signeExplicitePositif={false} />.
+                L’écart sera enregistré comme une opération, visible dans l’historique.
+              </p>
+            )}
           </div>
-        )}
 
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="ajustement-solde">
-            Solde affiché par votre banque
-          </label>
-          <input
-            id="ajustement-solde"
-            className={styles.saisie}
-            value={saisie}
-            onChange={(e) => setSaisie(e.target.value)}
-            inputMode="decimal"
-            placeholder="1 234,56"
-            autoComplete="off"
-            required
-          />
-          {actuel !== undefined && (
-            <p className={styles.note}>
-              L’application compte{' '}
-              <Montant centimes={actuel} taille="ligne" neutre signeExplicitePositif={false} />.
-              L’écart sera enregistré comme une opération, visible dans l’historique.
+          {erreur !== null && (
+            <p className={styles.erreur} role="alert">
+              {erreur}
             </p>
           )}
-        </div>
 
-        {erreur !== null && (
-          <p className={styles.erreur} role="alert">
-            {erreur}
-          </p>
-        )}
-
-        <div className={styles.actions}>
-          <button type="button" className={styles.annuler} onClick={surFermeture}>
-            Annuler
-          </button>
-          <button type="submit" className={styles.valider} disabled={enCours}>
-            Corriger
-          </button>
-        </div>
-      </form>
-    </div>
+          <div className={styles.actions}>
+            <button type="button" className={styles.annuler} onClick={surFermeture}>
+              Annuler
+            </button>
+            <button type="submit" className={styles.valider} disabled={enCours}>
+              Corriger
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portail>
   )
 }

@@ -10,6 +10,7 @@ import { ErreurApi, api } from '../api/client'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import { fermetureExterieure } from './fermetureExterieure'
 import styles from './FeuilleSaisie.module.css'
+import { Portail } from './Portail'
 
 type Props = {
   readonly comptes: readonly ComptePublic[]
@@ -133,166 +134,168 @@ export function FeuilleRecurrence({
   }
 
   return (
-    <div
-      className={styles.voile}
-      onClick={fermetureExterieure(surFermeture)}
-      role="dialog"
-      aria-modal="true"
-      aria-label={aModifier ? 'Modifier un prélèvement' : 'Ajouter un prélèvement'}
-    >
-      <form className={styles.feuille} onSubmit={soumettre} noValidate>
-        <h2 className={styles.titre}>
-          {enModification ? 'Modifier le prélèvement' : 'Nouveau prélèvement'}
-        </h2>
+    <Portail>
+      <div
+        className={styles.voile}
+        onClick={fermetureExterieure(surFermeture)}
+        role="dialog"
+        aria-modal="true"
+        aria-label={aModifier ? 'Modifier un prélèvement' : 'Ajouter un prélèvement'}
+      >
+        <form className={styles.feuille} onSubmit={soumettre} noValidate>
+          <h2 className={styles.titre}>
+            {enModification ? 'Modifier le prélèvement' : 'Nouveau prélèvement'}
+          </h2>
 
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="montant-recurrence">
-            Montant
-          </label>
-          <input
-            id="montant-recurrence"
-            className={styles.saisie}
-            value={montant}
-            onChange={(e) => setMontant(e.target.value)}
-            inputMode="decimal"
-            placeholder="10,99"
-            autoComplete="off"
-            required
-          />
-        </div>
-
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="libelle-recurrence">
-            Libellé
-          </label>
-          <input
-            id="libelle-recurrence"
-            className={styles.saisie}
-            value={libelle}
-            onChange={(e) => setLibelle(e.target.value)}
-            maxLength={140}
-            required
-          />
-        </div>
-
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="ancre-recurrence">
-            Première échéance
-          </label>
-          <input
-            id="ancre-recurrence"
-            className={styles.saisie}
-            type="date"
-            value={ancre}
-            onChange={(e) => setAncre(e.target.value)}
-            required
-          />
-          <p className={styles.note}>
-            Au 31, l’échéance tombe au 28 en février puis revient au 31.
-          </p>
-        </div>
-
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="rythme-recurrence">
-            Fréquence
-          </label>
-          <select
-            id="rythme-recurrence"
-            className={styles.choix}
-            value={rythme}
-            onChange={(e) => setRythme(e.target.value)}
-          >
-            {RYTHMES.map((r) => (
-              <option key={r.cle} value={r.cle}>
-                {r.libelle}
-              </option>
-            ))}
-          </select>
-
-          {rythmeLibre && (
-            <div className={styles.bascule}>
-              <input
-                className={styles.saisie}
-                type="number"
-                min={1}
-                max={60}
-                value={intervalleLibre}
-                onChange={(e) => setIntervalleLibre(e.target.value)}
-                aria-label="Tous les combien"
-              />
-              <select
-                className={styles.choix}
-                value={uniteLibre}
-                aria-label="Unité de fréquence"
-                onChange={(e) => setUniteLibre(e.target.value as UniteRecurrence)}
-              >
-                <option value="jour">jours</option>
-                <option value="semaine">semaines</option>
-                <option value="mois">mois</option>
-                <option value="an">ans</option>
-              </select>
-            </div>
-          )}
-        </div>
-
-        <div className={styles.champ}>
-          <label className={styles.etiquette} htmlFor="categorie-recurrence">
-            Catégorie
-          </label>
-          <select
-            id="categorie-recurrence"
-            className={styles.choix}
-            value={categorieId}
-            onChange={(e) => setCategorieId(e.target.value)}
-          >
-            <option value="">Sans catégorie</option>
-            {categoriesDeDepense.map((categorie) => (
-              <option key={categorie.id} value={categorie.id}>
-                {categorie.nom}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {comptes.length > 1 && !enModification && (
           <div className={styles.champ}>
-            <label className={styles.etiquette} htmlFor="compte-recurrence">
-              Compte
+            <label className={styles.etiquette} htmlFor="montant-recurrence">
+              Montant
+            </label>
+            <input
+              id="montant-recurrence"
+              className={styles.saisie}
+              value={montant}
+              onChange={(e) => setMontant(e.target.value)}
+              inputMode="decimal"
+              placeholder="10,99"
+              autoComplete="off"
+              required
+            />
+          </div>
+
+          <div className={styles.champ}>
+            <label className={styles.etiquette} htmlFor="libelle-recurrence">
+              Libellé
+            </label>
+            <input
+              id="libelle-recurrence"
+              className={styles.saisie}
+              value={libelle}
+              onChange={(e) => setLibelle(e.target.value)}
+              maxLength={140}
+              required
+            />
+          </div>
+
+          <div className={styles.champ}>
+            <label className={styles.etiquette} htmlFor="ancre-recurrence">
+              Première échéance
+            </label>
+            <input
+              id="ancre-recurrence"
+              className={styles.saisie}
+              type="date"
+              value={ancre}
+              onChange={(e) => setAncre(e.target.value)}
+              required
+            />
+            <p className={styles.note}>
+              Au 31, l’échéance tombe au 28 en février puis revient au 31.
+            </p>
+          </div>
+
+          <div className={styles.champ}>
+            <label className={styles.etiquette} htmlFor="rythme-recurrence">
+              Fréquence
             </label>
             <select
-              id="compte-recurrence"
+              id="rythme-recurrence"
               className={styles.choix}
-              value={compteId}
-              onChange={(e) => setCompteId(e.target.value)}
+              value={rythme}
+              onChange={(e) => setRythme(e.target.value)}
             >
-              {comptes.map((compte) => (
-                <option key={compte.id} value={compte.id}>
-                  {compte.nom}
+              {RYTHMES.map((r) => (
+                <option key={r.cle} value={r.cle}>
+                  {r.libelle}
+                </option>
+              ))}
+            </select>
+
+            {rythmeLibre && (
+              <div className={styles.bascule}>
+                <input
+                  className={styles.saisie}
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={intervalleLibre}
+                  onChange={(e) => setIntervalleLibre(e.target.value)}
+                  aria-label="Tous les combien"
+                />
+                <select
+                  className={styles.choix}
+                  value={uniteLibre}
+                  aria-label="Unité de fréquence"
+                  onChange={(e) => setUniteLibre(e.target.value as UniteRecurrence)}
+                >
+                  <option value="jour">jours</option>
+                  <option value="semaine">semaines</option>
+                  <option value="mois">mois</option>
+                  <option value="an">ans</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.champ}>
+            <label className={styles.etiquette} htmlFor="categorie-recurrence">
+              Catégorie
+            </label>
+            <select
+              id="categorie-recurrence"
+              className={styles.choix}
+              value={categorieId}
+              onChange={(e) => setCategorieId(e.target.value)}
+            >
+              <option value="">Sans catégorie</option>
+              {categoriesDeDepense.map((categorie) => (
+                <option key={categorie.id} value={categorie.id}>
+                  {categorie.nom}
                 </option>
               ))}
             </select>
           </div>
-        )}
 
-        {erreur !== null && (
-          <p className={styles.erreur} role="alert">
-            {erreur}
-          </p>
-        )}
+          {comptes.length > 1 && !enModification && (
+            <div className={styles.champ}>
+              <label className={styles.etiquette} htmlFor="compte-recurrence">
+                Compte
+              </label>
+              <select
+                id="compte-recurrence"
+                className={styles.choix}
+                value={compteId}
+                onChange={(e) => setCompteId(e.target.value)}
+              >
+                {comptes.map((compte) => (
+                  <option key={compte.id} value={compte.id}>
+                    {compte.nom}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-        <div className={styles.actions}>
-          <button type="button" className={styles.annuler} onClick={surFermeture}>
-            Annuler
-          </button>
-          <button
-            className={styles.valider}
-            type="submit"
-            disabled={enCours || montant.trim() === '' || libelle.trim() === ''}
-          >
-            {enCours ? 'Enregistrement…' : enModification ? 'Modifier' : 'Enregistrer'}
-          </button>
-        </div>
-      </form>
-    </div>
+          {erreur !== null && (
+            <p className={styles.erreur} role="alert">
+              {erreur}
+            </p>
+          )}
+
+          <div className={styles.actions}>
+            <button type="button" className={styles.annuler} onClick={surFermeture}>
+              Annuler
+            </button>
+            <button
+              className={styles.valider}
+              type="submit"
+              disabled={enCours || montant.trim() === '' || libelle.trim() === ''}
+            >
+              {enCours ? 'Enregistrement…' : enModification ? 'Modifier' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portail>
   )
 }

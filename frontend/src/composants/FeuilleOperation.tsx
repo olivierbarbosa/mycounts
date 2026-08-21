@@ -7,6 +7,7 @@ import { SaisieInvalide, enCentimes } from '../design/saisie'
 import { Montant } from './Montant'
 import { fermetureExterieure } from './fermetureExterieure'
 import styles from './FeuilleOperation.module.css'
+import { Portail } from './Portail'
 
 type Props = {
   readonly operation: OperationPublique
@@ -102,168 +103,170 @@ export function FeuilleOperation({
   }
 
   return (
-    <div
-      className={styles.voile}
-      onClick={fermetureExterieure(surFermeture)}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Détail de l’opération"
-    >
-      <form className={styles.feuille} onSubmit={enregistrer} noValidate>
-        <div className={styles.entete}>
-          <h2 className={styles.titre}>{operation.libelle}</h2>
-          <button
-            type="button"
-            className={styles.secondaire}
-            onClick={surFermeture}
-            aria-label="Fermer"
-          >
-            <X size={18} strokeWidth={2} aria-hidden />
-          </button>
-        </div>
+    <Portail>
+      <div
+        className={styles.voile}
+        onClick={fermetureExterieure(surFermeture)}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Détail de l’opération"
+      >
+        <form className={styles.feuille} onSubmit={enregistrer} noValidate>
+          <div className={styles.entete}>
+            <h2 className={styles.titre}>{operation.libelle}</h2>
+            <button
+              type="button"
+              className={styles.secondaire}
+              onClick={surFermeture}
+              aria-label="Fermer"
+            >
+              <X size={18} strokeWidth={2} aria-hidden />
+            </button>
+          </div>
 
-        <div className={styles.montant}>
-          <Montant centimes={operation.montant_centimes} taille="display" />
-        </div>
+          <div className={styles.montant}>
+            <Montant centimes={operation.montant_centimes} taille="display" />
+          </div>
 
-        {!confirmeSuppression && (
-          <>
-            <div className={styles.faits}>
-              <span className={styles.fait}>
-                <span className={styles.cle}>Compte</span>
-                <span className={styles.valeur}>{compte?.nom ?? '—'}</span>
-              </span>
-              <span className={styles.fait}>
-                <span className={styles.cle}>État</span>
-                <span className={styles.valeur}>{ETATS[operation.etat] ?? operation.etat}</span>
-              </span>
-              <span className={styles.fait}>
-                <span className={styles.cle}>Origine</span>
-                <span className={styles.valeur}>
-                  {operation.est_ouverture
-                    ? 'Solde d’ouverture'
-                    : issueDunPrelevement
-                      ? 'Prélèvement automatique'
-                      : 'Saisie manuelle'}
+          {!confirmeSuppression && (
+            <>
+              <div className={styles.faits}>
+                <span className={styles.fait}>
+                  <span className={styles.cle}>Compte</span>
+                  <span className={styles.valeur}>{compte?.nom ?? '—'}</span>
                 </span>
-              </span>
-            </div>
+                <span className={styles.fait}>
+                  <span className={styles.cle}>État</span>
+                  <span className={styles.valeur}>{ETATS[operation.etat] ?? operation.etat}</span>
+                </span>
+                <span className={styles.fait}>
+                  <span className={styles.cle}>Origine</span>
+                  <span className={styles.valeur}>
+                    {operation.est_ouverture
+                      ? 'Solde d’ouverture'
+                      : issueDunPrelevement
+                        ? 'Prélèvement automatique'
+                        : 'Saisie manuelle'}
+                  </span>
+                </span>
+              </div>
 
-            <div className={styles.champ}>
-              <label className={styles.etiquette} htmlFor="detail-libelle">
-                Libellé
-              </label>
-              <input
-                id="detail-libelle"
-                className={styles.saisie}
-                value={libelle}
-                onChange={(e) => setLibelle(e.target.value)}
-                maxLength={140}
-                required
-              />
-            </div>
-
-            <div className={styles.duo}>
               <div className={styles.champ}>
-                <label className={styles.etiquette} htmlFor="detail-montant">
-                  Montant
+                <label className={styles.etiquette} htmlFor="detail-libelle">
+                  Libellé
                 </label>
                 <input
-                  id="detail-montant"
+                  id="detail-libelle"
                   className={styles.saisie}
-                  value={montant}
-                  onChange={(e) => setMontant(e.target.value)}
-                  inputMode="decimal"
+                  value={libelle}
+                  onChange={(e) => setLibelle(e.target.value)}
+                  maxLength={140}
                   required
                 />
               </div>
 
-              <div className={styles.champ}>
-                <label className={styles.etiquette} htmlFor="detail-date">
-                  Date de l’opération
-                </label>
-                <input
-                  id="detail-date"
-                  className={styles.saisie}
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                />
+              <div className={styles.duo}>
+                <div className={styles.champ}>
+                  <label className={styles.etiquette} htmlFor="detail-montant">
+                    Montant
+                  </label>
+                  <input
+                    id="detail-montant"
+                    className={styles.saisie}
+                    value={montant}
+                    onChange={(e) => setMontant(e.target.value)}
+                    inputMode="decimal"
+                    required
+                  />
+                </div>
+
+                <div className={styles.champ}>
+                  <label className={styles.etiquette} htmlFor="detail-date">
+                    Date de l’opération
+                  </label>
+                  <input
+                    id="detail-date"
+                    className={styles.saisie}
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className={styles.champ}>
-              <label className={styles.etiquette} htmlFor="detail-categorie">
-                Catégorie
-              </label>
-              <select
-                id="detail-categorie"
-                className={styles.choix}
-                value={categorieId}
-                onChange={(e) => setCategorieId(e.target.value)}
-              >
-                <option value="">Sans catégorie</option>
-                {categoriesDuSens.map((categorie) => (
-                  <option key={categorie.id} value={categorie.id}>
-                    {categorie.nom}
-                  </option>
-                ))}
-              </select>
-              <p className={styles.note}>Le compte n’est pas modifiable ici.</p>
-            </div>
-          </>
-        )}
+              <div className={styles.champ}>
+                <label className={styles.etiquette} htmlFor="detail-categorie">
+                  Catégorie
+                </label>
+                <select
+                  id="detail-categorie"
+                  className={styles.choix}
+                  value={categorieId}
+                  onChange={(e) => setCategorieId(e.target.value)}
+                >
+                  <option value="">Sans catégorie</option>
+                  {categoriesDuSens.map((categorie) => (
+                    <option key={categorie.id} value={categorie.id}>
+                      {categorie.nom}
+                    </option>
+                  ))}
+                </select>
+                <p className={styles.note}>Le compte n’est pas modifiable ici.</p>
+              </div>
+            </>
+          )}
 
-        {erreur !== null && (
-          <p className={styles.erreur} role="alert">
-            {erreur}
-          </p>
-        )}
-
-        {confirmeSuppression ? (
-          <div className={styles.confirmation} role="alertdialog">
-            <p className={styles.question}>Supprimer cette opération ?</p>
-            <p className={styles.note}>
-              {issueDunPrelevement
-                ? 'Cette échéance vient d’un prélèvement automatique : elle sera écartée définitivement, sans réapparaître au prochain calcul. Le prélèvement lui-même continue.'
-                : 'Cette action est définitive.'}
+          {erreur !== null && (
+            <p className={styles.erreur} role="alert">
+              {erreur}
             </p>
+          )}
+
+          {confirmeSuppression ? (
+            <div className={styles.confirmation} role="alertdialog">
+              <p className={styles.question}>Supprimer cette opération ?</p>
+              <p className={styles.note}>
+                {issueDunPrelevement
+                  ? 'Cette échéance vient d’un prélèvement automatique : elle sera écartée définitivement, sans réapparaître au prochain calcul. Le prélèvement lui-même continue.'
+                  : 'Cette action est définitive.'}
+              </p>
+              <div className={styles.actions}>
+                <button
+                  type="button"
+                  className={styles.secondaire}
+                  onClick={() => setConfirmeSuppression(false)}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  className={styles.destructif}
+                  disabled={enCours}
+                  onClick={() => void retirer()}
+                >
+                  <Trash2 size={16} strokeWidth={2} aria-hidden />
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          ) : (
             <div className={styles.actions}>
               <button
                 type="button"
-                className={styles.secondaire}
-                onClick={() => setConfirmeSuppression(false)}
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
                 className={styles.destructif}
-                disabled={enCours}
-                onClick={() => void retirer()}
+                onClick={() => setConfirmeSuppression(true)}
               >
                 <Trash2 size={16} strokeWidth={2} aria-hidden />
                 Supprimer
               </button>
+              <button className={styles.principal} type="submit" disabled={enCours}>
+                {enCours ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
             </div>
-          </div>
-        ) : (
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.destructif}
-              onClick={() => setConfirmeSuppression(true)}
-            >
-              <Trash2 size={16} strokeWidth={2} aria-hidden />
-              Supprimer
-            </button>
-            <button className={styles.principal} type="submit" disabled={enCours}>
-              {enCours ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-          </div>
-        )}
-      </form>
-    </div>
+          )}
+        </form>
+      </div>
+    </Portail>
   )
 }
