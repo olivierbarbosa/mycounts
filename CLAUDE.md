@@ -21,8 +21,8 @@ mensuelle ; statistiques et constats chiffrés ; import de relevé CSV avec écr
 Interface Liquid Glass sur palette **bleu ardoise**, mobile d'abord, rail latéral au-delà
 de 1024 px. Barre d'onglets à deux capsules (modèle Apple Music) ; écrans ouverts depuis
 une bulle du haut, avec glissement de retour au doigt. Onglet Foyer : bascule entre
-comptes personnels et comptes joints, liste des membres, invitation, suppression
-définitive du foyer par son propriétaire.
+comptes personnels et comptes joints, liste des membres, invitation, dissolution du
+partage et suppression définitive de son compte.
 
 **Manque** : couverture des enveloppes par compte et déclaration de virement (lots E2 et
 E4) ; avatar / image de profil ; « voir qui modifie quoi » (`cree_par_id` existe sur trois
@@ -90,10 +90,19 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   foyer. Lui seul peut le détruire, parce que le foyer contient les données de TOUS ses
   membres. Une colonne explicite, jamais « le membre le plus ancien » : un pouvoir déduit
   d'une date de création est une règle sans auteur.
-- **Supprimer un foyer efface tout, sans retour** — `repository/auth.supprimer_le_foyer`,
-  seul endroit autorisé à tout défaire. Aucune sauvegarde, aucune corbeille. La route exige
-  que le nom du foyer soit retapé à l'identique, casse comprise : la barrière ne vise pas
+- **Arrêter de partager et disparaître sont deux actions, sur deux écrans.** Les
+  confondre faisait perdre son compte à qui voulait seulement la première (ERREURS.md
+  #044). `DELETE /auth/foyer/partage` supprime les comptes JOINTS et rien d'autre — pas de
+  déconnexion, pas de perte des comptes personnels ; refusé si l'un porte de vraies
+  opérations, et le message les nomme. `DELETE /auth/moi` efface son compte, et emporte le
+  foyer seulement si c'est le dernier membre. Le propriétaire ne part pas tant qu'il reste
+  des membres : `Compte.proprietaire_id` pointerait vers un effacé, et plus personne ne
+  pourrait supprimer les comptes joints qu'il a ouverts.
+- **Une destruction se confirme en retapant ce qu'elle détruit** — l'ADRESSE pour son
+  compte, jamais le nom du foyer, qui désignait la mauvaise chose. La barrière ne vise pas
   celui qui veut détruire, mais celui qui ne le veut pas et dont le doigt a glissé.
+  `repository/auth.supprimer_le_foyer` reste le seul endroit autorisé à tout défaire.
+  Aucune sauvegarde, aucune corbeille.
 - **Afficher un objet est une promesse qu'on peut agir dessus.** L'écran de gestion des
   comptes liste les DEUX périmètres et les archivés : ses actions unitaires doivent suivre,
   via `compte_administrable` et `comptes_a_gerer`. Lister large et agir étroit ne produit

@@ -1,6 +1,11 @@
-"""Destruction définitive d'un foyer.
+"""Destruction définitive d'un COMPTE, et ce qu'elle emporte avec elle.
 
-Le test central est `la suppression ne laisse AUCUNE ligne` : il remplit les douze tables,
+Depuis le 21 août 2026 il n'existe plus de « supprimer le foyer » : arrêter de partager et
+disparaître sont deux intentions distinctes, et les confondre faisait perdre son compte à
+qui voulait seulement la première (ERREURS.md #044). La dissolution du partage a son
+propre fichier ; ici on efface une personne.
+
+Le test central reste `la suppression ne laisse AUCUNE ligne` : il remplit les douze tables,
 supprime, puis parcourt `Base.metadata` pour exiger que chacune soit vide. C'est la seule
 forme qui résiste au temps — une liste de tables écrite à la main dans le test répéterait
 celle du repository, et les deux se tromperaient ensemble le jour où une treizième
@@ -34,8 +39,13 @@ from sqlalchemy.orm import Session
 from tests.integration.test_api_auth import MOT_DE_PASSE, connecter
 from tests.integration.test_api_budget import session_ouverte
 
-# Le nom que pose `creer_compte` par défaut, et donc celui qu'il faudra retaper.
+# Le nom que pose `creer_compte` par défaut. Il ne sert plus de confirmation — c'est
+# l'ADRESSE qu'on retape pour supprimer son compte — mais reste utile pour retrouver le
+# foyer en base.
 NOM_FOYER = "Foyer"
+
+# L'adresse de `session_ouverte`, et donc celle qu'il faudra retaper.
+COURRIEL = "a@essai.fr"
 
 
 def remplir_les_douze_tables(
@@ -125,9 +135,8 @@ def test_la_suppression_ne_laisse_AUCUNE_ligne(client: TestClient, session_bd: S
     vides_avant = [nom for nom, n in avant.items() if n == 0]
     assert not vides_avant, f"le remplissage a manqué ces tables : {vides_avant}"
 
-    reponse = client.request(
-        "DELETE", "/api/auth/foyer", json={"nom_du_foyer": NOM_FOYER}
-    )
+    # Dernier membre : son départ emporte le foyer. Personne ne resterait pour le vider.
+    reponse = client.request("DELETE", "/api/auth/moi", json={"courriel": COURRIEL})
     assert reponse.status_code == 204, reponse.text
 
     session_bd.expire_all()
@@ -139,16 +148,18 @@ def test_la_suppression_ne_laisse_AUCUNE_ligne(client: TestClient, session_bd: S
     assert not restantes, f"des lignes ont survécu à la suppression : {restantes}"
 
 
-def test_un_nom_mal_retape_ne_supprime_rien(client: TestClient, session_bd: Session) -> None:
-    """La barrière du nom, prise dans le sens où elle doit tenir.
+def test_une_adresse_mal_retapee_ne_supprime_rien(
+    client: TestClient, session_bd: Session
+) -> None:
+    """La barrière de l'adresse, prise dans le sens où elle doit tenir.
 
     Sans ce test, la comparaison pourrait être inversée, ou simplement absente, et le test
-    précédent passerait tout aussi bien : il ne se trompe jamais de nom.
+    précédent passerait tout aussi bien : il ne se trompe jamais d'adresse.
     """
     principal = session_ouverte(client, session_bd)
     remplir_les_douze_tables(client, session_bd, principal)
 
-    refus = client.request("DELETE", "/api/auth/foyer", json={"nom_du_foyer": "foyer"})
+    refus = client.request("DELETE", "/api/auth/moi", json={"courriel": "b@essai.fr"})
     assert refus.status_code == 400, refus.text
     assert "ne correspond pas" in refus.json()["detail"]
 
@@ -158,18 +169,28 @@ def test_un_nom_mal_retape_ne_supprime_rien(client: TestClient, session_bd: Sess
     assert client.get("/api/comptes").json() != []
 
 
-def test_un_membre_invite_ne_peut_pas_detruire_le_foyer(
+def test_un_membre_invite_part_sans_emporter_le_foyer(
     client: TestClient, session_bd: Session
 ) -> None:
-    """Le foyer d'un couple contient l'argent des DEUX.
+    """Le sens de ce test s'est INVERSÉ le 21 août 2026.
 
-    Le membre invité connaît le nom du foyer — il est affiché — donc la barrière du nom ne
-    le retiendrait pas. Seul le droit de propriété l'arrête.
+    Il exigeait auparavant qu'un invité ne puisse pas détruire le foyer — vrai, mais la
+    seule action offerte détruisait TOUT, si bien qu'un invité qui voulait simplement
+    partir ne le pouvait pas. Il peut désormais supprimer son compte, et le foyer, ses
+    comptes joints et ses autres membres lui survivent.
     """
     session_ouverte(client, session_bd)
-    foyer_id = session_bd.execute(
-        select(Foyer.id).where(Foyer.nom == NOM_FOYER)
-    ).scalar_one()
+    foyer_id = session_bd.execute(select(Foyer.id).where(Foyer.nom == NOM_FOYER)).scalar_one()
+
+    # Un compte joint ouvert par le propriétaire : il doit rester après le départ.
+    assert (
+        client.post(
+            "/api/comptes",
+            json={"nom": "Le joint", "prive": False, "produit": "compte_courant"},
+            headers={"X-Mycounts-Vue": "foyer"},
+        ).status_code
+        == 201
+    )
 
     invite_courriel = "invite@essai.fr"
     depot_auth.creer_utilisateur(
@@ -182,12 +203,51 @@ def test_un_membre_invite_ne_peut_pas_detruire_le_foyer(
     session_bd.commit()
 
     connecter(client, invite_courriel)
-    refus = client.request("DELETE", "/api/auth/foyer", json={"nom_du_foyer": NOM_FOYER})
-    assert refus.status_code == 403, refus.text
-    assert "propriétaire" in refus.json()["detail"]
+    depart = client.request("DELETE", "/api/auth/moi", json={"courriel": invite_courriel})
+    assert depart.status_code == 204, depart.text
+
+    # Le foyer est toujours là, et le propriétaire retrouve tout.
+    session_bd.expire_all()
+    assert session_bd.get(Foyer, foyer_id) is not None
+    connecter(client, COURRIEL)
+    joints = client.get("/api/comptes", headers={"X-Mycounts-Vue": "foyer"}).json()
+    assert [c["nom"] for c in joints] == ["Le joint"]
+
+
+def test_le_proprietaire_ne_part_pas_en_laissant_des_membres(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Refus franc plutôt qu'un foyer dont on ne sort plus.
+
+    `Compte.proprietaire_id` pointerait vers un utilisateur effacé sur les comptes joints
+    qu'il a ouverts, et plus personne ne pourrait les supprimer — la garde de
+    `DELETE /api/comptes/{id}` réserve ce droit à celui qui les a ouverts, et il n'existe
+    plus. Transférer la propriété est un lot à part ; laisser partir sans transfert
+    fabriquerait un état sans issue.
+
+    C'est aussi le témoin qui empêche le verrou d'être inversé : sans lui, un code qui
+    refuserait TOUJOURS le départ passerait le test précédent... non, il le ferait rougir.
+    Celui-ci tient l'autre bord — un code qui n'interdirait JAMAIS rien.
+    """
+    session_ouverte(client, session_bd)
+    foyer_id = session_bd.execute(select(Foyer.id).where(Foyer.nom == NOM_FOYER)).scalar_one()
+
+    depot_auth.creer_utilisateur(
+        session_bd,
+        foyer_id=foyer_id,
+        courriel=normaliser_courriel("invite@essai.fr"),
+        nom_affichage="Invité",
+        empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+    )
+    session_bd.commit()
+
+    refus = client.request("DELETE", "/api/auth/moi", json={"courriel": COURRIEL})
+    assert refus.status_code == 409, refus.text
+    assert "Retirez-les" in refus.json()["detail"]
 
     session_bd.expire_all()
     assert session_bd.get(Foyer, foyer_id) is not None
+    assert client.get("/api/auth/moi").status_code == 200
 
 
 def test_un_seul_proprietaire_par_foyer(client: TestClient, session_bd: Session) -> None:
@@ -231,8 +291,9 @@ def test_la_session_est_fermee_par_la_suppression(
     un jeton pointant sur un utilisateur effacé.
     """
     session_ouverte(client, session_bd)
-    assert client.request(
-        "DELETE", "/api/auth/foyer", json={"nom_du_foyer": NOM_FOYER}
-    ).status_code == 204
+    assert (
+        client.request("DELETE", "/api/auth/moi", json={"courriel": COURRIEL}).status_code
+        == 204
+    )
 
     assert client.get("/api/auth/moi").status_code == 401

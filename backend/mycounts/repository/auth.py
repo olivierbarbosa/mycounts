@@ -254,3 +254,99 @@ def supprimer_le_foyer(session: Session, principal: Principal) -> None:
     session.execute(delete(Utilisateur).where(Utilisateur.foyer_id == foyer_id))
     session.execute(delete(Foyer).where(Foyer.id == foyer_id))
     session.flush()
+
+def comptes_joints(session: Session, principal: Principal) -> list[Compte]:
+    """Les comptes joints du foyer, archivés compris.
+
+    Sans filtre sur l'archivage : la dissolution doit emporter TOUT le partage, et un
+    compte archivé reste un compte partagé — il porte de l'argent et une histoire.
+    """
+    return list(
+        session.execute(
+            select(Compte).where(
+                Compte.foyer_id == principal.foyer_id, Compte.prive.is_(False)
+            ).order_by(Compte.nom)
+        ).scalars()
+    )
+
+
+def dissoudre_le_partage(session: Session, principal: Principal) -> int:
+    """Supprime les comptes JOINTS du foyer. Ne touche à personne ni à rien d'autre.
+
+    C'est la correction du 21 août 2026 : « supprimer le foyer » effaçait aussi les
+    comptes PERSONNELS et les utilisateurs, donc déconnectait celui qui voulait seulement
+    arrêter de partager. Le foyer est le conteneur racine de tout en base — mais c'est un
+    fait de schéma, pas une intention de l'utilisateur, et l'interface n'a pas à le lui
+    faire payer (ERREURS.md #044).
+
+    Les membres RESTENT membres, avec leur compte, leurs comptes personnels, leurs
+    catégories et leurs enveloppes. Ce qui disparaît est exactement ce que la vue
+    « comptes joints » montre — cette vue étant un filtre sur `Compte.prive`, la dissoudre
+    n'est rien d'autre que supprimer ces comptes-là.
+
+    L'appelant vérifie AVANT d'appeler qu'aucun de ces comptes ne porte de vraie
+    opération : ici on ne refuse rien, on exécute. Voir `DELETE /api/auth/foyer/partage`.
+    """
+    joints = select(Compte.id).where(
+        Compte.foyer_id == principal.foyer_id, Compte.prive.is_(False)
+    )
+
+    session.execute(delete(Operation).where(Operation.compte_id.in_(joints)))
+    session.execute(delete(Recurrence).where(Recurrence.compte_id.in_(joints)))
+    # Même cast que `supprimer_session_web` : un DELETE renvoie toujours un
+    # `CursorResult`, seul porteur de `rowcount`, que `Session.execute` type en `Result`.
+    efface = cast(
+        "CursorResult[Any]",
+        session.execute(
+            delete(Compte).where(
+                Compte.foyer_id == principal.foyer_id, Compte.prive.is_(False)
+            )
+        ),
+    )
+    session.flush()
+    return efface.rowcount
+
+
+def supprimer_mon_compte(session: Session, principal: Principal) -> None:
+    """Efface l'appelant et ce qui n'appartient qu'à lui. Sans retour possible.
+
+    Distincte de `supprimer_le_foyer`, et c'est tout l'objet du lot : arrêter de partager
+    et disparaître sont deux intentions différentes, et les confondre faisait perdre son
+    compte à qui voulait seulement la première.
+
+    DERNIER MEMBRE : le foyer part avec lui. Le laisser derrière créerait un foyer que
+    personne ne peut plus atteindre — ni pour le vider, ni pour le détruire —, et ses
+    comptes joints survivraient à tous leurs propriétaires.
+
+    Ce qui suit l'appelant : ses comptes PRIVÉS et leurs opérations, ses plafonds, ses
+    sessions. Ce qui reste au foyer : les comptes joints, les catégories et les enveloppes
+    — elles sont partagées, et les emporter viderait l'écran des autres membres. Les
+    comptes joints qu'il avait ouverts restent aussi : l'argent est celui du foyer, pas le
+    sien. Le prix est que `proprietaire_id` pointe alors vers un utilisateur effacé, ce
+    qui empêche de les supprimer ; c'est pourquoi la route refuse de laisser partir le
+    propriétaire tant qu'il reste des membres.
+    """
+    if len(membres_du_foyer(session, principal)) == 1:
+        supprimer_le_foyer(session, principal)
+        return
+
+    moi = principal.utilisateur_id
+    mes_comptes = select(Compte.id).where(
+        Compte.foyer_id == principal.foyer_id,
+        Compte.prive.is_(True),
+        Compte.proprietaire_id == moi,
+    )
+
+    session.execute(delete(Operation).where(Operation.compte_id.in_(mes_comptes)))
+    session.execute(delete(Recurrence).where(Recurrence.compte_id.in_(mes_comptes)))
+    session.execute(delete(Plafond).where(Plafond.utilisateur_id == moi))
+    session.execute(
+        delete(Compte).where(
+            Compte.foyer_id == principal.foyer_id,
+            Compte.prive.is_(True),
+            Compte.proprietaire_id == moi,
+        )
+    )
+    session.execute(delete(SessionWeb).where(SessionWeb.utilisateur_id == moi))
+    session.execute(delete(Utilisateur).where(Utilisateur.id == moi))
+    session.flush()

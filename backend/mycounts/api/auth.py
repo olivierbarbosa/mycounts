@@ -11,7 +11,7 @@ from mycounts.api.dependances import NOM_COOKIE, PrincipalCourant, SessionBase
 from mycounts.api.schemas import (
     DemandeAdhesion,
     DemandeConnexion,
-    DemandeSuppressionFoyer,
+    DemandeSuppressionCompte,
     InvitationCreee,
     MembrePublic,
     UtilisateurPublic,
@@ -25,10 +25,12 @@ from mycounts.domain.securite import (
     expiration_session,
     hacher_mot_de_passe,
     maintenant,
+    normaliser_courriel,
     verifier_mot_de_passe,
 )
 from mycounts.models.auth import Utilisateur
 from mycounts.repository import auth as depot
+from mycounts.repository import budget as depot_budget
 
 routeur = APIRouter(prefix="/auth", tags=["authentification"])
 
@@ -206,42 +208,108 @@ def membres_du_foyer(session: SessionBase, principal: PrincipalCourant) -> list[
     ]
 
 
-@routeur.delete("/foyer", status_code=status.HTTP_204_NO_CONTENT)
-def supprimer_le_foyer(
-    demande: DemandeSuppressionFoyer,
-    reponse: Response,
-    session: SessionBase,
-    principal: PrincipalCourant,
+@routeur.delete("/foyer/partage", status_code=status.HTTP_204_NO_CONTENT)
+def dissoudre_le_partage(
+    session: SessionBase, principal: PrincipalCourant
 ) -> None:
-    """Détruit le foyer et l'intégralité de ses données. Définitivement.
+    """Arrête le partage : supprime les comptes JOINTS, et rien d'autre.
 
-    Trois verrous, chacun pour une erreur différente :
+    Ni déconnexion, ni perte de compte, ni perte des comptes personnels. C'était le
+    défaut : « supprimer le foyer » emportait l'identité de celui qui voulait seulement
+    cesser de partager, parce que le foyer est le conteneur racine de tout en base. Ce
+    fait de schéma n'a pas à être payé par l'utilisateur (ERREURS.md #044).
 
-    - **propriétaire** — un membre invité ne peut pas effacer l'argent de celui qui l'a
-      invité. Le foyer d'un couple contient les données des DEUX.
-    - **nom retapé** — contre le geste réflexe. Voir `DemandeSuppressionFoyer`.
-    - **session fermée** — le cookie pointerait sur un utilisateur qui n'existe plus.
-      L'effacer ici évite un écran d'erreur là où il faut un écran d'accueil.
+    Le refus porte sur les OPÉRATIONS RÉELLES, exactement comme pour un compte seul : un
+    compte joint qui ne porte que son amorçage n'a clos aucun mois, et l'emporter ne
+    change aucun total passé. La liste des comptes qui bloquent est rendue dans le
+    message : « c'est refusé » sans dire par quoi oblige à essayer un par un.
 
-    Aucune sauvegarde n'est prise. Il n'y a rien à restaurer après cet appel.
+    Réservé au propriétaire. Un compte joint contient l'argent des DEUX membres, et la
+    visibilité ne vaut pas permission.
     """
     if not depot.est_le_proprietaire(session, principal):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Seul le propriétaire du foyer peut le supprimer.",
+            detail="Seul le propriétaire du foyer peut dissoudre le partage.",
         )
 
-    foyer = depot.foyer_de(session, principal)
-    # Comparaison sur le nom débarrassé de ses espaces de bord, et sensible à la casse : le
-    # nom est affiché juste au-dessus du champ, le recopier exactement est la preuve
-    # demandée. Un `.lower()` accepterait « maison » pour « Maison » — l'écart est mince,
-    # mais il est le seul signe qu'on a lu ce qu'on tapait.
-    if demande.nom_du_foyer.strip() != foyer.nom:
+    joints = depot.comptes_joints(session, principal)
+    if not joints:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Il n’y a aucun compte joint à dissoudre.",
+        )
+
+    occupes = [
+        compte.nom
+        for compte in joints
+        if depot_budget.compte_a_des_operations(session, compte.id)
+    ]
+    if occupes:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Ces comptes joints portent des opérations : "
+                + ", ".join(occupes)
+                + ". Les supprimer changerait des mois déjà clos. Videz-les ou "
+                "archivez-les avant de dissoudre le partage."
+            ),
+        )
+
+    depot.dissoudre_le_partage(session, principal)
+    session.commit()
+
+
+@routeur.delete("/moi", status_code=status.HTTP_204_NO_CONTENT)
+def supprimer_mon_compte(
+    demande: DemandeSuppressionCompte,
+    reponse: Response,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> None:
+    """Efface son compte et ses données personnelles. Définitivement.
+
+    Trois verrous, chacun pour une erreur différente :
+
+    - **adresse retapée** — contre le geste réflexe. Voir `DemandeSuppressionCompte`.
+    - **propriétaire entouré** — celui qui a créé le foyer ne peut pas partir tant qu'il
+      reste des membres : `Compte.proprietaire_id` pointerait vers un utilisateur effacé
+      sur les comptes joints qu'il a ouverts, et plus personne ne pourrait les supprimer.
+      Transférer la propriété est un lot à part ; refuser franchement vaut mieux que
+      laisser un foyer dans un état dont on ne sort plus.
+    - **session fermée** — le cookie pointerait sur un utilisateur qui n'existe plus.
+      L'effacer ici évite un écran d'erreur là où il faut un écran d'accueil.
+
+    Dernier membre : le foyer part avec lui, comptes joints compris. C'est le seul cas où
+    cette route détruit plus que l'appelant — et le seul où plus personne ne resterait
+    pour le faire.
+
+    Aucune sauvegarde n'est prise. Il n'y a rien à restaurer après cet appel.
+    """
+    utilisateur = depot.utilisateur_par_id(session, principal.utilisateur_id)
+    if utilisateur is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
+
+    # Comparaison sur l'adresse normalisée : c'est la forme sous laquelle elle est stockée
+    # et affichée. La casse ne prouve rien ici — une adresse n'en a pas — alors que le nom
+    # du foyer, lui, en a une que l'écran montre.
+    if normaliser_courriel(demande.courriel) != utilisateur.courriel:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le nom saisi ne correspond pas à celui du foyer.",
+            detail="L’adresse saisie ne correspond pas à celle de ce compte.",
         )
 
-    depot.supprimer_le_foyer(session, principal)
+    autres = len(depot.membres_du_foyer(session, principal)) - 1
+    if utilisateur.est_proprietaire and autres > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Vous avez créé ce foyer et il compte encore "
+                f"{autres} autre{'s' if autres > 1 else ''} membre"
+                f"{'s' if autres > 1 else ''}. Retirez-les avant de supprimer votre compte."
+            ),
+        )
+
+    depot.supprimer_mon_compte(session, principal)
     session.commit()
     reponse.delete_cookie(NOM_COOKIE, path="/")

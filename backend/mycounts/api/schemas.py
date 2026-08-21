@@ -84,14 +84,19 @@ class InvitationCreee(BaseModel):
     expire_le: dt.datetime
 
 
-class DemandeSuppressionFoyer(BaseModel):
+class DemandeSuppressionCompte(BaseModel):
     """Confirmation d'une destruction sans retour.
 
-    Le nom du foyer est redemandé en clair. Ce n'est pas un secret — l'écran l'affiche
-    juste au-dessus du champ — et ce n'est pas censé l'être : la barrière ne protège pas
-    contre quelqu'un qui voudrait détruire le foyer, elle protège contre quelqu'un qui ne
-    le voudrait PAS et dont le doigt a glissé. Un bouton, même rouge, même précédé d'un
-    « êtes-vous sûr ? », se traverse d'un geste réflexe ; retaper un nom ne s'improvise pas.
+    L'adresse est redemandée en clair. Ce n'est pas un secret — l'écran l'affiche juste
+    au-dessus du champ — et ce n'est pas censé l'être : la barrière ne protège pas contre
+    quelqu'un qui voudrait supprimer son compte, elle protège contre quelqu'un qui ne le
+    voudrait PAS et dont le doigt a glissé. Un bouton, même rouge, même précédé d'un
+    « êtes-vous sûr ? », se traverse d'un geste réflexe ; retaper une adresse ne
+    s'improvise pas.
+
+    C'est l'adresse et non le nom du foyer, depuis le 21 août 2026 : ce qu'on détruit ici
+    est SON compte. Faire retaper le nom du foyer pour effacer sa propre identité
+    désignait la mauvaise chose, et c'est précisément la confusion que ce lot défait.
     """
 
-    nom_du_foyer: str = Field(min_length=1, max_length=120)
+    courriel: str = Field(min_length=1, max_length=254)

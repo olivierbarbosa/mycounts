@@ -139,14 +139,21 @@ export const api = {
 
   creerInvitation: () => appeler<InvitationCreee>('/auth/invitations', { method: 'POST' }),
 
-  /** Détruit le foyer et TOUT ce qu'il contient. Sans retour possible.
+  /** Arrête le partage : supprime les comptes JOINTS, et rien d'autre.
    *
-   *  Le nom du foyer est exigé en clair : c'est la preuve que l'on a lu ce qu'on faisait.
-   *  Le serveur revérifie la propriété — masquer le bouton n'autorise rien. */
-  supprimerLeFoyer: (nomDuFoyer: string) =>
-    appeler<void>('/auth/foyer', {
+   *  Ne déconnecte pas et ne touche ni au compte, ni aux comptes personnels. Refusé par
+   *  le serveur si un compte joint porte de vraies opérations — le message nomme alors
+   *  lesquels. Le serveur revérifie la propriété : masquer le bouton n'autorise rien. */
+  dissoudreLePartage: () => appeler<void>('/auth/foyer/partage', { method: 'DELETE' }),
+
+  /** Efface son compte et ses données personnelles. Sans retour possible.
+   *
+   *  L'adresse est exigée en clair : c'est la preuve que l'on a lu ce qu'on faisait. Le
+   *  dernier membre emporte le foyer avec lui — personne ne resterait pour le faire. */
+  supprimerMonCompte: (courriel: string) =>
+    appeler<void>('/auth/moi', {
       method: 'DELETE',
-      body: JSON.stringify({ nom_du_foyer: nomDuFoyer }),
+      body: JSON.stringify({ courriel }),
     }),
 
   comptes: () => appeler<ComptePublic[]>('/comptes'),

@@ -4,6 +4,56 @@
  */
 
 export interface paths {
+    "/api/agenda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Agenda
+         * @description Échéances à venir, calculées à la volée.
+         *
+         *     Rien n'est stocké : l'agenda est une **projection**, et le recalculer à chaque appel
+         *     garantit qu'il suit toute modification d'une récurrence sans travail de mise à jour.
+         */
+        get: operations["agenda_api_agenda_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agenda/mois-en-cours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mois En Cours
+         * @description Premier et dernier jour du mois CIVIL courant, bornes incluses.
+         *
+         *     Le client ne recalcule pas ces bornes : « aujourd'hui » se lit dans le fuseau
+         *     Europe/Paris, dont le domaine est l'auteur unique. Un navigateur réglé sur un autre
+         *     fuseau afficherait sinon le mauvais mois le 1er et le dernier jour — et l'écran du
+         *     calendrier annoncerait un total que le serveur ne calculerait pas pareil.
+         *
+         *     Ce n'est PAS la période budgétaire du foyer, qui va de paie à paie.
+         */
+        get: operations["mois_en_cours_api_agenda_mois_en_cours_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/connexion": {
         parameters: {
             query?: never;
@@ -50,18 +100,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/moi": {
+    "/api/auth/foyer/membres": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Moi */
-        get: operations["moi_api_auth_moi_get"];
+        /**
+         * Membres Du Foyer
+         * @description Qui compose le foyer.
+         *
+         *     Aucune donnée sensible : un nom, une adresse, une date d'arrivée. Pas de mot de passe,
+         *     pas de session, pas de solde — savoir avec qui l'on partage un compte joint ne donne
+         *     aucun droit sur l'argent de l'autre.
+         */
+        get: operations["membres_du_foyer_api_auth_foyer_membres_get"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/foyer/partage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Dissoudre Le Partage
+         * @description Arrête le partage : supprime les comptes JOINTS, et rien d'autre.
+         *
+         *     Ni déconnexion, ni perte de compte, ni perte des comptes personnels. C'était le
+         *     défaut : « supprimer le foyer » emportait l'identité de celui qui voulait seulement
+         *     cesser de partager, parce que le foyer est le conteneur racine de tout en base. Ce
+         *     fait de schéma n'a pas à être payé par l'utilisateur (ERREURS.md #044).
+         *
+         *     Le refus porte sur les OPÉRATIONS RÉELLES, exactement comme pour un compte seul : un
+         *     compte joint qui ne porte que son amorçage n'a clos aucun mois, et l'emporter ne
+         *     change aucun total passé. La liste des comptes qui bloquent est rendue dans le
+         *     message : « c'est refusé » sans dire par quoi oblige à essayer un par un.
+         *
+         *     Réservé au propriétaire. Un compte joint contient l'argent des DEUX membres, et la
+         *     visibilité ne vaut pas permission.
+         */
+        delete: operations["dissoudre_le_partage_api_auth_foyer_partage_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -89,6 +179,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/moi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Moi */
+        get: operations["moi_api_auth_moi_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Supprimer Mon Compte
+         * @description Efface son compte et ses données personnelles. Définitivement.
+         *
+         *     Trois verrous, chacun pour une erreur différente :
+         *
+         *     - **adresse retapée** — contre le geste réflexe. Voir `DemandeSuppressionCompte`.
+         *     - **propriétaire entouré** — celui qui a créé le foyer ne peut pas partir tant qu'il
+         *       reste des membres : `Compte.proprietaire_id` pointerait vers un utilisateur effacé
+         *       sur les comptes joints qu'il a ouverts, et plus personne ne pourrait les supprimer.
+         *       Transférer la propriété est un lot à part ; refuser franchement vaut mieux que
+         *       laisser un foyer dans un état dont on ne sort plus.
+         *     - **session fermée** — le cookie pointerait sur un utilisateur qui n'existe plus.
+         *       L'effacer ici évite un écran d'erreur là où il faut un écran d'accueil.
+         *
+         *     Dernier membre : le foyer part avec lui, comptes joints compris. C'est le seul cas où
+         *     cette route détruit plus que l'appelant — et le seul où plus personne ne resterait
+         *     pour le faire.
+         *
+         *     Aucune sauvegarde n'est prise. Il n'y a rien à restaurer après cet appel.
+         */
+        delete: operations["supprimer_mon_compte_api_auth_moi_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/rejoindre": {
         parameters: {
             query?: never;
@@ -109,31 +237,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/foyer/membres": {
+    "/api/categories": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Membres Du Foyer
-         * @description Qui compose le foyer.
-         *
-         *     Aucune donnée sensible : un nom, une adresse, une date d'arrivée. Pas de mot de passe,
-         *     pas de session, pas de solde — savoir avec qui l'on partage un compte joint ne donne
-         *     aucun droit sur l'argent de l'autre.
-         */
-        get: operations["membres_du_foyer_api_auth_foyer_membres_get"];
+        /** Lister Categories */
+        get: operations["lister_categories_api_categories_get"];
         put?: never;
-        post?: never;
+        /** Creer Categorie */
+        post: operations["creer_categorie_api_categories_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/auth/foyer": {
+    "/api/categories/{categorie_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -144,23 +266,17 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Supprimer Le Foyer
-         * @description Détruit le foyer et l'intégralité de ses données. Définitivement.
+         * Supprimer Categorie
+         * @description Suppression définitive, refusée si la catégorie sert à une opération.
          *
-         *     Trois verrous, chacun pour une erreur différente :
-         *
-         *     - **propriétaire** — un membre invité ne peut pas effacer l'argent de celui qui l'a
-         *       invité. Le foyer d'un couple contient les données des DEUX.
-         *     - **nom retapé** — contre le geste réflexe. Voir `DemandeSuppressionFoyer`.
-         *     - **session fermée** — le cookie pointerait sur un utilisateur qui n'existe plus.
-         *       L'effacer ici évite un écran d'erreur là où il faut un écran d'accueil.
-         *
-         *     Aucune sauvegarde n'est prise. Il n'y a rien à restaurer après cet appel.
+         *     Le message propose l'archivage : supprimer une catégorie utilisée changerait
+         *     rétroactivement les totaux d'un mois déjà clos.
          */
-        delete: operations["supprimer_le_foyer_api_auth_foyer_delete"];
+        delete: operations["supprimer_categorie_api_categories__categorie_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Modifier Categorie */
+        patch: operations["modifier_categorie_api_categories__categorie_id__patch"];
         trace?: never;
     };
     "/api/comptes": {
@@ -182,7 +298,8 @@ export interface paths {
          *     comprendre pourquoi.
          *
          *     Ce paramètre n'élargit RIEN : il réunit les deux périmètres que l'appelant a déjà le
-         *     droit de voir séparément, jamais les comptes privés de quelqu'un d'autre.
+         *     droit de voir séparément, jamais les comptes privés de quelqu'un d'autre. Il rend
+         *     aussi les comptes ARCHIVÉS, que cet écran est le seul à pouvoir désarchiver.
          */
         get: operations["lister_comptes_api_comptes_get"];
         put?: never;
@@ -232,6 +349,15 @@ export interface paths {
          *     Le réel et non le projeté : une carte de compte répond à « combien y a-t-il dessus »,
          *     pas à « combien restera-t-il ». Y projeter des échéances ferait diverger le chiffre de
          *     ce que la banque affiche, qui est la seule référence pour un rapprochement.
+         *
+         *     « Archivés compris » était FAUX jusqu'au 21 août 2026 : la docstring l'annonçait, la
+         *     boucle passait par `comptes_visibles`, qui filtre `archive = false`. Un compte archivé
+         *     s'affichait donc sans son solde. Une phrase de documentation n'est pas une mesure —
+         *     celle-ci a survécu parce que rien ne pouvait la contredire (ERREURS.md #043).
+         *
+         *     `toutes_vues` suit `GET /comptes` : l'écran de gestion liste les deux périmètres, et
+         *     des cartes sans montant sur la moitié d'entre elles se lisent comme un compte vide.
+         *     Les écrans qui totalisent gardent le défaut — un solde ne mélange jamais les mondes.
          */
         get: operations["soldes_des_comptes_api_comptes_soldes_get"];
         put?: never;
@@ -307,25 +433,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/categories": {
+    "/api/enveloppes": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Lister Categories */
-        get: operations["lister_categories_api_categories_get"];
+        /**
+         * Lister
+         * @description Toutes les enveloppes, avec ce qui reste non affecté.
+         *
+         *     Le non-affecté est rendu au même niveau que les enveloppes, et non déduit par le
+         *     client : c'est la grandeur qui dit ce qu'on peut encore réserver, et la laisser
+         *     calculer ailleurs ouvrirait la porte à deux définitions du mot « disponible ».
+         */
+        get: operations["lister_api_enveloppes_get"];
         put?: never;
-        /** Creer Categorie */
-        post: operations["creer_categorie_api_categories_post"];
+        /** Creer */
+        post: operations["creer_api_enveloppes_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/categories/{categorie_id}": {
+    "/api/enveloppes/preparation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preparation
+         * @description Ce que la période qui s'ouvre propose de faire. N'ÉCRIT RIEN.
+         *
+         *     Olivier a choisi que le passage de période ne touche à l'argent qu'après validation
+         *     explicite : cette route calcule, `POST` applique. La séparation n'est pas une politesse
+         *     — elle est ce qui permet de voir avant que ça bouge.
+         *
+         *     Rejouer cette route est sans effet, et rejouer le `POST` qui la suit ne double rien
+         *     non plus : le calcul part de l'état réel des enveloppes, si bien qu'une préparation
+         *     déjà appliquée produit une proposition vide.
+         */
+        get: operations["preparation_api_enveloppes_preparation_get"];
+        put?: never;
+        /**
+         * Appliquer La Preparation
+         * @description Applique les lignes retenues. SEULE écriture du passage de période.
+         *
+         *     Les montants viennent de la demande et non d'un recalcul côté serveur : la proposition
+         *     est une proposition, et l'utilisateur peut en retenir d'autres chiffres. Recalculer ici
+         *     reviendrait à lui reprendre la décision qu'on vient de lui donner.
+         *
+         *     La libération est écrite AVANT l'allocation, pour la même raison qu'elle la précède
+         *     dans le calcul : sur une enveloppe qui libère puis reçoit, l'ordre inverse produirait
+         *     un solde intermédiaire faux dans le journal — lisible six mois plus tard comme une
+         *     erreur qui n'a jamais eu lieu.
+         */
+        post: operations["appliquer_la_preparation_api_enveloppes_preparation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/enveloppes/{enveloppe_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -336,98 +510,58 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Supprimer Categorie
-         * @description Suppression définitive, refusée si la catégorie sert à une opération.
+         * Supprimer
+         * @description Supprime l'enveloppe et son journal. Aucun argent ne bouge.
          *
-         *     Le message propose l'archivage : supprimer une catégorie utilisée changerait
-         *     rétroactivement les totaux d'un mois déjà clos.
+         *     Une enveloppe ne détient rien : elle nomme une part de ce qui est déjà en banque.
+         *     La supprimer rend simplement cette part « non affectée ». C'est pourquoi il n'y a pas
+         *     de refus ici, contrairement aux comptes — il n'y a rien à perdre.
          */
-        delete: operations["supprimer_categorie_api_categories__categorie_id__delete"];
+        delete: operations["supprimer_api_enveloppes__enveloppe_id__delete"];
         options?: never;
         head?: never;
-        /** Modifier Categorie */
-        patch: operations["modifier_categorie_api_categories__categorie_id__patch"];
+        /** Modifier */
+        patch: operations["modifier_api_enveloppes__enveloppe_id__patch"];
         trace?: never;
     };
-    "/api/virements": {
+    "/api/enveloppes/{enveloppe_id}/journal": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        /**
-         * Creer Virement
-         * @description Déplace de l'argent d'un compte du foyer vers un autre.
-         *
-         *     Ce n'est ni une dépense ni un revenu : l'argent ne quitte pas le foyer. Les deux
-         *     lignes créées restent dans les soldes de leurs comptes et sortent des dépenses de
-         *     période — voir `INCLUT_VIREMENTS` dans `domain/agregats.py`.
-         *
-         *     Les deux comptes sont vérifiés séparément : sans quoi un identifiant appartenant à un
-         *     autre foyer permettrait d'y déposer de l'argent, ou d'en constater le solde par
-         *     l'échec ou le succès de l'appel.
-         */
-        post: operations["creer_virement_api_virements_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/operations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lister Operations */
-        get: operations["lister_operations_api_operations_get"];
-        put?: never;
-        /**
-         * Creer Operation
-         * @description Saisit une opération.
-         *
-         *     Le compte et la catégorie sont revérifiés à travers le périmètre de l'appelant :
-         *     un identifiant valide chez quelqu'un d'autre doit être refusé exactement comme un
-         *     identifiant inexistant, sans distinction observable.
-         */
-        post: operations["creer_operation_api_operations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/operations/{operation_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        /** Journal */
+        get: operations["journal_api_enveloppes__enveloppe_id__journal_get"];
         put?: never;
         post?: never;
-        /**
-         * Supprimer Operation
-         * @description Retire une opération.
-         *
-         *     Une saisie manuelle est supprimée ; une opération issue d'un prélèvement est annulée
-         *     et conservée, faute de quoi le job la recréerait au passage suivant. La distinction
-         *     est faite par le repository — l'appelant demande simplement le retrait.
-         */
-        delete: operations["supprimer_operation_api_operations__operation_id__delete"];
+        delete?: never;
         options?: never;
         head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/enveloppes/{enveloppe_id}/mouvements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         /**
-         * Modifier Operation
-         * @description Corrige une opération déjà saisie.
+         * Ajouter Mouvement
+         * @description Ajoute une ligne au journal. **N'écrit aucune opération bancaire.**
+         *
+         *     Réserver 200 € pour les vacances ne déplace pas 200 € : cela dit que 200 € des
+         *     livrets sont promis aux vacances. L'argent était déjà là.
          */
-        patch: operations["modifier_operation_api_operations__operation_id__patch"];
+        post: operations["ajouter_mouvement_api_enveloppes__enveloppe_id__mouvements_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/epargne": {
@@ -478,42 +612,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Resume */
-        get: operations["resume_api_resume_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recurrences": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lister Recurrences */
-        get: operations["lister_recurrences_api_recurrences_get"];
-        put?: never;
-        /** Creer Recurrence */
-        post: operations["creer_recurrence_api_recurrences_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recurrences/{recurrence_id}": {
+    "/api/import/analyse": {
         parameters: {
             query?: never;
             header?: never;
@@ -522,69 +621,66 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
         /**
-         * Arreter Recurrence
-         * @description Désactive la récurrence. Les opérations déjà matérialisées restent en place :
-         *     supprimer l'historique parce qu'un abonnement s'arrête réécrirait le passé.
-         */
-        delete: operations["arreter_recurrence_api_recurrences__recurrence_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Modifier Recurrence
-         * @description Modifie un prélèvement.
+         * Analyser Un Releve
+         * @description Lit le relevé et rend ce qu'il propose. **N'écrit rien.**
          *
-         *     Les opérations déjà matérialisées ne changent pas : un abonnement dont le tarif
-         *     augmente n'a pas coûté davantage les mois précédents.
+         *     Les lignes déjà importées sont rendues elles aussi, marquées comme telles : les taire
+         *     ferait croire à un fichier incomplet à qui réimporte un mois entier pour deux oublis.
          */
-        patch: operations["modifier_recurrence_api_recurrences__recurrence_id__patch"];
-        trace?: never;
-    };
-    "/api/agenda/mois-en-cours": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Mois En Cours
-         * @description Premier et dernier jour du mois CIVIL courant, bornes incluses.
-         *
-         *     Le client ne recalcule pas ces bornes : « aujourd'hui » se lit dans le fuseau
-         *     Europe/Paris, dont le domaine est l'auteur unique. Un navigateur réglé sur un autre
-         *     fuseau afficherait sinon le mauvais mois le 1er et le dernier jour — et l'écran du
-         *     calendrier annoncerait un total que le serveur ne calculerait pas pareil.
-         *
-         *     Ce n'est PAS la période budgétaire du foyer, qui va de paie à paie.
-         */
-        get: operations["mois_en_cours_api_agenda_mois_en_cours_get"];
-        put?: never;
-        post?: never;
+        post: operations["analyser_un_releve_api_import_analyse_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/agenda": {
+    "/api/import/valider": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Agenda
-         * @description Échéances à venir, calculées à la volée.
-         *
-         *     Rien n'est stocké : l'agenda est une **projection**, et le recalculer à chaque appel
-         *     garantit qu'il suit toute modification d'une récurrence sans travail de mise à jour.
-         */
-        get: operations["agenda_api_agenda_get"];
+        get?: never;
         put?: never;
-        post?: never;
+        /**
+         * Valider Un Import
+         * @description Écrit les lignes retenues. **Seule écriture de l'import.**
+         *
+         *     Les lignes viennent de la demande et non d'une relecture du fichier : l'utilisateur a
+         *     pu en écarter, et relire le fichier ici lui reprendrait la décision qu'on vient de lui
+         *     donner. Le fichier n'est d'ailleurs plus là — il n'est jamais conservé.
+         *
+         *     La clé est revérifiée contre la base au moment d'écrire : entre l'analyse et la
+         *     validation, un autre appareil a pu importer le même relevé.
+         */
+        post: operations["valider_un_import_api_import_valider_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Operations */
+        get: operations["lister_operations_api_operations_get"];
+        put?: never;
+        /**
+         * Creer Operation
+         * @description Saisit une opération.
+         *
+         *     Le compte et la catégorie sont revérifiés à travers le périmètre de l'appelant :
+         *     un identifiant valide chez quelqu'un d'autre doit être refusé exactement comme un
+         *     identifiant inexistant, sans distinction observable.
+         */
+        post: operations["creer_operation_api_operations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -606,6 +702,34 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/operations/{operation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Supprimer Operation
+         * @description Retire une opération.
+         *
+         *     Une saisie manuelle est supprimée ; une opération issue d'un prélèvement est annulée
+         *     et conservée, faute de quoi le job la recréerait au passage suivant. La distinction
+         *     est faite par le repository — l'appelant demande simplement le retrait.
+         */
+        delete: operations["supprimer_operation_api_operations__operation_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifier Operation
+         * @description Corrige une opération déjà saisie.
+         */
+        patch: operations["modifier_operation_api_operations__operation_id__patch"];
         trace?: never;
     };
     "/api/operations/{operation_id}/confirmer": {
@@ -673,32 +797,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/enveloppes": {
+    "/api/recurrences": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Lister
-         * @description Toutes les enveloppes, avec ce qui reste non affecté.
-         *
-         *     Le non-affecté est rendu au même niveau que les enveloppes, et non déduit par le
-         *     client : c'est la grandeur qui dit ce qu'on peut encore réserver, et la laisser
-         *     calculer ailleurs ouvrirait la porte à deux définitions du mot « disponible ».
-         */
-        get: operations["lister_api_enveloppes_get"];
+        /** Lister Recurrences */
+        get: operations["lister_recurrences_api_recurrences_get"];
         put?: never;
-        /** Creer */
-        post: operations["creer_api_enveloppes_post"];
+        /** Creer Recurrence */
+        post: operations["creer_recurrence_api_recurrences_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/enveloppes/{enveloppe_id}": {
+    "/api/recurrences/{recurrence_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -709,95 +826,34 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Supprimer
-         * @description Supprime l'enveloppe et son journal. Aucun argent ne bouge.
-         *
-         *     Une enveloppe ne détient rien : elle nomme une part de ce qui est déjà en banque.
-         *     La supprimer rend simplement cette part « non affectée ». C'est pourquoi il n'y a pas
-         *     de refus ici, contrairement aux comptes — il n'y a rien à perdre.
+         * Arreter Recurrence
+         * @description Désactive la récurrence. Les opérations déjà matérialisées restent en place :
+         *     supprimer l'historique parce qu'un abonnement s'arrête réécrirait le passé.
          */
-        delete: operations["supprimer_api_enveloppes__enveloppe_id__delete"];
+        delete: operations["arreter_recurrence_api_recurrences__recurrence_id__delete"];
         options?: never;
         head?: never;
-        /** Modifier */
-        patch: operations["modifier_api_enveloppes__enveloppe_id__patch"];
-        trace?: never;
-    };
-    "/api/enveloppes/{enveloppe_id}/mouvements": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
         /**
-         * Ajouter Mouvement
-         * @description Ajoute une ligne au journal. **N'écrit aucune opération bancaire.**
+         * Modifier Recurrence
+         * @description Modifie un prélèvement.
          *
-         *     Réserver 200 € pour les vacances ne déplace pas 200 € : cela dit que 200 € des
-         *     livrets sont promis aux vacances. L'argent était déjà là.
+         *     Les opérations déjà matérialisées ne changent pas : un abonnement dont le tarif
+         *     augmente n'a pas coûté davantage les mois précédents.
          */
-        post: operations["ajouter_mouvement_api_enveloppes__enveloppe_id__mouvements_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        patch: operations["modifier_recurrence_api_recurrences__recurrence_id__patch"];
         trace?: never;
     };
-    "/api/enveloppes/{enveloppe_id}/journal": {
+    "/api/resume": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Journal */
-        get: operations["journal_api_enveloppes__enveloppe_id__journal_get"];
+        /** Resume */
+        get: operations["resume_api_resume_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/enveloppes/preparation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Preparation
-         * @description Ce que la période qui s'ouvre propose de faire. N'ÉCRIT RIEN.
-         *
-         *     Olivier a choisi que le passage de période ne touche à l'argent qu'après validation
-         *     explicite : cette route calcule, `POST` applique. La séparation n'est pas une politesse
-         *     — elle est ce qui permet de voir avant que ça bouge.
-         *
-         *     Rejouer cette route est sans effet, et rejouer le `POST` qui la suit ne double rien
-         *     non plus : le calcul part de l'état réel des enveloppes, si bien qu'une préparation
-         *     déjà appliquée produit une proposition vide.
-         */
-        get: operations["preparation_api_enveloppes_preparation_get"];
-        put?: never;
-        /**
-         * Appliquer La Preparation
-         * @description Applique les lignes retenues. SEULE écriture du passage de période.
-         *
-         *     Les montants viennent de la demande et non d'un recalcul côté serveur : la proposition
-         *     est une proposition, et l'utilisateur peut en retenir d'autres chiffres. Recalculer ici
-         *     reviendrait à lui reprendre la décision qu'on vient de lui donner.
-         *
-         *     La libération est écrite AVANT l'allocation, pour la même raison qu'elle la précède
-         *     dans le calcul : sur une enveloppe qui libère puis reçoit, l'ordre inverse produirait
-         *     un solde intermédiaire faux dans le journal — lisible six mois plus tard comme une
-         *     erreur qui n'a jamais eu lieu.
-         */
-        post: operations["appliquer_la_preparation_api_enveloppes_preparation_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -828,7 +884,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/import/analyse": {
+    "/api/virements": {
         parameters: {
             query?: never;
             header?: never;
@@ -838,40 +894,18 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Analyser Un Releve
-         * @description Lit le relevé et rend ce qu'il propose. **N'écrit rien.**
+         * Creer Virement
+         * @description Déplace de l'argent d'un compte du foyer vers un autre.
          *
-         *     Les lignes déjà importées sont rendues elles aussi, marquées comme telles : les taire
-         *     ferait croire à un fichier incomplet à qui réimporte un mois entier pour deux oublis.
+         *     Ce n'est ni une dépense ni un revenu : l'argent ne quitte pas le foyer. Les deux
+         *     lignes créées restent dans les soldes de leurs comptes et sortent des dépenses de
+         *     période — voir `INCLUT_VIREMENTS` dans `domain/agregats.py`.
+         *
+         *     Les deux comptes sont vérifiés séparément : sans quoi un identifiant appartenant à un
+         *     autre foyer permettrait d'y déposer de l'argent, ou d'en constater le solde par
+         *     l'échec ou le succès de l'appel.
          */
-        post: operations["analyser_un_releve_api_import_analyse_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/import/valider": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Valider Un Import
-         * @description Écrit les lignes retenues. **Seule écriture de l'import.**
-         *
-         *     Les lignes viennent de la demande et non d'une relecture du fichier : l'utilisateur a
-         *     pu en écarter, et relire le fichier ici lui reprendrait la décision qu'on vient de lui
-         *     donner. Le fichier n'est d'ailleurs plus là — il n'est jamais conservé.
-         *
-         *     La clé est revérifiée contre la base au moment d'écrire : entre l'analyse et la
-         *     validation, un autre appareil a pu importer le même relevé.
-         */
-        post: operations["valider_un_import_api_import_valider_post"];
+        post: operations["creer_virement_api_virements_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -942,10 +976,10 @@ export interface components {
          *     catégorie, c'est un libellé.
          */
         CategorieManquante: {
-            /** Nom */
-            nom: string;
             /** Libelles */
             libelles: string[];
+            /** Nom */
+            nom: string;
         };
         /** CategoriePublique */
         CategoriePublique: {
@@ -954,9 +988,9 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            nature: components["schemas"]["NatureCategorie"];
             /** Nom */
             nom: string;
-            nature: components["schemas"]["NatureCategorie"];
             teinte: components["schemas"]["TeinteCategorie"];
         };
         /**
@@ -965,16 +999,16 @@ export interface components {
          */
         ChoixDeLigne: {
             /**
-             * Enveloppe Id
-             * Format: uuid
-             */
-            enveloppe_id: string;
-            /**
              * Allouer Centimes
              * @description Montant réellement alloué. Peut différer de la recommandation : c'est une proposition, pas un ordre.
              * @default 0
              */
             allouer_centimes: number;
+            /**
+             * Enveloppe Id
+             * Format: uuid
+             */
+            enveloppe_id: string;
             /**
              * Liberer Centimes
              * @description Reliquat réellement libéré. Pour une enveloppe en mode « demander », zéro signifie que l'utilisateur a répondu « garder ».
@@ -996,6 +1030,8 @@ export interface components {
         };
         /** ComptePublic */
         ComptePublic: {
+            /** Archive */
+            archive: boolean;
             /**
              * Id
              * Format: uuid
@@ -1005,26 +1041,24 @@ export interface components {
             nom: string;
             /** Prive */
             prive: boolean;
-            type_compte: components["schemas"]["TypeCompte"];
             /** Produit */
             produit: string;
             /** Produit Libelle */
             produit_libelle: string;
-            /** Archive */
-            archive: boolean;
+            type_compte: components["schemas"]["TypeCompte"];
         };
         /**
          * ConstatPublic
          * @description Un fait chiffré, jamais un jugement. Voir `domain/statistiques.py`.
          */
         ConstatPublic: {
+            /** Detail */
+            detail: number;
+            /** Montant Centimes */
+            montant_centimes: number;
             motif: components["schemas"]["Motif"];
             /** Sujet */
             sujet: string;
-            /** Montant Centimes */
-            montant_centimes: number;
-            /** Detail */
-            detail: number;
         };
         /**
          * DemandeAdhesion
@@ -1035,10 +1069,10 @@ export interface components {
             code: string;
             /** Courriel */
             courriel: string;
-            /** Nom Affichage */
-            nom_affichage: string;
             /** Mot De Passe */
             mot_de_passe: string;
+            /** Nom Affichage */
+            nom_affichage: string;
         };
         /**
          * DemandeAjustement
@@ -1050,16 +1084,16 @@ export interface components {
          *     saisies concurrentes finiraient par se doubler.
          */
         DemandeAjustement: {
-            /** Solde Reel Centimes */
-            solde_reel_centimes: number;
             /** Date Operation */
             date_operation?: string | null;
+            /** Solde Reel Centimes */
+            solde_reel_centimes: number;
         };
         /** DemandeCategorie */
         DemandeCategorie: {
+            nature: components["schemas"]["NatureCategorie"];
             /** Nom */
             nom: string;
-            nature: components["schemas"]["NatureCategorie"];
             teinte: components["schemas"]["TeinteCategorie"];
         };
         /** DemandeCompte */
@@ -1093,44 +1127,38 @@ export interface components {
         };
         /** DemandeEnveloppe */
         DemandeEnveloppe: {
-            /** Nom */
-            nom: string;
-            /** Categorie Id */
-            categorie_id?: string | null;
-            /** Compte Prefere Id */
-            compte_prefere_id?: string | null;
-            /** Cible Centimes */
-            cible_centimes?: number | null;
-            /** Date Cible */
-            date_cible?: string | null;
             /**
              * Allocation Initiale Centimes
              * @description Somme réservée d'emblée. Enregistrée comme un MOUVEMENT du journal, jamais comme un solde de départ : sinon ce serait la seule valeur que l'historique ignore.
              * @default 0
              */
             allocation_initiale_centimes: number;
-            /** @default allocation */
-            type_allocation_initiale: components["schemas"]["TypeMouvement"];
-            /** @default fonctionnement */
-            usage: components["schemas"]["UsageEnveloppe"];
-            /** @default report */
-            rollover: components["schemas"]["Rollover"];
+            /** Categorie Id */
+            categorie_id?: string | null;
+            /** Cible Centimes */
+            cible_centimes?: number | null;
+            /** Compte Prefere Id */
+            compte_prefere_id?: string | null;
+            /** Contribution Mensuelle Centimes */
+            contribution_mensuelle_centimes?: number | null;
+            /** Date Cible */
+            date_cible?: string | null;
+            /** Nom */
+            nom: string;
             /**
              * Priorite
              * @default 0
              */
             priorite: number;
-            /** Contribution Mensuelle Centimes */
-            contribution_mensuelle_centimes?: number | null;
+            /** @default report */
+            rollover: components["schemas"]["Rollover"];
+            /** @default allocation */
+            type_allocation_initiale: components["schemas"]["TypeMouvement"];
+            /** @default fonctionnement */
+            usage: components["schemas"]["UsageEnveloppe"];
         };
         /** DemandeMouvement */
         DemandeMouvement: {
-            type: components["schemas"]["TypeMouvement"];
-            /**
-             * Montant Centimes
-             * @description TOUJOURS positif : c'est le type qui dit le sens. Un montant signé rendrait possible une allocation négative, c'est-à-dire une reprise déguisée.
-             */
-            montant_centimes: number;
             /** Date Mouvement */
             date_mouvement?: string | null;
             /**
@@ -1138,14 +1166,32 @@ export interface components {
              * @default
              */
             libelle: string;
+            /**
+             * Montant Centimes
+             * @description TOUJOURS positif : c'est le type qui dit le sens. Un montant signé rendrait possible une allocation négative, c'est-à-dire une reprise déguisée.
+             */
+            montant_centimes: number;
+            type: components["schemas"]["TypeMouvement"];
         };
         /** DemandeOperation */
         DemandeOperation: {
+            /** Categorie Id */
+            categorie_id?: string | null;
             /**
              * Compte Id
              * Format: uuid
              */
             compte_id: string;
+            /**
+             * Date Operation
+             * Format: date
+             */
+            date_operation: string;
+            /**
+             * Est Paie
+             * @default false
+             */
+            est_paie: boolean;
             /** Libelle */
             libelle: string;
             /**
@@ -1153,18 +1199,6 @@ export interface components {
              * @description Entier signé. Négatif = sortie, positif = entrée. Zéro refusé.
              */
             montant_centimes: number;
-            /**
-             * Date Operation
-             * Format: date
-             */
-            date_operation: string;
-            /** Categorie Id */
-            categorie_id?: string | null;
-            /**
-             * Est Paie
-             * @default false
-             */
-            est_paie: boolean;
         };
         /** DemandePlafond */
         DemandePlafond: {
@@ -1194,10 +1228,25 @@ export interface components {
         /** DemandeRecurrence */
         DemandeRecurrence: {
             /**
+             * Ancre
+             * Format: date
+             * @description Date de la PREMIÈRE échéance. Toutes les suivantes s'en déduisent — jamais de l'échéance précédente, sinon une récurrence au 31 resterait bloquée au 28 après son premier février.
+             */
+            ancre: string;
+            /** Categorie Id */
+            categorie_id?: string | null;
+            /**
              * Compte Id
              * Format: uuid
              */
             compte_id: string;
+            /** Fin */
+            fin?: string | null;
+            /**
+             * Intervalle
+             * @default 1
+             */
+            intervalle: number;
             /** Libelle */
             libelle: string;
             /**
@@ -1205,36 +1254,26 @@ export interface components {
              * @description Entier signé. Négatif = prélèvement, positif = revenu régulier.
              */
             montant_centimes: number;
-            /**
-             * Ancre
-             * Format: date
-             * @description Date de la PREMIÈRE échéance. Toutes les suivantes s'en déduisent — jamais de l'échéance précédente, sinon une récurrence au 31 resterait bloquée au 28 après son premier février.
-             */
-            ancre: string;
             unite: components["schemas"]["UniteRecurrence"];
-            /**
-             * Intervalle
-             * @default 1
-             */
-            intervalle: number;
-            /** Categorie Id */
-            categorie_id?: string | null;
-            /** Fin */
-            fin?: string | null;
         };
         /**
-         * DemandeSuppressionFoyer
+         * DemandeSuppressionCompte
          * @description Confirmation d'une destruction sans retour.
          *
-         *     Le nom du foyer est redemandé en clair. Ce n'est pas un secret — l'écran l'affiche
-         *     juste au-dessus du champ — et ce n'est pas censé l'être : la barrière ne protège pas
-         *     contre quelqu'un qui voudrait détruire le foyer, elle protège contre quelqu'un qui ne
-         *     le voudrait PAS et dont le doigt a glissé. Un bouton, même rouge, même précédé d'un
-         *     « êtes-vous sûr ? », se traverse d'un geste réflexe ; retaper un nom ne s'improvise pas.
+         *     L'adresse est redemandée en clair. Ce n'est pas un secret — l'écran l'affiche juste
+         *     au-dessus du champ — et ce n'est pas censé l'être : la barrière ne protège pas contre
+         *     quelqu'un qui voudrait supprimer son compte, elle protège contre quelqu'un qui ne le
+         *     voudrait PAS et dont le doigt a glissé. Un bouton, même rouge, même précédé d'un
+         *     « êtes-vous sûr ? », se traverse d'un geste réflexe ; retaper une adresse ne
+         *     s'improvise pas.
+         *
+         *     C'est l'adresse et non le nom du foyer, depuis le 21 août 2026 : ce qu'on détruit ici
+         *     est SON compte. Faire retaper le nom du foyer pour effacer sa propre identité
+         *     désignait la mauvaise chose, et c'est précisément la confusion que ce lot défait.
          */
-        DemandeSuppressionFoyer: {
-            /** Nom Du Foyer */
-            nom_du_foyer: string;
+        DemandeSuppressionCompte: {
+            /** Courriel */
+            courriel: string;
         };
         /**
          * DemandeValidationImport
@@ -1262,20 +1301,15 @@ export interface components {
          */
         DemandeVirement: {
             /**
-             * Compte Source Id
-             * Format: uuid
-             */
-            compte_source_id: string;
-            /**
              * Compte Destination Id
              * Format: uuid
              */
             compte_destination_id: string;
             /**
-             * Montant Centimes
-             * @description Somme déplacée, en centimes, positive.
+             * Compte Source Id
+             * Format: uuid
              */
-            montant_centimes: number;
+            compte_source_id: string;
             /**
              * Date Operation
              * Format: date
@@ -1286,16 +1320,21 @@ export interface components {
              * @default Virement
              */
             libelle: string;
+            /**
+             * Montant Centimes
+             * @description Somme déplacée, en centimes, positive.
+             */
+            montant_centimes: number;
         };
         /** DetailEpargne */
         DetailEpargne: {
             compte: components["schemas"]["ComptePublic"];
-            /** Solde Centimes */
-            solde_centimes: number;
             /** Mois */
             mois: components["schemas"]["MoisDEpargnePublic"][];
             /** Mois Avec Aller Retour */
             mois_avec_aller_retour: number;
+            /** Solde Centimes */
+            solde_centimes: number;
         };
         /**
          * EcheanceAgenda
@@ -1306,25 +1345,39 @@ export interface components {
          *     individuellement, alors qu'elle est recalculée à chaque affichage.
          */
         EcheanceAgenda: {
-            /**
-             * Recurrence Id
-             * Format: uuid
-             */
-            recurrence_id: string;
-            /** Libelle */
-            libelle: string;
-            /** Montant Centimes */
-            montant_centimes: number;
+            /** Categorie Id */
+            categorie_id: string | null;
             /**
              * Date Echeance
              * Format: date
              */
             date_echeance: string;
-            /** Categorie Id */
-            categorie_id: string | null;
+            /** Libelle */
+            libelle: string;
+            /** Montant Centimes */
+            montant_centimes: number;
+            /**
+             * Recurrence Id
+             * Format: uuid
+             */
+            recurrence_id: string;
         };
         /** EnveloppePublique */
         EnveloppePublique: {
+            /** Archive */
+            archive: boolean;
+            /** Categorie Id */
+            categorie_id: string | null;
+            /** Categorie Nom */
+            categorie_nom: string | null;
+            /** Cible Centimes */
+            cible_centimes: number | null;
+            /** Compte Prefere Id */
+            compte_prefere_id: string | null;
+            /** Contribution Mensuelle Centimes */
+            contribution_mensuelle_centimes: number | null;
+            /** Date Cible */
+            date_cible: string | null;
             /**
              * Id
              * Format: uuid
@@ -1332,30 +1385,16 @@ export interface components {
             id: string;
             /** Nom */
             nom: string;
-            /** Categorie Id */
-            categorie_id: string | null;
-            /** Categorie Nom */
-            categorie_nom: string | null;
-            /** Compte Prefere Id */
-            compte_prefere_id: string | null;
-            /** Cible Centimes */
-            cible_centimes: number | null;
-            /** Date Cible */
-            date_cible: string | null;
-            /** Solde Centimes */
-            solde_centimes: number;
-            /** Place Centimes */
-            place_centimes: number | null;
             /** Part */
             part: number;
-            /** Archive */
-            archive: boolean;
-            usage: components["schemas"]["UsageEnveloppe"];
-            rollover: components["schemas"]["Rollover"];
+            /** Place Centimes */
+            place_centimes: number | null;
             /** Priorite */
             priorite: number;
-            /** Contribution Mensuelle Centimes */
-            contribution_mensuelle_centimes: number | null;
+            rollover: components["schemas"]["Rollover"];
+            /** Solde Centimes */
+            solde_centimes: number;
+            usage: components["schemas"]["UsageEnveloppe"];
         };
         /**
          * EpargnePublique
@@ -1365,13 +1404,13 @@ export interface components {
          *     différentes, et les additionner ferait croire à une aisance qui n'existe pas.
          */
         EpargnePublique: {
+            /** Comptes */
+            comptes: components["schemas"]["CompteEpargne"][];
+            periode: components["schemas"]["PeriodePublique"];
             /** Total Centimes */
             total_centimes: number;
             /** Verse Sur La Periode Centimes */
             verse_sur_la_periode_centimes: number;
-            periode: components["schemas"]["PeriodePublique"];
-            /** Comptes */
-            comptes: components["schemas"]["CompteEpargne"][];
         };
         /**
          * EtatOperation
@@ -1408,8 +1447,17 @@ export interface components {
          * @description Ce que l'utilisateur retient d'une ligne, après l'avoir vue.
          */
         LigneAValider: {
+            /**
+             * Categorie Banque
+             * @default
+             */
+            categorie_banque: string;
+            /** Categorie Id */
+            categorie_id?: string | null;
             /** Cle */
             cle: string;
+            /** Contrepartie Id */
+            contrepartie_id?: string | null;
             /**
              * Date Operation
              * Format: date
@@ -1419,23 +1467,18 @@ export interface components {
             libelle: string;
             /** Montant Centimes */
             montant_centimes: number;
-            /** Categorie Id */
-            categorie_id?: string | null;
-            /**
-             * Categorie Banque
-             * @default
-             */
-            categorie_banque: string;
             /** @default depense */
             sens: components["schemas"]["SensImporte"];
-            /** Contrepartie Id */
-            contrepartie_id?: string | null;
         };
         /**
          * LigneImportPublique
          * @description Une ligne proposée. Rien n'est écrit tant qu'elle n'est pas validée.
          */
         LigneImportPublique: {
+            /** Categorie Banque */
+            categorie_banque: string;
+            /** Categorie Proposee Id */
+            categorie_proposee_id: string | null;
             /** Cle */
             cle: string;
             /**
@@ -1443,42 +1486,38 @@ export interface components {
              * Format: date
              */
             date_operation: string;
+            /** Deja Importee */
+            deja_importee: boolean;
+            /** Doublon Probable */
+            doublon_probable: string | null;
             /** Libelle */
             libelle: string;
             /** Montant Centimes */
             montant_centimes: number;
             sens: components["schemas"]["SensImporte"];
-            /** Categorie Banque */
-            categorie_banque: string;
-            /** Deja Importee */
-            deja_importee: boolean;
-            /** Categorie Proposee Id */
-            categorie_proposee_id: string | null;
-            /** Doublon Probable */
-            doublon_probable: string | null;
         };
         /**
          * LignePreparationPublique
          * @description Une ligne de la proposition. Rien n'est écrit tant qu'elle n'est pas validée.
          */
         LignePreparationPublique: {
+            /** A Liberer Centimes */
+            a_liberer_centimes: number;
+            /** Demande Un Choix */
+            demande_un_choix: boolean;
             /**
              * Enveloppe Id
              * Format: uuid
              */
             enveloppe_id: string;
-            /** Nom */
-            nom: string;
-            /** A Liberer Centimes */
-            a_liberer_centimes: number;
-            /** Demande Un Choix */
-            demande_un_choix: boolean;
-            /** Recommande Centimes */
-            recommande_centimes: number;
-            /** Place Centimes */
-            place_centimes: number | null;
             /** Limitee Par Le Disponible */
             limitee_par_le_disponible: boolean;
+            /** Nom */
+            nom: string;
+            /** Place Centimes */
+            place_centimes: number | null;
+            /** Recommande Centimes */
+            recommande_centimes: number;
         };
         /**
          * MembrePublic
@@ -1489,13 +1528,6 @@ export interface components {
          *     limite est visible.
          */
         MembrePublic: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Nom Affichage */
-            nom_affichage: string;
             /** Courriel */
             courriel: string;
             /**
@@ -1503,10 +1535,17 @@ export interface components {
              * Format: date-time
              */
             cree_le: string;
-            /** Est Vous */
-            est_vous: boolean;
             /** Est Proprietaire */
             est_proprietaire: boolean;
+            /** Est Vous */
+            est_vous: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nom Affichage */
+            nom_affichage: string;
         };
         /**
          * ModificationCategorie
@@ -1514,23 +1553,23 @@ export interface components {
          *     de toutes les opérations déjà classées, et donc les totaux de mois déjà clos.
          */
         ModificationCategorie: {
+            /** Archivee */
+            archivee?: boolean | null;
             /** Nom */
             nom?: string | null;
             teinte?: components["schemas"]["TeinteCategorie"] | null;
-            /** Archivee */
-            archivee?: boolean | null;
         };
         /**
          * ModificationCompte
          * @description Correction d'un compte existant. Champs absents = inchangés.
          */
         ModificationCompte: {
+            /** Archive */
+            archive?: boolean | null;
             /** Nom */
             nom?: string | null;
             /** Produit */
             produit?: string | null;
-            /** Archive */
-            archive?: boolean | null;
         };
         /**
          * ModificationEnveloppe
@@ -1541,24 +1580,24 @@ export interface components {
          *     lourd de sens, il aura sa propre route plutôt qu'un `null` ambigu.
          */
         ModificationEnveloppe: {
-            /** Nom */
-            nom?: string | null;
-            /** Categorie Id */
-            categorie_id?: string | null;
-            /** Compte Prefere Id */
-            compte_prefere_id?: string | null;
-            /** Cible Centimes */
-            cible_centimes?: number | null;
-            /** Date Cible */
-            date_cible?: string | null;
             /** Archive */
             archive?: boolean | null;
-            usage?: components["schemas"]["UsageEnveloppe"] | null;
-            rollover?: components["schemas"]["Rollover"] | null;
-            /** Priorite */
-            priorite?: number | null;
+            /** Categorie Id */
+            categorie_id?: string | null;
+            /** Cible Centimes */
+            cible_centimes?: number | null;
+            /** Compte Prefere Id */
+            compte_prefere_id?: string | null;
             /** Contribution Mensuelle Centimes */
             contribution_mensuelle_centimes?: number | null;
+            /** Date Cible */
+            date_cible?: string | null;
+            /** Nom */
+            nom?: string | null;
+            /** Priorite */
+            priorite?: number | null;
+            rollover?: components["schemas"]["Rollover"] | null;
+            usage?: components["schemas"]["UsageEnveloppe"] | null;
         };
         /**
          * ModificationOperation
@@ -1570,14 +1609,14 @@ export interface components {
          *     passent par une suppression et une nouvelle saisie, où elles se voient.
          */
         ModificationOperation: {
+            /** Categorie Id */
+            categorie_id?: string | null;
+            /** Date Operation */
+            date_operation?: string | null;
             /** Libelle */
             libelle?: string | null;
             /** Montant Centimes */
             montant_centimes?: number | null;
-            /** Date Operation */
-            date_operation?: string | null;
-            /** Categorie Id */
-            categorie_id?: string | null;
         };
         /**
          * ModificationRecurrence
@@ -1587,19 +1626,19 @@ export interface components {
          *     le solde de deux comptes rétroactivement. On arrête et on recrée.
          */
         ModificationRecurrence: {
-            /** Libelle */
-            libelle?: string | null;
-            /** Montant Centimes */
-            montant_centimes?: number | null;
             /** Ancre */
             ancre?: string | null;
-            unite?: components["schemas"]["UniteRecurrence"] | null;
-            /** Intervalle */
-            intervalle?: number | null;
             /** Categorie Id */
             categorie_id?: string | null;
             /** Fin */
             fin?: string | null;
+            /** Intervalle */
+            intervalle?: number | null;
+            /** Libelle */
+            libelle?: string | null;
+            /** Montant Centimes */
+            montant_centimes?: number | null;
+            unite?: components["schemas"]["UniteRecurrence"] | null;
         };
         /**
          * MoisDEpargnePublic
@@ -1610,21 +1649,21 @@ export interface components {
          *     comme un mois où il ne s'est rien passé.
          */
         MoisDEpargnePublic: {
+            /** Aller Retour */
+            aller_retour: boolean;
+            /** Net Centimes */
+            net_centimes: number;
             /**
              * Premier Jour
              * Format: date
              */
             premier_jour: string;
-            /** Verse Centimes */
-            verse_centimes: number;
             /** Repris Centimes */
             repris_centimes: number;
-            /** Net Centimes */
-            net_centimes: number;
             /** Solde Fin Centimes */
             solde_fin_centimes: number;
-            /** Aller Retour */
-            aller_retour: boolean;
+            /** Verse Centimes */
+            verse_centimes: number;
         };
         /**
          * Motif
@@ -1635,20 +1674,20 @@ export interface components {
         /** MouvementPublic */
         MouvementPublic: {
             /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            type: components["schemas"]["TypeMouvement"];
-            /** Montant Centimes */
-            montant_centimes: number;
-            /**
              * Date Mouvement
              * Format: date
              */
             date_mouvement: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
             /** Libelle */
             libelle: string;
+            /** Montant Centimes */
+            montant_centimes: number;
+            type: components["schemas"]["TypeMouvement"];
         };
         /**
          * NatureCategorie
@@ -1657,41 +1696,41 @@ export interface components {
         NatureCategorie: "depense" | "revenu";
         /** OperationPublique */
         OperationPublique: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
+            /** Categorie Id */
+            categorie_id: string | null;
             /**
              * Compte Id
              * Format: uuid
              */
             compte_id: string;
-            /** Categorie Id */
-            categorie_id: string | null;
-            /** Libelle */
-            libelle: string;
-            /** Montant Centimes */
-            montant_centimes: number;
             /**
              * Date Operation
              * Format: date
              */
             date_operation: string;
-            etat: components["schemas"]["EtatOperation"];
-            /** Est Paie */
-            est_paie: boolean;
-            /** Est Ouverture */
-            est_ouverture: boolean;
-            /** Recurrence Id */
-            recurrence_id?: string | null;
-            /** Virement Id */
-            virement_id?: string | null;
             /**
              * Est Ajustement
              * @default false
              */
             est_ajustement: boolean;
+            /** Est Ouverture */
+            est_ouverture: boolean;
+            /** Est Paie */
+            est_paie: boolean;
+            etat: components["schemas"]["EtatOperation"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Libelle */
+            libelle: string;
+            /** Montant Centimes */
+            montant_centimes: number;
+            /** Recurrence Id */
+            recurrence_id?: string | null;
+            /** Virement Id */
+            virement_id?: string | null;
         };
         /** PeriodePublique */
         PeriodePublique: {
@@ -1717,11 +1756,8 @@ export interface components {
          *     encore partis est la confusion qui fait cesser de croire l'outil.
          */
         PlafondPublic: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
+            /** A Venir Centimes */
+            a_venir_centimes: number;
             /**
              * Categorie Id
              * Format: uuid
@@ -1729,20 +1765,23 @@ export interface components {
             categorie_id: string;
             /** Categorie Nom */
             categorie_nom: string;
-            /** Limite Centimes */
-            limite_centimes: number;
             /** Consomme Centimes */
             consomme_centimes: number;
-            /** A Venir Centimes */
-            a_venir_centimes: number;
-            /** Restant Centimes */
-            restant_centimes: number;
-            /** Part Consommee */
-            part_consommee: number;
             /** Depasse */
             depasse: boolean;
             /** Depasse Avec Les Echeances */
             depasse_avec_les_echeances: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Limite Centimes */
+            limite_centimes: number;
+            /** Part Consommee */
+            part_consommee: number;
+            /** Restant Centimes */
+            restant_centimes: number;
         };
         /** PostePublic */
         PostePublic: {
@@ -1750,27 +1789,27 @@ export interface components {
             categorie: string | null;
             /** Montant Centimes */
             montant_centimes: number;
-            /** Part */
-            part: number;
             /** Montant Precedent Centimes */
             montant_precedent_centimes: number | null;
+            /** Part */
+            part: number;
             /** Variation */
             variation: number | null;
         };
         /** PreparationPublique */
         PreparationPublique: {
-            /** Lignes */
-            lignes: components["schemas"]["LignePreparationPublique"][];
-            /** Disponible Avant Centimes */
-            disponible_avant_centimes: number;
-            /** Disponible Apres Centimes */
-            disponible_apres_centimes: number;
-            /** Total Recommande Centimes */
-            total_recommande_centimes: number;
-            /** Total Libere Centimes */
-            total_libere_centimes: number;
             /** Attend Des Choix */
             attend_des_choix: boolean;
+            /** Disponible Apres Centimes */
+            disponible_apres_centimes: number;
+            /** Disponible Avant Centimes */
+            disponible_avant_centimes: number;
+            /** Lignes */
+            lignes: components["schemas"]["LignePreparationPublique"][];
+            /** Total Libere Centimes */
+            total_libere_centimes: number;
+            /** Total Recommande Centimes */
+            total_recommande_centimes: number;
         };
         /** ProduitPublic */
         ProduitPublic: {
@@ -1785,66 +1824,66 @@ export interface components {
          * @description Un prélèvement régulier repéré dans le relevé, qu'aucune récurrence ne couvre.
          */
         RecurrenceProposee: {
-            /** Libelle */
-            libelle: string;
-            /** Montant Centimes */
-            montant_centimes: number;
             /** Cadence */
             cadence: string;
-            /** Occurrences */
-            occurrences: number;
             /**
              * Derniere
              * Format: date
              */
             derniere: string;
-        };
-        /** RecurrencePublique */
-        RecurrencePublique: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Compte Id
-             * Format: uuid
-             */
-            compte_id: string;
-            /** Categorie Id */
-            categorie_id: string | null;
             /** Libelle */
             libelle: string;
             /** Montant Centimes */
             montant_centimes: number;
+            /** Occurrences */
+            occurrences: number;
+        };
+        /** RecurrencePublique */
+        RecurrencePublique: {
+            /** Active */
+            active: boolean;
             /**
              * Ancre
              * Format: date
              */
             ancre: string;
-            unite: components["schemas"]["UniteRecurrence"];
-            /** Intervalle */
-            intervalle: number;
+            /** Categorie Id */
+            categorie_id: string | null;
+            /**
+             * Compte Id
+             * Format: uuid
+             */
+            compte_id: string;
             /** Fin */
             fin: string | null;
-            /** Active */
-            active: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Intervalle */
+            intervalle: number;
+            /** Libelle */
+            libelle: string;
+            /** Montant Centimes */
+            montant_centimes: number;
+            unite: components["schemas"]["UniteRecurrence"];
         };
         /**
          * RepartitionPublique
          * @description L'épargne découpée, et ce qui reste libre.
          */
         RepartitionPublique: {
-            /** Epargne Totale Centimes */
-            epargne_totale_centimes: number;
-            /** Reserve Centimes */
-            reserve_centimes: number;
-            /** Non Affecte Centimes */
-            non_affecte_centimes: number;
             /** Decouvert */
             decouvert: boolean;
             /** Enveloppes */
             enveloppes: components["schemas"]["EnveloppePublique"][];
+            /** Epargne Totale Centimes */
+            epargne_totale_centimes: number;
+            /** Non Affecte Centimes */
+            non_affecte_centimes: number;
+            /** Reserve Centimes */
+            reserve_centimes: number;
         };
         /**
          * ResumePublic
@@ -1854,30 +1893,30 @@ export interface components {
          *     aucun écart avec la banque ne serait diagnosticable.
          */
         ResumePublic: {
+            /** Depenses De Periode */
+            depenses_de_periode: number;
             periode: components["schemas"]["PeriodePublique"];
+            /** Solde A Confirmer */
+            solde_a_confirmer: number;
             /** Solde Projete */
             solde_projete: number;
             /** Solde Reel */
             solde_reel: number;
-            /** Solde A Confirmer */
-            solde_a_confirmer: number;
-            /** Depenses De Periode */
-            depenses_de_periode: number;
         };
         /** RevueImport */
         RevueImport: {
-            /** Total */
-            total: number;
-            /** Nouvelles */
-            nouvelles: number;
+            /** Categories Manquantes */
+            categories_manquantes: components["schemas"]["CategorieManquante"][];
             /** Deja Importees */
             deja_importees: number;
             /** Lignes */
             lignes: components["schemas"]["LigneImportPublique"][];
-            /** Categories Manquantes */
-            categories_manquantes: components["schemas"]["CategorieManquante"][];
+            /** Nouvelles */
+            nouvelles: number;
             /** Recurrences Proposees */
             recurrences_proposees: components["schemas"]["RecurrenceProposee"][];
+            /** Total */
+            total: number;
         };
         /**
          * Rollover
@@ -1909,6 +1948,10 @@ export interface components {
         };
         /** StatistiquesPubliques */
         StatistiquesPubliques: {
+            /** Constats */
+            constats: components["schemas"]["ConstatPublic"][];
+            /** Cout Annuel Des Abonnements Centimes */
+            cout_annuel_des_abonnements_centimes: number;
             /**
              * Debut
              * Format: date
@@ -1919,18 +1962,14 @@ export interface components {
              * Format: date
              */
             fin: string;
+            /** Nombre De Depenses */
+            nombre_de_depenses: number;
+            /** Postes */
+            postes: components["schemas"]["PostePublic"][];
             /** Total Centimes */
             total_centimes: number;
             /** Total Precedent Centimes */
             total_precedent_centimes: number;
-            /** Nombre De Depenses */
-            nombre_de_depenses: number;
-            /** Cout Annuel Des Abonnements Centimes */
-            cout_annuel_des_abonnements_centimes: number;
-            /** Postes */
-            postes: components["schemas"]["PostePublic"][];
-            /** Constats */
-            constats: components["schemas"]["ConstatPublic"][];
         };
         /**
          * TeinteCategorie
@@ -1967,15 +2006,10 @@ export interface components {
         UsageEnveloppe: "fonctionnement" | "reserve";
         /** UtilisateurPublic */
         UtilisateurPublic: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
             /** Courriel */
             courriel: string;
-            /** Nom Affichage */
-            nom_affichage: string;
+            /** Est Proprietaire */
+            est_proprietaire: boolean;
             /**
              * Foyer Id
              * Format: uuid
@@ -1983,34 +2017,39 @@ export interface components {
             foyer_id: string;
             /** Foyer Nom */
             foyer_nom: string;
-            /** Est Proprietaire */
-            est_proprietaire: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nom Affichage */
+            nom_affichage: string;
         };
         /** ValidationError */
         ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */
             msg: string;
             /** Error Type */
             type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
         };
         /**
          * VirementCree
          * @description Les deux moitiés créées, pour que le client sache quoi rafraîchir.
          */
         VirementCree: {
+            entree: components["schemas"]["OperationPublique"];
+            sortie: components["schemas"]["OperationPublique"];
             /**
              * Virement Id
              * Format: uuid
              */
             virement_id: string;
-            sortie: components["schemas"]["OperationPublique"];
-            entree: components["schemas"]["OperationPublique"];
         };
     };
     responses: never;
@@ -2021,6 +2060,74 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    agenda_api_agenda_get: {
+        parameters: {
+            query?: {
+                jours?: number;
+            };
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EcheanceAgenda"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mois_en_cours_api_agenda_mois_en_cours_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BornesDuMois"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     connexion_api_auth_connexion_post: {
         parameters: {
             query?: never;
@@ -2085,7 +2192,7 @@ export interface operations {
             };
         };
     };
-    moi_api_auth_moi_get: {
+    membres_du_foyer_api_auth_foyer_membres_get: {
         parameters: {
             query?: never;
             header?: {
@@ -2104,8 +2211,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UtilisateurPublic"];
+                    "application/json": components["schemas"]["MembrePublic"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dissoudre_le_partage_api_auth_foyer_partage_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -2151,6 +2289,74 @@ export interface operations {
             };
         };
     };
+    moi_api_auth_moi_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilisateurPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supprimer_mon_compte_api_auth_moi_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeSuppressionCompte"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     rejoindre_api_auth_rejoindre_post: {
         parameters: {
             query?: never;
@@ -2171,324 +2377,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UtilisateurPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    membres_du_foyer_api_auth_foyer_membres_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MembrePublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supprimer_le_foyer_api_auth_foyer_delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeSuppressionFoyer"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_comptes_api_comptes_get: {
-        parameters: {
-            query?: {
-                /** @description Lister aussi les comptes de l'autre périmètre. Réservé à l'écran de GESTION des comptes : les écrans de budget doivent rester étanches. */
-                toutes_vues?: boolean;
-            };
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComptePublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    creer_compte_api_comptes_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeCompte"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComptePublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    catalogue_des_comptes_api_comptes_catalogue_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProduitPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    soldes_des_comptes_api_comptes_soldes_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SoldeDeCompte"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supprimer_compte_api_comptes__compte_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path: {
-                compte_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    modifier_compte_api_comptes__compte_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path: {
-                compte_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ModificationCompte"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComptePublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    ajuster_le_solde_api_comptes__compte_id__ajustement_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path: {
-                compte_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeAjustement"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AjustementFait"];
                 };
             };
             /** @description Validation Error */
@@ -2644,7 +2532,43 @@ export interface operations {
             };
         };
     };
-    creer_virement_api_virements_post: {
+    lister_comptes_api_comptes_get: {
+        parameters: {
+            query?: {
+                /** @description Lister aussi les comptes de l'autre périmètre. Réservé à l'écran de GESTION des comptes : les écrans de budget doivent rester étanches. */
+                toutes_vues?: boolean;
+            };
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComptePublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creer_compte_api_comptes_post: {
         parameters: {
             query?: never;
             header?: {
@@ -2657,7 +2581,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DemandeVirement"];
+                "application/json": components["schemas"]["DemandeCompte"];
             };
         };
         responses: {
@@ -2667,7 +2591,619 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["VirementCree"];
+                    "application/json": components["schemas"]["ComptePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    catalogue_des_comptes_api_comptes_catalogue_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProduitPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    soldes_des_comptes_api_comptes_soldes_get: {
+        parameters: {
+            query?: {
+                /** @description Rendre aussi les soldes de l'autre périmètre. Réservé à l'écran de GESTION des comptes, comme sur `GET /comptes`. */
+                toutes_vues?: boolean;
+            };
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoldeDeCompte"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supprimer_compte_api_comptes__compte_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                compte_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    modifier_compte_api_comptes__compte_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                compte_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModificationCompte"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComptePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ajuster_le_solde_api_comptes__compte_id__ajustement_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                compte_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeAjustement"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AjustementFait"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lister_api_enveloppes_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartitionPublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creer_api_enveloppes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeEnveloppe"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartitionPublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preparation_api_enveloppes_preparation_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreparationPublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    appliquer_la_preparation_api_enveloppes_preparation_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandePreparation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartitionPublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supprimer_api_enveloppes__enveloppe_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                enveloppe_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    modifier_api_enveloppes__enveloppe_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                enveloppe_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModificationEnveloppe"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartitionPublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    journal_api_enveloppes__enveloppe_id__journal_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                enveloppe_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MouvementPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ajouter_mouvement_api_enveloppes__enveloppe_id__mouvements_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                enveloppe_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeMouvement"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartitionPublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    epargne_api_epargne_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EpargnePublique"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detail_epargne_api_epargne__compte_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                compte_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailEpargne"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyser_un_releve_api_import_analyse_post: {
+        parameters: {
+            query?: {
+                depuis?: string | null;
+            };
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_analyser_un_releve_api_import_analyse_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevueImport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    valider_un_import_api_import_valider_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeValidationImport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -2754,6 +3290,39 @@ export interface operations {
             };
         };
     };
+    lister_a_confirmer_api_operations_a_confirmer_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationPublique"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     supprimer_operation_api_operations__operation_id__delete: {
         parameters: {
             query?: never;
@@ -2826,47 +3395,14 @@ export interface operations {
             };
         };
     };
-    epargne_api_epargne_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EpargnePublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    detail_epargne_api_epargne__compte_id__get: {
+    confirmer_api_operations__operation_id__confirmer_post: {
         parameters: {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
             };
             path: {
-                compte_id: string;
+                operation_id: string;
             };
             cookie?: {
                 mycounts_session?: string | null;
@@ -2880,7 +3416,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DetailEpargne"];
+                    "application/json": components["schemas"]["OperationPublique"];
                 };
             };
             /** @description Validation Error */
@@ -2894,7 +3430,7 @@ export interface operations {
             };
         };
     };
-    resume_api_resume_get: {
+    lister_api_plafonds_get: {
         parameters: {
             query?: never;
             header?: {
@@ -2913,8 +3449,78 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResumePublic"];
+                    "application/json": components["schemas"]["PlafondPublic"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    definir_api_plafonds_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandePlafond"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlafondPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supprimer_api_plafonds__plafond_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                plafond_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -3069,7 +3675,7 @@ export interface operations {
             };
         };
     };
-    mois_en_cours_api_agenda_mois_en_cours_get: {
+    resume_api_resume_get: {
         parameters: {
             query?: never;
             header?: {
@@ -3088,499 +3694,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BornesDuMois"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    agenda_api_agenda_get: {
-        parameters: {
-            query?: {
-                jours?: number;
-            };
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EcheanceAgenda"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_a_confirmer_api_operations_a_confirmer_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OperationPublique"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    confirmer_api_operations__operation_id__confirmer_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path: {
-                operation_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OperationPublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_api_plafonds_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlafondPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    definir_api_plafonds_put: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandePlafond"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlafondPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supprimer_api_plafonds__plafond_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path: {
-                plafond_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    lister_api_enveloppes_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepartitionPublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    creer_api_enveloppes_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeEnveloppe"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepartitionPublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supprimer_api_enveloppes__enveloppe_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path: {
-                enveloppe_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    modifier_api_enveloppes__enveloppe_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path: {
-                enveloppe_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ModificationEnveloppe"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepartitionPublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    ajouter_mouvement_api_enveloppes__enveloppe_id__mouvements_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path: {
-                enveloppe_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandeMouvement"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepartitionPublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    journal_api_enveloppes__enveloppe_id__journal_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path: {
-                enveloppe_id: string;
-            };
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MouvementPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    preparation_api_enveloppes_preparation_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PreparationPublique"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    appliquer_la_preparation_api_enveloppes_preparation_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DemandePreparation"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepartitionPublique"];
+                    "application/json": components["schemas"]["ResumePublic"];
                 };
             };
             /** @description Validation Error */
@@ -3627,46 +3741,7 @@ export interface operations {
             };
         };
     };
-    analyser_un_releve_api_import_analyse_post: {
-        parameters: {
-            query?: {
-                depuis?: string | null;
-            };
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                mycounts_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_analyser_un_releve_api_import_analyse_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RevueImport"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    valider_un_import_api_import_valider_post: {
+    creer_virement_api_virements_post: {
         parameters: {
             query?: never;
             header?: {
@@ -3679,7 +3754,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DemandeValidationImport"];
+                "application/json": components["schemas"]["DemandeVirement"];
             };
         };
         responses: {
@@ -3689,9 +3764,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: number;
-                    };
+                    "application/json": components["schemas"]["VirementCree"];
                 };
             };
             /** @description Validation Error */

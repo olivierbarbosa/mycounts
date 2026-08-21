@@ -1310,3 +1310,39 @@ d'intégration, chacun prouvé rouge contre sa faute. Le plus important est celu
 fuite : remplacer la condition par « tous les comptes du foyer » laisse passer **19 tests
 sur 20** — seul `test_le_compte_prive_dun_autre_membre_reste_intouchable` l'attrape. Une
 règle de confidentialité élargie n'échoue jamais bruyamment.
+
+## #044 — Un fait de schéma facturé à l'utilisateur
+
+**Ce que je croyais.** Que « supprimer le foyer » était une action claire, et qu'Olivier
+l'avait choisie en connaissance de cause : je lui avais posé la question la veille, et il
+avait répondu « supprimer le compte pour de bon ». La déconnexion qui suit n'était pas un
+bug — c'était la conséquence exacte de ce qui avait été demandé, spécifié et testé.
+
+**Ce qu'il s'est passé.** « Pourquoi quand je supprime un foyer ça me déconnecte, il faut
+vraiment dissocier le compte perso / espace perso et l'espace foyer. » Il n'avait pas
+changé d'avis sur la suppression définitive : il n'avait jamais voulu qu'arrêter de
+partager passe par elle.
+
+**La cause.** En base, `Utilisateur.foyer_id` est non nullable et le foyer porte AUSSI les
+comptes personnels : détruire le foyer détruit forcément ses membres. J'ai laissé cette
+contrainte de schéma remonter jusqu'à l'écran et devenir une règle d'usage. L'interface
+proposait donc l'action que le modèle savait faire, pas celle que l'utilisateur voulait
+faire — et ma question de la veille portait sur la première, ce qui la rendait inutile :
+en offrant le choix entre deux façons de tout détruire, elle ne pouvait pas révéler qu'il
+voulait ne rien détruire du tout.
+
+**Ce que ça dit de plus général.** Une confirmation obtenue ne vaut que pour la question
+posée, et une question mal cadrée transforme un accord en preuve trompeuse. Le signe
+avant-coureur était là : la vue « comptes joints » est documentée comme un FILTRE sur
+`Compte.prive`, pas une entité — donc « supprimer l'espace joint » ne pouvait déjà rien
+vouloir dire d'autre que « supprimer ces comptes-là ». J'avais écrit cette phrase moi-même
+dans CLAUDE.md sans en tirer la conséquence.
+
+**Le contrôle en place maintenant.** Deux actions, deux écrans, deux jeux d'état :
+`DELETE /auth/foyer/partage` supprime les comptes joints sans fermer la session,
+`DELETE /auth/moi` efface son compte et confirme par l'ADRESSE — plus par le nom du foyer,
+qui désignait la mauvaise chose. Sept tests d'intégration, dont
+`test_dissoudre_ne_touche_ni_au_compte_ni_aux_comptes_personnels`, qui mesure les deux
+moitiés : ce qui doit disparaître et ce qui doit rester. Un test e2e vérifie que les deux
+zones sont sur deux écrans distincts — les réunir ferait revenir le défaut sans qu'aucun
+autre test ne le voie.

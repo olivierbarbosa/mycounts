@@ -16,7 +16,7 @@ import type {
   MembrePublic,
   UtilisateurPublic,
 } from '../api/client'
-import { api } from '../api/client'
+import { ErreurApi, api } from '../api/client'
 import { initialesDeLUtilisateur } from '../composants/Bulle'
 import { ComptesBancaires } from '../composants/ComptesBancaires'
 import { type Origine, useEcranDeBulle } from '../composants/EcranDeBulle'
@@ -91,10 +91,17 @@ export function Parametres({
   // route est `/auth/foyer/membres`, et le 404 tournait en boucle à l'écran.
   const [membres, setMembres] = useState<readonly MembrePublic[] | null>(null)
   const [echecMembres, setEchecMembres] = useState(false)
+  /* Deux actions distinctes, jamais confondues, et c'est tout l'objet du lot du 21 août
+     2026 : arrêter de partager et disparaître sont deux intentions différentes. Les
+     réunir sous « supprimer le foyer » faisait perdre son compte à qui voulait seulement
+     la première (ERREURS.md #044). Deux jeux d'état séparés, sur deux écrans séparés :
+     un état partagé rouvrirait la porte à la confusion par le code. */
   // La zone de danger part REPLIÉE et n'expose son champ qu'après un geste délibéré.
   // Un champ de confirmation visible en permanence finit par se remplir par habitude.
+  const [dissolutionOuverte, setDissolutionOuverte] = useState(false)
+  const [echecDissolution, setEchecDissolution] = useState<string | null>(null)
   const [suppressionOuverte, setSuppressionOuverte] = useState(false)
-  const [nomRetape, setNomRetape] = useState('')
+  const [courrielRetape, setCourrielRetape] = useState('')
   const [echecSuppression, setEchecSuppression] = useState<string | null>(null)
 
   // Chargés à l'ouverture du panneau et non à celle du sous-menu : la liste est courte,
@@ -165,12 +172,33 @@ export function Parametres({
     setCode((await api.creerInvitation()).code)
   }
 
-  async function detruireLeFoyer() {
+  /** Arrête le partage. Ne déconnecte pas — c'est tout l'intérêt. */
+  async function dissoudreLePartage() {
+    setEchecDissolution(null)
+    try {
+      await api.dissoudreLePartage()
+    } catch (cause) {
+      // Le message du serveur est repris tel quel : il NOMME les comptes qui bloquent.
+      // Le remplacer par « la dissolution a échoué » obligerait à chercher lesquels.
+      setEchecDissolution(
+        cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.',
+      )
+      return
+    }
+    setDissolutionOuverte(false)
+    // Les comptes joints ont disparu : tout écran qui les totalisait ment jusqu'au
+    // rechargement.
+    surChangement()
+  }
+
+  async function supprimerMonCompte() {
     setEchecSuppression(null)
     try {
-      await api.supprimerLeFoyer(nomRetape)
-    } catch {
-      setEchecSuppression('La suppression a échoué. Rien n’a été effacé.')
+      await api.supprimerMonCompte(courrielRetape)
+    } catch (cause) {
+      setEchecSuppression(
+        cause instanceof ErreurApi ? cause.message : 'La suppression a échoué. Rien n’a été effacé.',
+      )
       return
     }
     // La session est déjà close côté serveur : `surDeconnexion` remet l'application sur
@@ -205,6 +233,74 @@ export function Parametres({
           <span>{utilisateur.nom_affichage}</span>
           <span className={styles.libelleCarte}>Adresse électronique</span>
           <span>{utilisateur.courriel}</span>
+
+          {/* Supprimer son compte vit ICI, et non sur l'écran du foyer : ce qu'on efface
+              est son identité et son argent, pas le partage. C'est la séparation que ce
+              lot installe — le même bouton faisait les deux, et déconnectait celui qui
+              voulait seulement arrêter de partager (ERREURS.md #044). */}
+          <div className={styles.danger}>
+            <h2 className={styles.titreDanger}>Supprimer mon compte</h2>
+            <p className={styles.note}>
+              Efface définitivement votre compte, vos comptes personnels et leurs opérations,
+              budgets et récurrences.{' '}
+              {membres !== null && membres.length > 1
+                ? 'Les comptes joints et les autres membres du foyer restent en place.'
+                : `Vous êtes seul dans ${utilisateur.foyer_nom} : le foyer part avec vous, comptes joints compris.`}{' '}
+              Aucune sauvegarde n’est conservée, rien ne peut être restauré.
+            </p>
+
+            {!suppressionOuverte ? (
+              <button
+                type="button"
+                className={styles.boutonDanger}
+                onClick={() => setSuppressionOuverte(true)}
+              >
+                Supprimer mon compte
+              </button>
+            ) : (
+              <>
+                <label className={styles.champDanger}>
+                  <span className={styles.etiquetteDanger}>
+                    Tapez <strong>{utilisateur.courriel}</strong> pour confirmer
+                  </span>
+                  <input
+                    className={styles.saisieDanger}
+                    value={courrielRetape}
+                    onChange={(evenement) => setCourrielRetape(evenement.target.value)}
+                    autoComplete="off"
+                    // Ni autofocus ni soumission au clavier : la touche Entrée est le
+                    // réflexe même contre lequel cette confirmation est posée.
+                  />
+                </label>
+                {echecSuppression !== null && (
+                  <p className={styles.erreurDanger} role="alert">
+                    {echecSuppression}
+                  </p>
+                )}
+                <div className={styles.actionsDanger}>
+                  <button
+                    type="button"
+                    className={styles.bouton}
+                    onClick={() => {
+                      setSuppressionOuverte(false)
+                      setCourrielRetape('')
+                      setEchecSuppression(null)
+                    }}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.boutonDanger}
+                    disabled={courrielRetape.trim() !== utilisateur.courriel}
+                    onClick={() => void supprimerMonCompte()}
+                  >
+                    Tout effacer
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       ),
     },
@@ -297,69 +393,63 @@ export function Parametres({
           )}
 
           {/* Zone de danger, réservée au propriétaire. Le serveur revérifie ce droit :
-              cacher le bouton range l'écran, il n'autorise rien. */}
+              cacher le bouton range l'écran, il n'autorise rien.
+
+              Elle ne détruit QUE le partage. « Supprimer mon compte » vit sur l'écran
+              « Mon compte », parce que c'est de son compte qu'il s'agit — les mettre
+              côte à côte les ferait confondre, ce qui est exactement le défaut corrigé. */}
           {utilisateur.est_proprietaire && (
             <div className={styles.danger}>
-              <h2 className={styles.titreDanger}>Supprimer le foyer</h2>
+              <h2 className={styles.titreDanger}>Dissoudre le partage</h2>
               <p className={styles.note}>
-                Efface définitivement <strong>{utilisateur.foyer_nom}</strong> : tous les comptes,
-                personnels comme joints, leurs opérations, budgets, enveloppes et récurrences, pour
-                {membres !== null && membres.length > 1
-                  ? ` les ${membres.length} membres.`
-                  : ' vous.'}{' '}
-                Aucune sauvegarde n’est conservée, rien ne peut être restauré.
+                Supprime les comptes joints de <strong>{utilisateur.foyer_nom}</strong> et leurs
+                opérations. Votre compte, vos comptes personnels et ceux des autres membres ne sont
+                pas touchés, et vous restez connecté. Un compte joint qui porte de vraies opérations
+                bloque la dissolution : videz-le ou archivez-le d’abord.
               </p>
 
-              {!suppressionOuverte ? (
+              {echecDissolution !== null && (
+                <p className={styles.erreurDanger} role="alert">
+                  {echecDissolution}
+                </p>
+              )}
+
+              {!dissolutionOuverte ? (
                 <button
                   type="button"
                   className={styles.boutonDanger}
-                  onClick={() => setSuppressionOuverte(true)}
+                  onClick={() => {
+                    setEchecDissolution(null)
+                    setDissolutionOuverte(true)
+                  }}
                 >
-                  Supprimer le foyer
+                  Dissoudre le partage
                 </button>
               ) : (
-                <>
-                  <label className={styles.champDanger}>
-                    <span className={styles.etiquetteDanger}>
-                      Tapez <strong>{utilisateur.foyer_nom}</strong> pour confirmer
-                    </span>
-                    <input
-                      className={styles.saisieDanger}
-                      value={nomRetape}
-                      onChange={(evenement) => setNomRetape(evenement.target.value)}
-                      autoComplete="off"
-                      // Ni autofocus ni soumission au clavier : la touche Entrée est le
-                      // réflexe même contre lequel cette confirmation est posée.
-                    />
-                  </label>
-                  {echecSuppression !== null && (
-                    <p className={styles.erreurDanger} role="alert">
-                      {echecSuppression}
-                    </p>
-                  )}
-                  <div className={styles.actionsDanger}>
-                    <button
-                      type="button"
-                      className={styles.bouton}
-                      onClick={() => {
-                        setSuppressionOuverte(false)
-                        setNomRetape('')
-                        setEchecSuppression(null)
-                      }}
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.boutonDanger}
-                      disabled={nomRetape.trim() !== utilisateur.foyer_nom}
-                      onClick={() => void detruireLeFoyer()}
-                    >
-                      Tout effacer
-                    </button>
-                  </div>
-                </>
+                <div className={styles.actionsDanger}>
+                  <button
+                    type="button"
+                    className={styles.bouton}
+                    onClick={() => {
+                      setDissolutionOuverte(false)
+                      setEchecDissolution(null)
+                    }}
+                  >
+                    Annuler
+                  </button>
+                  {/* Pas de saisie à recopier ici : le serveur refuse déjà d'emporter un
+                      compte qui porte de vraies opérations. Ce bouton ne peut donc
+                      détruire que des comptes vides ou à peine amorcés — la même gravité
+                      que supprimer un compte seul, qui demande la même simple
+                      confirmation. Une barrière disproportionnée s'apprend par cœur. */}
+                  <button
+                    type="button"
+                    className={styles.boutonDanger}
+                    onClick={() => void dissoudreLePartage()}
+                  >
+                    Supprimer les comptes joints
+                  </button>
+                </div>
               )}
             </div>
           )}
