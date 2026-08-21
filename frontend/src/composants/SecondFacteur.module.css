@@ -1,0 +1,186 @@
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  padding-top: var(--espace-l);
+  margin-top: var(--espace-l);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.titre {
+  margin: 0;
+  font-size: 16px;
+  font-weight: var(--typo-gras-fort);
+  color: var(--couleur-texte);
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-xs);
+  flex-wrap: wrap;
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* L'avertissement des codes de secours. En encre d'ALERTE et non de débit : ce n'est pas
+   une erreur, c'est une conséquence irréversible qu'il faut avoir lue. */
+.avertissement {
+  margin: 0;
+  padding: var(--espace-m);
+  border: 1px solid var(--couleur-alerte);
+  border-radius: var(--rayon-moyen);
+  color: var(--couleur-texte);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.etape {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+/* Le QR sur fond BLANC quel que soit le thème : les lecteurs attendent des modules
+   sombres sur clair, et un carré inversé n'est pas lu par la moitié des applications. */
+.qr {
+  align-self: center;
+  width: 190px;
+  height: 190px;
+  padding: var(--espace-s);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-blanc-fixe);
+}
+
+.qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.repli {
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+}
+
+.repli summary {
+  min-height: var(--cible-tactile);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* La clé en clair : rompue par `anywhere`, sinon trente-deux caractères débordent d'un
+   écran de téléphone et deviennent illisibles au moment de les recopier. */
+.secret {
+  display: block;
+  padding: var(--espace-s);
+  border-radius: var(--rayon-petit);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  font-family: var(--typo-famille-chiffres);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
+}
+
+.codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--espace-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.codes code {
+  display: block;
+  padding: var(--espace-xs) var(--espace-s);
+  border-radius: var(--rayon-petit);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  font-family: var(--typo-famille-chiffres);
+  font-size: 14px;
+  text-align: center;
+}
+
+.confirmation {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-xs);
+  min-height: var(--cible-tactile);
+  color: var(--couleur-texte);
+  font-size: 14px;
+}
+
+.etiquette {
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.champ {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-m);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  /* 16 px au moins : en dessous, iOS agrandit la page à la mise au point du champ. */
+  font-size: 16px;
+  letter-spacing: 0.2em;
+}
+
+.actions {
+  display: flex;
+  gap: var(--espace-s);
+  justify-content: flex-end;
+}
+
+.principal,
+.secondaire,
+.destructif {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-xs);
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border-radius: var(--rayon-pilule);
+  font-size: 14px;
+  font-weight: var(--typo-gras-moyen);
+  cursor: pointer;
+}
+
+.principal {
+  border: none;
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+}
+
+.secondaire {
+  border: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: var(--couleur-texte);
+}
+
+.destructif {
+  border: 1px solid var(--couleur-debit);
+  background: transparent;
+  color: var(--couleur-debit);
+}
+
+.principal:disabled,
+.destructif:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 14px;
+}

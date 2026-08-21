@@ -310,6 +310,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/moi/second-facteur": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Etat Du Second Facteur */
+        get: operations["etat_du_second_facteur_api_auth_moi_second_facteur_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Desactiver Le Second Facteur
+         * @description Retire le second facteur. Un code EN COURS est exigé.
+         *
+         *     Une session ouverte ne suffit pas : c'est précisément contre l'usage d'une session
+         *     volée que le second facteur existe, et le retirer sans preuve de possession annulerait
+         *     la protection depuis l'endroit même qu'elle protège.
+         */
+        delete: operations["desactiver_le_second_facteur_api_auth_moi_second_facteur_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/moi/second-facteur/activer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activer Le Second Facteur
+         * @description Vérifie un PREMIER code, puis active. Rend les dix codes de secours, une seule fois.
+         *
+         *     L'activation exige une preuve que l'application est correctement configurée. Sans elle,
+         *     une heure fausse sur le téléphone ou un QR scanné à moitié verrouillerait le compte :
+         *     le serveur croirait l'enrôlement fait, et aucun code ne fonctionnerait plus.
+         */
+        post: operations["activer_le_second_facteur_api_auth_moi_second_facteur_activer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/moi/second-facteur/preparer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preparer Le Second Facteur
+         * @description Engendre un secret et rend de quoi le configurer. **N'active rien.**
+         *
+         *     Rappeler cette route AVANT l'activation engendre un NOUVEAU secret, et c'est voulu :
+         *     on la rappelle quand la première tentative a échoué — QR mal scanné, application
+         *     refermée — et réutiliser le secret d'un enrôlement raté laisserait la moitié du travail
+         *     faite avec une application dont on ne sait plus ce qu'elle contient.
+         *
+         *     Une fois le second facteur ACTIF, elle est refusée : régénérer un secret depuis une
+         *     session ouverte permettrait de remplacer le facteur sans posséder l'ancien, ce qui le
+         *     viderait de son sens.
+         */
+        post: operations["preparer_le_second_facteur_api_auth_moi_second_facteur_preparer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/rejoindre": {
         parameters: {
             query?: never;
@@ -1185,6 +1263,14 @@ export interface components {
             sujet: string;
         };
         /**
+         * DemandeActivationSecondFacteur
+         * @description Le premier code, celui qui prouve que l'application est bien configurée.
+         */
+        DemandeActivationSecondFacteur: {
+            /** Code */
+            code: string;
+        };
+        /**
          * DemandeAdhesion
          * @description Rejoindre un foyer avec un code d'invitation.
          */
@@ -1273,6 +1359,8 @@ export interface components {
         };
         /** DemandeConnexion */
         DemandeConnexion: {
+            /** Code */
+            code?: string | null;
             /** Courriel */
             courriel: string;
             /** Mot De Passe */
@@ -1527,6 +1615,23 @@ export interface components {
              */
             recurrence_id: string;
         };
+        /**
+         * EnrolementPropose
+         * @description De quoi configurer une application d'authentification.
+         *
+         *     Le secret est rendu EN CLAIR, et c'est nécessaire : sans lui, impossible de configurer
+         *     une application qui ne peut pas scanner — un ordinateur de bureau sans caméra, une
+         *     application qui n'accepte que la saisie manuelle. Il ne sort qu'une fois, vers
+         *     quelqu'un déjà authentifié par mot de passe, sur sa propre session.
+         */
+        EnrolementPropose: {
+            /** Qr Svg */
+            qr_svg: string;
+            /** Secret */
+            secret: string;
+            /** Uri */
+            uri: string;
+        };
         /** EnveloppePublique */
         EnveloppePublique: {
             /** Archive */
@@ -1588,6 +1693,13 @@ export interface components {
          * @enum {string}
          */
         EtatOperation: "prevue" | "a_confirmer" | "confirmee";
+        /** EtatSecondFacteur */
+        EtatSecondFacteur: {
+            /** Actif */
+            actif: boolean;
+            /** Codes De Secours Restants */
+            codes_de_secours_restants: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2112,6 +2224,18 @@ export interface components {
          * @enum {string}
          */
         Rollover: "report" | "liberation" | "demander";
+        /**
+         * SecondFacteurActive
+         * @description Les dix codes de secours, montrés UNE seule fois.
+         *
+         *     Les rendre une seconde fois demanderait de les stocker en clair — une porte ouverte à
+         *     côté de celle qu'on vient de fermer. L'écran doit donc insister pour qu'on les note
+         *     avant de fermer.
+         */
+        SecondFacteurActive: {
+            /** Codes De Secours */
+            codes_de_secours: string[];
+        };
         /**
          * SensImporte
          * @description Ce que la ligne fera si elle est retenue.
@@ -2709,6 +2833,144 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    etat_du_second_facteur_api_auth_moi_second_facteur_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EtatSecondFacteur"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    desactiver_le_second_facteur_api_auth_moi_second_facteur_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeActivationSecondFacteur"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activer_le_second_facteur_api_auth_moi_second_facteur_activer_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeActivationSecondFacteur"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecondFacteurActive"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preparer_le_second_facteur_api_auth_moi_second_facteur_preparer_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrolementPropose"];
+                };
             };
             /** @description Validation Error */
             422: {

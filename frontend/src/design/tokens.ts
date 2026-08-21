@@ -81,6 +81,14 @@ export const couleursSombres = {
   debit: '#FB7185',
   alerte: '#FBBF24',
 
+  /** Blanc CONSTANT, identique dans les deux thèmes. À n'employer que pour une surface
+   *  dont la couleur est imposée de l'extérieur — aujourd'hui le seul cas est le QR
+   *  d'enrôlement : les lecteurs de codes attendent des modules sombres sur fond clair, et
+   *  un carré inversé n'est pas lu par la moitié des applications. Ce n'est pas une
+   *  couleur de la palette, c'est une contrainte technique qui se trouve être une couleur.
+   */
+  blancFixe: '#FFFFFF',
+
   verreTeinte: 'rgba(255, 255, 255, 0.09)',
   verreBordSombre: 'rgba(2, 6, 23, 0.55)',
   verreSpeculaire: 'rgba(255, 255, 255, 0.42)',
@@ -226,6 +234,7 @@ export const couleursClaires = {
   credit: '#047857',
   debit: '#BE123C',
   alerte: '#B45309',
+  blancFixe: '#FFFFFF',
 
   verreTeinte: 'rgba(255, 255, 255, 0.62)',
   verreBordSombre: 'rgba(51, 65, 85, 0.16)',

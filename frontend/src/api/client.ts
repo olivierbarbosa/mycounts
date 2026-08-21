@@ -10,6 +10,9 @@ import type { components } from './schema'
 
 export type UtilisateurPublic = components['schemas']['UtilisateurPublic']
 export type MembrePublic = components['schemas']['MembrePublic']
+export type EtatSecondFacteur = components['schemas']['EtatSecondFacteur']
+export type EnrolementPropose = components['schemas']['EnrolementPropose']
+export type SecondFacteurActive = components['schemas']['SecondFacteurActive']
 export type InvitationCreee = components['schemas']['InvitationCreee']
 export type ComptePublic = components['schemas']['ComptePublic']
 export type CategoriePublique = components['schemas']['CategoriePublique']
@@ -176,6 +179,29 @@ export const api = {
   },
 
   retirerSonAvatar: () => appeler<void>('/auth/moi/avatar', { method: 'DELETE' }),
+
+  /** L'état du second facteur, et combien de codes de secours restent. */
+  etatSecondFacteur: () => appeler<EtatSecondFacteur>('/auth/moi/second-facteur'),
+
+  /** Engendre un secret et rend de quoi configurer une application. N'ACTIVE rien :
+   *  l'activation attend la preuve qu'un premier code fonctionne. */
+  preparerSecondFacteur: () =>
+    appeler<EnrolementPropose>('/auth/moi/second-facteur/preparer', { method: 'POST' }),
+
+  /** Vérifie un premier code, active, et rend les dix codes de secours — une seule fois. */
+  activerSecondFacteur: (code: string) =>
+    appeler<SecondFacteurActive>('/auth/moi/second-facteur/activer', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+
+  /** Retire le second facteur. Un code EN COURS est exigé : une session ouverte ne
+   *  suffit pas, c'est justement contre elle que le facteur protège. */
+  desactiverSecondFacteur: (code: string) =>
+    appeler<void>('/auth/moi/second-facteur', {
+      method: 'DELETE',
+      body: JSON.stringify({ code }),
+    }),
 
   /** L'adresse de l'image d'un membre, à poser dans un `src`.
    *
