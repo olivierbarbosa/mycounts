@@ -11,8 +11,11 @@ import datetime as dt
 
 from fastapi.testclient import TestClient
 from mycounts.domain.comptes import CATALOGUE, TypeCompte
+from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
+from mycounts.repository import auth as depot_auth
 from sqlalchemy.orm import Session
 
+from tests.integration.test_api_auth import MOT_DE_PASSE, connecter
 from tests.integration.test_api_budget import session_ouverte
 
 
@@ -220,3 +223,63 @@ def test_lecart_est_calcule_par_le_serveur_pas_recu(
         )
 
     assert solde_de(client, compte["id"]) == 12_345
+
+
+def test_un_membre_ne_peut_pas_supprimer_le_compte_joint_dun_autre(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Un compte joint est visible de tous les membres, mais n'appartient qu'à celui qui
+    l'a ouvert. La visibilité ne vaut pas permission — ce qui n'est vrai d'aucun objet
+    partagé, et l'était pourtant ici avant cette garde.
+
+    Le refus est un 403 et non un 404 : le compte existe et l'appelant le voit ; lui dire
+    « introuvable » l'enverrait chercher une panne qui n'existe pas.
+    """
+    alice = session_ouverte(client, session_bd)
+    reponse = client.post(
+        "/api/comptes", json={"nom": "Compte joint", "prive": False, "produit": "compte_courant"}
+    )
+    assert reponse.status_code == 201, reponse.text
+    compte_id = reponse.json()["id"]
+
+    # Un second membre du MÊME foyer, connecté à son tour. Le helper habituel crée un
+    # foyer neuf à chaque appel : ici il faut partager celui d'Alice, sans quoi Bruno ne
+    # verrait tout simplement pas le compte et le test mesurerait la visibilité au lieu
+    # de la permission.
+    depot_auth.creer_utilisateur(
+        session_bd,
+        foyer_id=alice.foyer_id,
+        courriel=normaliser_courriel("bruno@essai.fr"),
+        nom_affichage="Bruno",
+        empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+    )
+    session_bd.commit()
+    connecter(client, "bruno@essai.fr")
+
+    refus = client.request(
+        "DELETE", f"/api/comptes/{compte_id}", headers={"X-Mycounts-Vue": "foyer"}
+    )
+    assert refus.status_code == 403, refus.text
+    assert "peut le supprimer" in refus.json()["detail"]
+
+    # Et le compte est toujours là pour tout le monde.
+    comptes = client.get("/api/comptes", headers={"X-Mycounts-Vue": "foyer"}).json()
+    assert [c["nom"] for c in comptes] == ["Compte joint"]
+
+
+def test_le_proprietaire_supprime_son_compte_joint(
+    client: TestClient, session_bd: Session
+) -> None:
+    """L'autre sens, sans lequel une règle qui refuserait TOUJOURS passerait le test
+    précédent."""
+    session_ouverte(client, session_bd)
+    reponse = client.post(
+        "/api/comptes", json={"nom": "A moi", "prive": False, "produit": "compte_courant"}
+    )
+    compte_id = reponse.json()["id"]
+
+    suppression = client.request(
+        "DELETE", f"/api/comptes/{compte_id}", headers={"X-Mycounts-Vue": "foyer"}
+    )
+    assert suppression.status_code == 204, suppression.text
+    assert client.get("/api/comptes", headers={"X-Mycounts-Vue": "foyer"}).json() == []

@@ -21,6 +21,7 @@ import { Budget } from './ecrans/Budget'
 import { Calendrier } from './ecrans/Calendrier'
 import { DetailEpargne } from './ecrans/DetailEpargne'
 import { Connexion } from './ecrans/Connexion'
+import { vueCourante } from './design/vue'
 import { Enveloppes } from './ecrans/Enveloppes'
 import { Epargne } from './ecrans/Epargne'
 import { ImportReleve } from './ecrans/ImportReleve'
@@ -111,7 +112,15 @@ export function App() {
     )
   }
 
-  if (comptes.length === 0) return <PremierCompte surCreation={apresEcriture} />
+  /* L'amorçage ne vaut QUE pour la vue personnelle.
+   *
+   * En vue foyer, un foyer sans compte joint est une situation normale — la plupart des
+   * gens n'en ouvrent jamais — et non un compte à créer d'urgence. Y afficher l'écran de
+   * premier compte remplaçait toute l'application, paramètres compris, si bien qu'on ne
+   * pouvait même plus revenir en arrière : la bascule était un aller sans retour. */
+  if (comptes.length === 0 && vueCourante() === 'personnelle') {
+    return <PremierCompte surCreation={apresEcriture} />
+  }
 
   return (
     <>

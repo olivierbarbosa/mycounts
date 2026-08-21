@@ -192,6 +192,17 @@ def supprimer_compte(
     if compte is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
 
+    # Un compte JOINT est visible de tous les membres, mais n'appartient qu'à celui qui
+    # l'a ouvert. Sans cette garde, n'importe quel membre du foyer pouvait supprimer
+    # l'espace commun — la visibilité valait permission, ce qui n'est vrai d'aucun objet
+    # partagé. Un 403 et non un 404 : le compte existe, l'appelant le voit, et lui dire
+    # « introuvable » l'enverrait chercher une panne qui n'existe pas.
+    if compte.proprietaire_id != principal.utilisateur_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seule la personne qui a ouvert ce compte peut le supprimer.",
+        )
+
     if depot.compte_a_des_operations(session, compte_id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

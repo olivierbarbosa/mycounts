@@ -43,6 +43,23 @@ class UtilisateurPublic(BaseModel):
     foyer_id: uuid.UUID
 
 
+class MembrePublic(BaseModel):
+    """Un membre du foyer, tel que les autres membres peuvent le voir.
+
+    Ni mot de passe, ni session, ni solde : savoir avec qui l'on partage un compte joint
+    ne donne aucun droit sur l'argent de l'autre, et cette classe est l'endroit où cette
+    limite est visible.
+    """
+
+    id: uuid.UUID
+    nom_affichage: str
+    courriel: str
+    cree_le: dt.datetime
+    est_vous: bool
+    """Marqué par le SERVEUR et non déduit à l'écran : le client connaît son nom, pas son
+    identifiant, et deux membres peuvent porter le même nom d'affichage."""
+
+
 class InvitationCreee(BaseModel):
     """Le code n'est renvoyé qu'ici, une seule fois.
 

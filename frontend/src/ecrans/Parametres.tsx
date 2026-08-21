@@ -10,7 +10,12 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 
-import type { CategoriePublique, ComptePublic, UtilisateurPublic } from '../api/client'
+import type {
+  CategoriePublique,
+  ComptePublic,
+  MembrePublic,
+  UtilisateurPublic,
+} from '../api/client'
 import { api } from '../api/client'
 import { initialesDeLUtilisateur } from '../composants/Bulle'
 import { ComptesBancaires } from '../composants/ComptesBancaires'
@@ -18,6 +23,7 @@ import { type Origine, useEcranDeBulle } from '../composants/EcranDeBulle'
 import { ReglageTheme } from '../composants/ReglageTheme'
 import { ReglageTransparence } from '../composants/ReglageTransparence'
 import { Categories } from './Categories'
+import { type Vue, changerDeVue, vueCourante } from '../design/vue'
 import styles from './Parametres.module.css'
 
 type Props = {
@@ -77,6 +83,31 @@ export function Parametres({
     setPose(true)
   }
   const [code, setCode] = useState<string | null>(null)
+  const [vue, setVue] = useState(vueCourante())
+  const [membres, setMembres] = useState<readonly MembrePublic[]>([])
+
+  // Chargés à l'ouverture du panneau et non à celle du sous-menu : la liste est courte,
+  // l'appel est unique, et l'attendre au moment d'ouvrir « Foyer » ferait clignoter
+  // l'écran juste après un mouvement de page.
+  useEffect(() => {
+    void api
+      .membresDuFoyer()
+      .then(setMembres)
+      .catch(() => setMembres([]))
+  }, [])
+
+  /** Change de périmètre et relit TOUT.
+   *
+   *  Le rechargement n'est pas un raccourci : soldes, budgets, catégories, enveloppes et
+   *  statistiques dépendent tous de la vue, et n'en rafraîchir qu'une partie laisserait à
+   *  l'écran des chiffres appartenant à l'autre monde — le pire des états, puisqu'il a
+   *  l'air juste. */
+  function basculerVers(nouvelle: Vue) {
+    if (nouvelle === vue) return
+    changerDeVue(nouvelle)
+    setVue(nouvelle)
+    void surChangement()
+  }
   const avatar = useRef<HTMLSpanElement>(null)
   // Éclosion depuis la bulle, repli vers elle, et glissement de retour au doigt : la même
   // mécanique que pour toute autre bulle du haut, tenue à un seul endroit.
@@ -189,13 +220,46 @@ export function Parametres({
       titre: 'Foyer',
       contenu: (
         <div className={styles.carte}>
+          <h2 className={styles.titreBloc}>Membres</h2>
+          {membres.length === 0 ? (
+            <p className={styles.note}>Chargement…</p>
+          ) : (
+            <ul className={styles.membres}>
+              {membres.map((membre) => (
+                <li key={membre.id} className={styles.membre}>
+                  <span className={styles.avatarMembre} aria-hidden>
+                    {initialesDeLUtilisateur(membre.nom_affichage)}
+                  </span>
+                  <span className={styles.corpsMembre}>
+                    <span className={styles.nomMembre}>
+                      {membre.nom_affichage}
+                      {membre.est_vous && <span className={styles.vous}>vous</span>}
+                    </span>
+                    <span className={styles.courrielMembre}>{membre.courriel}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className={styles.note}>
+            Les membres partagent les comptes joints. Chacun garde ses comptes personnels pour lui —
+            personne d’autre ne les voit, ni leurs opérations.
+          </p>
+
           <button type="button" className={styles.bouton} onClick={inviter}>
             Inviter un membre
           </button>
           {code !== null && (
-            <p className={styles.code} data-test="code-invitation">
-              {code}
-            </p>
+            <>
+              <p className={styles.code} data-test="code-invitation">
+                {code}
+              </p>
+              <p className={styles.note}>
+                Transmettez ce code à la personne. Il vaut pour une seule inscription et expire dans
+                sept jours.
+              </p>
+            </>
           )}
         </div>
       ),
@@ -235,6 +299,38 @@ export function Parametres({
             <h1 className={styles.nom}>{utilisateur.nom_affichage}</h1>
             <p className={styles.courriel}>{utilisateur.courriel}</p>
           </div>
+
+          {/* La bascule de périmètre, AVANT la liste des réglages : ce n'est pas un
+              réglage parmi d'autres mais le contexte dans lequel tout le reste se lit.
+              Un plafond, un solde, une statistique ne veulent pas dire la même chose selon
+              qu'on regarde son argent ou celui du foyer. */}
+          <div className={styles.bascule} role="group" aria-label="Périmètre">
+            <button
+              type="button"
+              className={styles.perimetre}
+              aria-pressed={vue === 'personnelle'}
+              onClick={() => basculerVers('personnelle')}
+              tabIndex={page === null ? 0 : -1}
+            >
+              <UserRound size={16} strokeWidth={2} aria-hidden />
+              Compte personnel
+            </button>
+            <button
+              type="button"
+              className={styles.perimetre}
+              aria-pressed={vue === 'foyer'}
+              onClick={() => basculerVers('foyer')}
+              tabIndex={page === null ? 0 : -1}
+            >
+              <Users size={16} strokeWidth={2} aria-hidden />
+              Comptes joints
+            </button>
+          </div>
+          <p className={styles.noteBascule}>
+            {vue === 'foyer'
+              ? 'Vous voyez les comptes joints du foyer. Vos comptes personnels n’y figurent pas.'
+              : 'Vous voyez vos comptes personnels. Les comptes joints n’y figurent pas.'}
+          </p>
 
           <ul className={styles.liste}>
             {entrees.map(({ cle, libelle, detail, Icone }) => (

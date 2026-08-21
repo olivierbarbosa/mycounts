@@ -12,6 +12,7 @@ from mycounts.api.schemas import (
     DemandeAdhesion,
     DemandeConnexion,
     InvitationCreee,
+    MembrePublic,
     UtilisateurPublic,
 )
 from mycounts.config import charger_configuration
@@ -178,3 +179,23 @@ def rejoindre(
         nom_affichage=utilisateur.nom_affichage,
         foyer_id=utilisateur.foyer_id,
     )
+
+
+@routeur.get("/foyer/membres", response_model=list[MembrePublic])
+def membres_du_foyer(session: SessionBase, principal: PrincipalCourant) -> list[MembrePublic]:
+    """Qui compose le foyer.
+
+    Aucune donnée sensible : un nom, une adresse, une date d'arrivée. Pas de mot de passe,
+    pas de session, pas de solde — savoir avec qui l'on partage un compte joint ne donne
+    aucun droit sur l'argent de l'autre.
+    """
+    return [
+        MembrePublic(
+            id=membre.id,
+            nom_affichage=membre.nom_affichage,
+            courriel=membre.courriel,
+            cree_le=membre.cree_le,
+            est_vous=membre.id == principal.utilisateur_id,
+        )
+        for membre in depot.membres_du_foyer(session, principal)
+    ]

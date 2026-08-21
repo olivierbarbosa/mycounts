@@ -293,6 +293,29 @@ fichier existe pour boucher.)*
 >   peut être pas nécessaire non plus etc.. avec des KPI/Graph etc..
 
 
+### 2026-08-21 — infrastructure disponible
+
+> Je tenais a t'ajouter des informations j'ai un domaine disponible pour mycounts qui est
+> mycounts.app + deux emails chez ovh en zimbra qui sont : no-reply@mycounts.app &
+> support@mycounts.app
+
+*(À utiliser pour : les invitations au foyer par courriel plutôt que par code recopié, et
+le déploiement VPS. Les identifiants SMTP iront dans `.env`, jamais dans le dépôt.)*
+
+> D'ailleurs pour information j'ai récupérer les logos ils sont dans Downloads/ les deux
+> svg les plus récent
+
+*(Examinés le 2026-08-21. Ce ne sont PAS des vecteurs : chaque `.svg` encapsule un PNG en
+base64 — 670×470 et 1275×345, RGBA transparent. Trois constats avant de les intégrer :*
+- *chaque fichier contient **deux fois la même image**, d'où 560 et 740 ko là où 280 et 370
+  suffiraient ;*
+- *le mot « my » est en bleu marine et deviendra **illisible sur le thème sombre** : il
+  faudra une variante claire, ou n'utiliser que l'icône ;*
+- *les couleurs correspondent déjà à la palette bleu ardoise, ce qui tombe bien.*
+
+*L'icône seule — l'enveloppe ouverte — ferait un excellent favicon et une bonne icône
+d'application. À traiter dans un lot dédié : favicon, icônes PWA, écran de connexion.)*
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |

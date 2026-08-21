@@ -109,6 +109,30 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/auth/foyer/membres': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Membres Du Foyer
+     * @description Qui compose le foyer.
+     *
+     *     Aucune donnée sensible : un nom, une adresse, une date d'arrivée. Pas de mot de passe,
+     *     pas de session, pas de solde — savoir avec qui l'on partage un compte joint ne donne
+     *     aucun droit sur l'argent de l'autre.
+     */
+    get: operations['membres_du_foyer_api_auth_foyer_membres_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/comptes': {
     parameters: {
       query?: never
@@ -1400,6 +1424,32 @@ export interface components {
       limitee_par_le_disponible: boolean
     }
     /**
+     * MembrePublic
+     * @description Un membre du foyer, tel que les autres membres peuvent le voir.
+     *
+     *     Ni mot de passe, ni session, ni solde : savoir avec qui l'on partage un compte joint
+     *     ne donne aucun droit sur l'argent de l'autre, et cette classe est l'endroit où cette
+     *     limite est visible.
+     */
+    MembrePublic: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Nom Affichage */
+      nom_affichage: string
+      /** Courriel */
+      courriel: string
+      /**
+       * Cree Le
+       * Format: date-time
+       */
+      cree_le: string
+      /** Est Vous */
+      est_vous: boolean
+    }
+    /**
      * ModificationCategorie
      * @description La `nature` est absente volontairement : la changer inverserait le signe attendu
      *     de toutes les opérations déjà classées, et donc les totaux de mois déjà clos.
@@ -1951,7 +2001,9 @@ export interface operations {
   deconnexion_api_auth_deconnexion_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -1980,7 +2032,9 @@ export interface operations {
   moi_api_auth_moi_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2011,7 +2065,9 @@ export interface operations {
   creer_invitation_api_auth_invitations_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2072,10 +2128,45 @@ export interface operations {
       }
     }
   }
+  membres_du_foyer_api_auth_foyer_membres_get: {
+    parameters: {
+      query?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
+      path?: never
+      cookie?: {
+        mycounts_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MembrePublic'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
   lister_comptes_api_comptes_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2106,7 +2197,9 @@ export interface operations {
   creer_compte_api_comptes_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2141,7 +2234,9 @@ export interface operations {
   catalogue_des_comptes_api_comptes_catalogue_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2172,7 +2267,9 @@ export interface operations {
   soldes_des_comptes_api_comptes_soldes_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2203,7 +2300,9 @@ export interface operations {
   supprimer_compte_api_comptes__compte_id__delete: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         compte_id: string
       }
@@ -2234,7 +2333,9 @@ export interface operations {
   modifier_compte_api_comptes__compte_id__patch: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         compte_id: string
       }
@@ -2271,7 +2372,9 @@ export interface operations {
   ajuster_le_solde_api_comptes__compte_id__ajustement_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         compte_id: string
       }
@@ -2308,7 +2411,9 @@ export interface operations {
   lister_categories_api_categories_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2339,7 +2444,9 @@ export interface operations {
   creer_categorie_api_categories_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2374,7 +2481,9 @@ export interface operations {
   supprimer_categorie_api_categories__categorie_id__delete: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         categorie_id: string
       }
@@ -2405,7 +2514,9 @@ export interface operations {
   modifier_categorie_api_categories__categorie_id__patch: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         categorie_id: string
       }
@@ -2442,7 +2553,9 @@ export interface operations {
   creer_virement_api_virements_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2480,7 +2593,9 @@ export interface operations {
         /** @description Restreindre à la période budgétaire en cours. */
         periode_courante?: boolean
       }
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2511,7 +2626,9 @@ export interface operations {
   creer_operation_api_operations_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2546,7 +2663,9 @@ export interface operations {
   supprimer_operation_api_operations__operation_id__delete: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         operation_id: string
       }
@@ -2577,7 +2696,9 @@ export interface operations {
   modifier_operation_api_operations__operation_id__patch: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         operation_id: string
       }
@@ -2614,7 +2735,9 @@ export interface operations {
   epargne_api_epargne_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2645,7 +2768,9 @@ export interface operations {
   detail_epargne_api_epargne__compte_id__get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         compte_id: string
       }
@@ -2678,7 +2803,9 @@ export interface operations {
   resume_api_resume_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2709,7 +2836,9 @@ export interface operations {
   lister_recurrences_api_recurrences_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2740,7 +2869,9 @@ export interface operations {
   creer_recurrence_api_recurrences_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2775,7 +2906,9 @@ export interface operations {
   arreter_recurrence_api_recurrences__recurrence_id__delete: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         recurrence_id: string
       }
@@ -2806,7 +2939,9 @@ export interface operations {
   modifier_recurrence_api_recurrences__recurrence_id__patch: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         recurrence_id: string
       }
@@ -2843,7 +2978,9 @@ export interface operations {
   mois_en_cours_api_agenda_mois_en_cours_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2876,7 +3013,9 @@ export interface operations {
       query?: {
         jours?: number
       }
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2907,7 +3046,9 @@ export interface operations {
   lister_a_confirmer_api_operations_a_confirmer_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -2938,7 +3079,9 @@ export interface operations {
   confirmer_api_operations__operation_id__confirmer_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         operation_id: string
       }
@@ -2971,7 +3114,9 @@ export interface operations {
   lister_api_plafonds_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -3002,7 +3147,9 @@ export interface operations {
   definir_api_plafonds_put: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -3037,7 +3184,9 @@ export interface operations {
   supprimer_api_plafonds__plafond_id__delete: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         plafond_id: string
       }
@@ -3068,7 +3217,9 @@ export interface operations {
   lister_api_enveloppes_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -3099,7 +3250,9 @@ export interface operations {
   creer_api_enveloppes_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -3134,7 +3287,9 @@ export interface operations {
   supprimer_api_enveloppes__enveloppe_id__delete: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         enveloppe_id: string
       }
@@ -3165,7 +3320,9 @@ export interface operations {
   modifier_api_enveloppes__enveloppe_id__patch: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         enveloppe_id: string
       }
@@ -3202,7 +3359,9 @@ export interface operations {
   ajouter_mouvement_api_enveloppes__enveloppe_id__mouvements_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         enveloppe_id: string
       }
@@ -3239,7 +3398,9 @@ export interface operations {
   journal_api_enveloppes__enveloppe_id__journal_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path: {
         enveloppe_id: string
       }
@@ -3272,7 +3433,9 @@ export interface operations {
   preparation_api_enveloppes_preparation_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -3303,7 +3466,9 @@ export interface operations {
   appliquer_la_preparation_api_enveloppes_preparation_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -3338,7 +3503,9 @@ export interface operations {
   statistiques_api_statistiques_get: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -3371,7 +3538,9 @@ export interface operations {
       query?: {
         depuis?: string | null
       }
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null
@@ -3406,7 +3575,9 @@ export interface operations {
   valider_un_import_api_import_valider_post: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        'X-Mycounts-Vue'?: string | null
+      }
       path?: never
       cookie?: {
         mycounts_session?: string | null

@@ -12,9 +12,14 @@ type Props = {
   readonly surChangement: () => void
 }
 
-type Formulaire = { readonly nom: string; readonly produit: string; readonly ouverture: string }
+type Formulaire = {
+  readonly nom: string
+  readonly produit: string
+  readonly ouverture: string
+  readonly joint: boolean
+}
 
-const VIDE: Formulaire = { nom: '', produit: 'compte_courant', ouverture: '' }
+const VIDE: Formulaire = { nom: '', produit: 'compte_courant', ouverture: '', joint: false }
 
 /**
  * Comptes bancaires du foyer, une carte par compte.
@@ -60,7 +65,15 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
   function ouvrirEdition(compte: ComptePublic) {
     setErreur(null)
     setAjout(false)
-    setFormulaire({ nom: compte.nom, produit: compte.produit, ouverture: '' })
+    // `joint` reprend l'état réel du compte, sans que l'édition puisse le changer : la
+    // case n'est pas rendue en modification, et une valeur incohérente ici serait un piège
+    // pour qui la lirait plus tard.
+    setFormulaire({
+      nom: compte.nom,
+      produit: compte.produit,
+      ouverture: '',
+      joint: !compte.prive,
+    })
     setEnEdition(compte.id)
   }
 
@@ -89,7 +102,10 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
       } else {
         await api.creerCompte({
           nom: formulaire.nom.trim(),
-          prive: true,
+          // Un compte JOINT n'est pas privé : c'est ce seul drapeau qui décide dans
+          // laquelle des deux vues il apparaîtra, et il n'est pas modifiable ensuite —
+          // basculer un compte déjà mouvementé changerait qui voit son historique.
+          prive: !formulaire.joint,
           produit: formulaire.produit,
           solde_ouverture_centimes: ouverture,
         })
@@ -157,6 +173,28 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
           ? 'Compté dans l’épargne, jamais dans le solde du quotidien.'
           : 'Compté dans le solde du quotidien.'}
       </p>
+
+      {/* Le partage se décide à la CRÉATION et pas après : basculer un compte déjà
+          mouvementé changerait qui voit son historique, sans que personne l'ait demandé.
+          La case n'apparaît donc que pour un compte neuf. */}
+      {enEdition === null && (
+        <>
+          <label className={styles.etiquette} htmlFor="compte-joint">
+            <input
+              id="compte-joint"
+              type="checkbox"
+              checked={formulaire.joint}
+              onChange={(e) => setFormulaire({ ...formulaire, joint: e.target.checked })}
+            />{' '}
+            Compte joint du foyer
+          </label>
+          <p className={styles.note}>
+            {formulaire.joint
+              ? 'Visible par tous les membres du foyer, dans la vue « Le foyer ».'
+              : 'Visible de vous seul, dans la vue « Mon argent ».'}
+          </p>
+        </>
+      )}
 
       {ajout && (
         <>

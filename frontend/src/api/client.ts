@@ -5,9 +5,11 @@
  * réponse n'est écrit à la main ici : le serveur fait foi, et une divergence doit casser
  * la compilation plutôt que de se découvrir à l'exécution.
  */
+import { EN_TETE_VUE, vueCourante } from '../design/vue'
 import type { components } from './schema'
 
 export type UtilisateurPublic = components['schemas']['UtilisateurPublic']
+export type MembrePublic = components['schemas']['MembrePublic']
 export type InvitationCreee = components['schemas']['InvitationCreee']
 export type ComptePublic = components['schemas']['ComptePublic']
 export type CategoriePublique = components['schemas']['CategoriePublique']
@@ -98,10 +100,14 @@ async function appeler<T>(chemin: string, options: RequestInit = {}): Promise<T>
     // `FormData`, dont la frontière multipart est générée par le NAVIGATEUR : lui imposer
     // un type ici produirait un corps que le serveur ne sait pas découper, et l'erreur
     // arriverait sous la forme d'un 422 parlant de champ manquant.
-    headers:
-      options.body instanceof FormData
-        ? { ...options.headers }
-        : { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      // Le périmètre regardé accompagne CHAQUE requête. Le poser ici plutôt qu'à chaque
+      // appel est ce qui garantit qu'aucun ne l'oublie — et un appel qui l'oublierait
+      // recevrait les comptes personnels, jamais ceux du foyer.
+      [EN_TETE_VUE]: vueCourante(),
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...options.headers,
+    },
   })
 
   if (!reponse.ok) {
@@ -126,6 +132,10 @@ export const api = {
   deconnexion: () => appeler<void>('/auth/deconnexion', { method: 'POST' }),
 
   moi: () => appeler<UtilisateurPublic>('/auth/moi'),
+
+  /** Qui compose le foyer. Aucune donnée sensible : partager un compte joint ne donne
+   *  aucun droit sur l'argent de l'autre. */
+  membresDuFoyer: () => appeler<MembrePublic[]>('/foyer/membres'),
 
   creerInvitation: () => appeler<InvitationCreee>('/auth/invitations', { method: 'POST' }),
 

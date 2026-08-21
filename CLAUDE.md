@@ -63,6 +63,10 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   inverserait le signe attendu des opérations déjà classées, et donc des mois clos.
 - **Toute l'API vit sous `/api`** — un seul préfixe, aucune liste de chemins à
   synchroniser avec le proxy de développement.
+- **Deux mondes étanches : ses comptes, ceux du foyer.** La vue fait partie du PÉRIMÈTRE
+  (`Principal.vue`), pas de l'affichage : une fonction qui l'oublierait rendrait des
+  comptes qui ne sont pas les siens. Son défaut est PERSONNELLE — au pire on montre à
+  quelqu'un ses propres comptes ; l'inverse ferait fuiter par omission.
 - **Toute requête passe par `backend/mycounts/repository/`** — `scripts/verifier_scope_repository.py`
   refuse tout `select`/`execute` écrit ailleurs dans `backend/mycounts/`. Chaque lecture
   de données de foyer prend un `Principal` : le périmètre n'est jamais implicite.

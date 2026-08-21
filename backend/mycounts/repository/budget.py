@@ -17,7 +17,7 @@ import datetime as dt
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import ColumnElement, and_, func, or_, select
+from sqlalchemy import ColumnElement, and_, func, select
 from sqlalchemy.orm import Session
 
 from mycounts.domain.agregats import EtatOperation, OperationCalcul
@@ -33,7 +33,7 @@ from mycounts.models.budget import (
     Operation,
     TeinteCategorie,
 )
-from mycounts.repository.base import Principal
+from mycounts.repository.base import Principal, Vue
 
 
 def _comptes_autorises(principal: Principal) -> ColumnElement[bool]:
@@ -42,9 +42,20 @@ def _comptes_autorises(principal: Principal) -> ColumnElement[bool]:
     L'écrire une seconde fois dans une requête voisine est la façon la plus sûre de créer
     une fuite : les deux versions divergeront, et la plus permissive ne préviendra pas.
     """
+    if principal.vue is Vue.FOYER:
+        # Les comptes JOINTS, et eux seuls. Y ajouter les comptes privés de l'appelant
+        # ferait un total que personne ne pourrait interpréter — ni « ce que nous avons »,
+        # ni « ce que j'ai » — et ferait apparaître ses opérations personnelles dans un
+        # écran que son conjoint regarde aussi.
+        return and_(Compte.foyer_id == principal.foyer_id, Compte.prive.is_(False))
+
+    # Vue personnelle : ses propres comptes privés. Les comptes joints en sont exclus, pour
+    # la même raison en sens inverse — « combien j'ai » ne comprend pas la moitié du compte
+    # commun, dont la répartition n'appartient pas à cette application.
     return and_(
         Compte.foyer_id == principal.foyer_id,
-        or_(Compte.prive.is_(False), Compte.proprietaire_id == principal.utilisateur_id),
+        Compte.prive.is_(True),
+        Compte.proprietaire_id == principal.utilisateur_id,
     )
 
 

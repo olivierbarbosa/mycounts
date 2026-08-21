@@ -256,3 +256,122 @@
   line-height: 1.5;
   color: var(--couleur-texte-attenue);
 }
+
+/* La bascule de périmètre. Deux boutons de même poids : aucun des deux mondes n'est
+   secondaire, et en accentuer un ferait croire que l'autre est un mode dégradé. */
+.bascule {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.perimetre {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-s);
+  min-height: var(--cible-tactile);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.perimetre[aria-pressed='true'] {
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+}
+
+/* La phrase dit ce que la vue EXCLUT, pas seulement ce qu'elle montre : c'est l'absence
+   qui surprend, jamais la présence. Quelqu'un qui ne retrouve pas son livret doit
+   comprendre pourquoi sans avoir à chercher. */
+.noteBascule {
+  margin: 0;
+  color: var(--couleur-texte-faible);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* Les membres du foyer. Une pastille d'initiales plutôt qu'une image : l'avatar
+   téléversable n'existe pas encore, et une silhouette générique répétée trois fois
+   n'apprend rien à personne. */
+.membres {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.membre {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-m);
+  min-height: var(--cible-tactile);
+}
+
+.avatarMembre {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--couleur-surface-haute);
+  border: 1px solid var(--couleur-bordure);
+  font-size: 13px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.corpsMembre {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nomMembre {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+/* « vous » en pastille : dans une liste de deux personnes qui peuvent porter le même
+   prénom, c'est le seul repère fiable — et il vient du serveur, pas d'une comparaison
+   de noms faite à l'écran. */
+.vous {
+  padding: 1px var(--espace-s);
+  border-radius: var(--rayon-pilule);
+  background: color-mix(in srgb, var(--couleur-accent) 20%, transparent);
+  color: var(--couleur-texte);
+  font-size: 11px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.courrielMembre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--couleur-texte-faible);
+  font-size: 12px;
+}
+
+.titreBloc {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
