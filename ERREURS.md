@@ -1346,3 +1346,33 @@ qui désignait la mauvaise chose. Sept tests d'intégration, dont
 moitiés : ce qui doit disparaître et ce qui doit rester. Un test e2e vérifie que les deux
 zones sont sur deux écrans distincts — les réunir ferait revenir le défaut sans qu'aucun
 autre test ne le voie.
+
+## #045 — L'écran change de monde avant que les données n'arrivent
+
+**Ce que je croyais.** Que le défaut « Comptes bancaires 2 en vue joints » signalé par Olivier
+le 21 août venait uniquement du bundle périmé servi à son téléphone. Le serveur répondait
+juste, l'écran affichait faux : le cache expliquait tout.
+
+**Ce qu'il s'est passé.** Un test de bout en bout a échoué sur « element was detached from
+the DOM ». En lisant le journal plutôt qu'en durcissant le sélecteur, j'ai vu que le même
+état existait dans le code neuf, à l'échelle d'un aller-retour : `basculerVers` posait la
+nouvelle vue immédiatement, alors que la liste des comptes appartenait encore à l'ancienne.
+Pendant ce court instant, l'écran affichait « Comptes du foyer 2 » — le compteur des
+comptes PERSONNELS sous le libellé du foyer.
+
+**La cause.** Deux sources pour un même affichage, mises à jour à des instants différents :
+le libellé vient de `vue`, un état local et instantané ; le nombre vient de `comptes`, une
+prop rechargée par une requête. Tant qu'elles ne changent pas ensemble, il existe une
+fenêtre où l'écran compose une phrase dont chaque moitié est vraie et dont l'ensemble est
+faux.
+
+**Ce que ça dit de plus général.** Un chiffre faux ne devient pas acceptable parce qu'il ne
+dure pas — il est simplement plus difficile à attraper, et c'est pire : on le voit sans
+pouvoir le reproduire, donc on doute de soi plutôt que du programme. Et ce défaut ne se
+serait jamais montré sans un test qui a échoué pour une autre raison : le durcir sans lire
+son journal l'aurait enterré. Un test qui échoue est d'abord un témoin, pas un obstacle.
+
+**Le contrôle en place maintenant.** `basculerVers` est asynchrone : l'en-tête de vue part
+d'abord — c'est lui qui décide du périmètre servi — puis on ATTEND le rechargement avant de
+poser `vue`. L'écran montre l'ancien monde, entièrement cohérent, jusqu'à ce que le nouveau
+soit là.

@@ -149,3 +149,23 @@
   color: var(--couleur-texte);
   font-size: 15px;
 }
+
+/* État vide de la gestion des comptes. Il NOMME le monde qui est vide — « aucun compte »
+   sans plus laisserait croire que le foyer n'en a aucun, alors qu'il en a peut-être deux
+   dans l'autre vue. Bordure tiretée : il annonce une place à remplir, pas une carte. */
+.vide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+  padding: var(--espace-xl) var(--espace-l);
+  border: 1px dashed var(--couleur-bordure);
+  border-radius: var(--rayon-grand);
+  text-align: center;
+}
+
+.titreVide {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+  color: var(--couleur-texte);
+}

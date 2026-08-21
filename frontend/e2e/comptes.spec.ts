@@ -180,28 +180,37 @@ test('supprimer un compte qui porte des opérations est refusé, et l’archivag
   expect(revenus.map((compte) => compte.nom)).toContain(nom)
 })
 
-test('un compte joint se gère depuis la vue personnelle', async ({ page }) => {
-  /* L'écran de gestion liste les deux périmètres ; il doit pouvoir AGIR sur les deux.
+test('un compte joint se gère depuis la vue joints', async ({ page }) => {
+  /* Le sens de ce test a changé le 22 août 2026. Il vérifiait qu'un compte joint était
+   * gérable depuis la vue PERSONNELLE, l'écran listant alors les deux mondes. Olivier a
+   * tranché l'inverse : chaque vue montre le sien. Ce qui reste tenu ici, c'est qu'un
+   * compte joint est bel et bien gérable — l'écran l'affiche avec son solde, et le
+   * supprimer marche.
    *
-   * Lister sans pouvoir agir est le pire des deux états : le compte s'affiche sous le
-   * doigt et le serveur répond « Compte introuvable » — une panne à chercher là où il
-   * n'y en a pas. Signalé par Olivier le 21 août 2026 (ERREURS.md #043).
+   * La permission, elle, reste large des DEUX côtés : c'est un filet contre une action
+   * partie avec un en-tête de vue qui ne concorde plus avec la liste affichée. Mesuré
+   * côté intégration, dans `test_un_compte_joint_se_gere_depuis_la_vue_personnelle`.
    */
   const nom = `Joint ${Date.now()}`
   await connecter(page)
 
-  // Le décor passe par l'API : créer un compte joint depuis l'écran a ses propres tests,
-  // et le SUJET ici est ce qu'on peut lui faire ensuite, depuis l'autre vue.
+  // Le décor passe par l'API : créer un compte joint depuis l'écran a son propre test.
   await page.request.post('/api/comptes', {
     data: { nom, prive: false, produit: 'compte_courant', solde_ouverture_centimes: 1234 },
     headers: { 'X-Mycounts-Vue': 'foyer' },
   })
-
-  // La vue par défaut est PERSONNELLE : le compte joint n'y appartient pas.
   await page.reload()
-  await ouvrirComptes(page)
-  await expect(carte(page, nom), 'l’écran de gestion voit les deux mondes').toHaveCount(1)
-  await expect(carte(page, nom), 'et le montre avec son solde').toContainText('12')
+
+  await page.getByRole('button', { name: /^Paramètres de / }).click()
+  await page
+    .getByRole('group', { name: 'Périmètre' })
+    .getByRole('button', { name: 'Comptes joints' })
+    .click()
+  await page.getByRole('button', { name: 'Comptes du foyer' }).click()
+  await expect(page.getByRole('heading', { name: 'Comptes bancaires' })).toBeVisible()
+
+  await expect(carte(page, nom), 'la vue joints montre ses comptes').toHaveCount(1)
+  await expect(carte(page, nom), 'et leur solde').toContainText('12')
 
   await carte(page, nom)
     .getByRole('button', { name: `Supprimer ${nom}` })

@@ -337,11 +337,18 @@ def test_un_compte_qui_porte_une_VRAIE_operation_reste_protege(
     assert "Archivez-le" in refus.json()["detail"]
 
 
-def test_lecran_de_gestion_voit_les_DEUX_perimetres(
-    client: TestClient, session_bd: Session
-) -> None:
-    """L'étanchéité porte sur les soldes et les budgets, pas sur l'écran qui sert à créer
-    et supprimer des comptes."""
+def test_lecran_de_gestion_suit_la_vue(client: TestClient, session_bd: Session) -> None:
+    """Le sens de ce test s'est INVERSÉ le 22 août 2026.
+
+    Il exigeait auparavant que l'écran de gestion réunisse les deux périmètres, au motif
+    que l'étanchéité ne porte que sur les soldes. Olivier a tranché l'inverse : chaque vue
+    montre son monde, ici comme partout. Deux écrans qui répondent différemment à la même
+    bascule s'apprennent deux fois.
+
+    Ce que cette décision NE défait pas : agir sur un compte reste possible depuis les
+    deux vues — voir `test_un_compte_joint_se_gere_depuis_la_vue_personnelle`. La liste
+    s'est resserrée, pas les permissions.
+    """
     session_ouverte(client, session_bd)
     client.post(
         "/api/comptes", json={"nom": "Mon perso", "prive": True, "produit": "compte_courant"}
@@ -350,13 +357,11 @@ def test_lecran_de_gestion_voit_les_DEUX_perimetres(
         "/api/comptes", json={"nom": "Le joint", "prive": False, "produit": "compte_courant"}
     )
 
-    # Le périmètre courant reste étanche…
-    etanche = [c["nom"] for c in client.get("/api/comptes").json()]
-    assert etanche == ["Mon perso"]
-
-    # …mais l'écran de gestion voit les deux.
-    tous = [c["nom"] for c in client.get("/api/comptes?toutes_vues=true").json()]
-    assert sorted(tous) == ["Le joint", "Mon perso"]
+    for vue, attendu in [("personnelle", ["Mon perso"]), ("foyer", ["Le joint"])]:
+        gestion = client.get(
+            "/api/comptes?inclure_archives=true", headers={"X-Mycounts-Vue": vue}
+        ).json()
+        assert [c["nom"] for c in gestion] == attendu, f"vue {vue}"
 
 
 def test_un_compte_joint_se_gere_depuis_la_vue_personnelle(
@@ -385,7 +390,7 @@ def test_un_compte_joint_se_gere_depuis_la_vue_personnelle(
 
     efface = client.delete(f"/api/comptes/{joint['id']}")
     assert efface.status_code == 204, efface.text
-    assert client.get("/api/comptes?toutes_vues=true").json() == []
+    assert client.get("/api/comptes?inclure_archives=true").json() == []
 
 
 def test_un_compte_archive_reste_atteignable_dans_lecran_de_gestion(
@@ -409,7 +414,7 @@ def test_un_compte_archive_reste_atteignable_dans_lecran_de_gestion(
     # Il quitte les écrans qui proposent des comptes…
     assert client.get("/api/comptes").json() == []
     # …mais reste dans celui qui les gère, marqué comme tel.
-    gestion = client.get("/api/comptes?toutes_vues=true").json()
+    gestion = client.get("/api/comptes?inclure_archives=true").json()
     assert [(c["nom"], c["archive"]) for c in gestion] == [("A ranger", True)]
 
     # Et le chemin du retour existe.
@@ -421,37 +426,40 @@ def test_un_compte_archive_reste_atteignable_dans_lecran_de_gestion(
     assert [c["nom"] for c in client.get("/api/comptes").json()] == ["A ranger"]
 
 
-def test_le_solde_dun_compte_joint_nest_pas_zero_en_vue_personnelle(
+def test_le_solde_dun_compte_archive_est_rendu_a_lecran_de_gestion(
     client: TestClient, session_bd: Session
 ) -> None:
-    """Le périmètre des OPÉRATIONS suit le compte, pas la vue courante.
+    """« Archivés compris » était FAUX : la docstring l'annonçait, la boucle les excluait.
 
-    Les opérations sont filtrées par une jointure sur `compte` : les demander pour un
-    compte joint avec un principal en vue personnelle rend une liste vide, donc un solde
-    de zéro. Pas une absence, pas une erreur — un montant FAUX, affiché avec le même
-    aplomb qu'un montant juste. C'est la mesure qui peut rendre la réponse inverse.
+    Une carte archivée sans montant se lit comme un compte vide — pas comme un compte
+    rangé. La phrase a survécu des semaines parce que rien ne pouvait la contredire.
+
+    L'autre bord est mesuré dans le même test : le défaut écarte toujours les archivés,
+    sans quoi ils reviendraient dans les totaux qu'ils avaient quittés.
     """
     session_ouverte(client, session_bd)
-    joint = client.post(
+    compte = client.post(
         "/api/comptes",
         json={
-            "nom": "Le joint",
-            "prive": False,
+            "nom": "Range",
+            "prive": True,
             "produit": "compte_courant",
             "solde_ouverture_centimes": 1234,
         },
-        headers={"X-Mycounts-Vue": "foyer"},
     ).json()
+    client.patch(
+        f"/api/comptes/{compte['id']}",
+        json={"nom": "Range", "produit": "compte_courant", "archive": True},
+    )
 
     soldes = {
         s["compte_id"]: s["solde_centimes"]
-        for s in client.get("/api/comptes/soldes?toutes_vues=true").json()
+        for s in client.get("/api/comptes/soldes?inclure_archives=true").json()
     }
-    assert soldes.get(joint["id"]) == 1234
+    assert soldes.get(compte["id"]) == 1234
 
-    # Le défaut reste étanche : un total personnel n'a jamais vu ce compte.
-    etanches = client.get("/api/comptes/soldes").json()
-    assert [s["compte_id"] for s in etanches] == []
+    # Le défaut reste étanche : un écran qui totalise n'a jamais vu ce compte.
+    assert client.get("/api/comptes/soldes").json() == []
 
 
 def test_le_compte_prive_dun_autre_membre_reste_intouchable(
@@ -480,7 +488,7 @@ def test_le_compte_prive_dun_autre_membre_reste_intouchable(
     connecter(client, "bruno@essai.fr")
 
     # Bruno ne le voit pas, même dans l'écran qui réunit les deux périmètres.
-    assert client.get("/api/comptes?toutes_vues=true").json() == []
+    assert client.get("/api/comptes?inclure_archives=true").json() == []
     assert client.get("/api/comptes/soldes?toutes_vues=true").json() == []
 
     # Et il ne peut ni le renommer ni le supprimer. Un 404 et non un 403 : ici le compte

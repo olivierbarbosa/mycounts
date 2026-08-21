@@ -143,20 +143,57 @@ test('un en-tête de vue inconnu ne donne accès à rien de plus', async ({ page
   expect(comptes.map((compte) => compte.nom)).not.toContain(`Joint garde ${marque}`)
 })
 
-test('un compte joint se crée depuis l’écran des comptes', async ({ page }) => {
-  // Sans cet écran, la vue foyer resterait vide pour toujours : aucun compte joint
-  // n'était créable, `prive: true` étant écrit en dur.
+test('un compte joint se crée depuis la VUE joints', async ({ page }) => {
+  /* Sans cet écran, la vue foyer resterait vide pour toujours : aucun compte joint
+   * n'était créable, `prive: true` étant écrit en dur.
+   *
+   * La case « Compte joint du foyer » a disparu le 22 août 2026 : c'est la VUE qui décide.
+   * Depuis que l'écran ne liste que le périmètre courant, une case libre permettait de
+   * créer, en vue joints, un compte personnel qui s'évaporait de la liste où on venait
+   * de le créer. Un contrôle dont l'usage le plus naturel fait disparaître son résultat
+   * ne se corrige pas par un avertissement.
+   */
   const nom = `Commun ${Date.now()}`
   await connecter(page)
   await page.getByRole('button', { name: /^Paramètres de / }).click()
-  await page.getByRole('button', { name: 'Comptes bancaires' }).click()
-  await page.getByRole('button', { name: 'Ajouter un compte' }).click()
+  await page
+    .getByRole('group', { name: 'Périmètre' })
+    .getByRole('button', { name: 'Comptes joints' })
+    .click()
 
-  await page.getByLabel('Nom du compte').fill(nom)
-  await page.getByLabel('Compte joint du foyer').check()
-  await expect(page.getByText(/Visible par tous les membres du foyer/)).toBeVisible()
-  await page.getByRole('button', { name: 'Créer le compte' }).click()
-  await expect(page.getByRole('button', { name: 'Ajouter un compte' })).toBeVisible()
+  /* Tout est cadré sur le PANNEAU : l'accueil reste monté derrière lui et porte, quand
+   * le foyer n'a aucun compte joint, un bouton « Créer un compte joint » du même nom. Un
+   * sélecteur global attrape celui-là, que le panneau recouvre — le clic part alors sur
+   * un élément intercepté et le test expire sans rien dire d'utile. */
+  const panneau = page.getByRole('dialog', { name: 'Paramètres' })
+
+  /* Deux chemins mènent à l'écran des comptes, selon ce que le foyer contient déjà :
+   * l'invitation quand il est vide, la rubrique sinon. Le test accepte les deux — l'ordre
+   * d'exécution des fichiers ne dit pas lequel s'appliquera, et un test qui n'en
+   * connaîtrait qu'un échouerait selon son rang, la pire forme d'échec : intermittente. */
+  const rubrique = panneau.getByRole('button', { name: 'Comptes du foyer' })
+  const invitation = panneau.getByRole('button', { name: 'Créer un compte joint' })
+
+  /* On ATTEND que l'un des deux existe avant de choisir. `isVisible()` répond tout de
+     suite, sans attendre : interrogé pendant que la bascule recharge, il dit « non » sur
+     les deux et le test part sur une branche qui n'apparaîtra jamais. Une question posée
+     trop tôt reçoit une réponse fausse, pas une erreur. */
+  await expect(rubrique.or(invitation).first()).toBeVisible()
+  if (await rubrique.isVisible()) await rubrique.click()
+  else await invitation.click()
+  await expect(panneau.getByRole('heading', { name: 'Comptes bancaires' })).toBeVisible()
+
+  /* `.last()` : le sous-écran est POSÉ sur la racine du panneau, qui reste montée —
+     l'invitation des paramètres est donc encore dans le DOM, avec le même libellé. Le
+     dernier des deux est celui de l'écran qu'on regarde. */
+  await panneau
+    .getByRole('button', { name: /Créer un compte joint|Ajouter un compte/ })
+    .last()
+    .click()
+  await panneau.getByLabel('Nom du compte').fill(nom)
+  await expect(panneau.getByText(/Ce compte sera JOINT/)).toBeVisible()
+  await panneau.getByRole('button', { name: 'Créer le compte' }).click()
+  await expect(panneau.getByRole('heading', { name: 'Comptes bancaires' })).toBeVisible()
 
   const joints = (await (
     await page.request.get('/api/comptes', {

@@ -29,18 +29,27 @@ async function connecter(page: Page) {
   await expect(page.locator('nav')).toBeVisible()
 }
 
-async function ouvrirParametres(page: Page) {
+/* La vue est PERSISTÉE dans `localStorage` : elle survit d'un test à l'autre et même
+ * d'une exécution à l'autre. Chaque helper la pose donc explicitement, au lieu de
+ * supposer celle qu'un test précédent a laissée. Un test qui dépend de son rang
+ * d'exécution échoue par intermittence, ce qui est la pire forme d'échec — on finit par
+ * le relancer au lieu de le lire. */
+async function ouvrirParametres(page: Page, vue: 'personnelle' | 'foyer') {
   await page.getByRole('button', { name: /^Paramètres de / }).click()
+  const capsule = vue === 'foyer' ? 'Comptes joints' : 'Compte personnel'
+  await page.getByRole('group', { name: 'Périmètre' }).getByRole('button', { name: capsule }).click()
 }
 
 async function ouvrirFoyer(page: Page) {
-  await ouvrirParametres(page)
-  await page.getByRole('button', { name: 'Foyer' }).click()
+  // « Foyer » ne vit que dans la vue joints : c'est le monde qu'il décrit.
+  await ouvrirParametres(page, 'foyer')
+  await page.getByRole('button', { name: 'Foyer', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Membres' })).toBeVisible()
 }
 
 async function ouvrirMonCompte(page: Page) {
-  await ouvrirParametres(page)
+  // « Mon compte » ne vit que dans la vue personnelle : c'est son identité, pas le foyer.
+  await ouvrirParametres(page, 'personnelle')
   await page.getByRole('button', { name: 'Mon compte' }).click()
   await expect(page.getByRole('heading', { name: 'Supprimer mon compte' })).toBeVisible()
 }
@@ -71,7 +80,13 @@ test('arrêter de partager et disparaître sont deux écrans', async ({ page }) 
     'effacer son compte n’a rien à faire sur l’écran du foyer',
   ).toHaveCount(0)
 
+  // Retour à la racine du panneau, puis l'autre monde. Le panneau reste ouvert : la
+  // bulle qui le lance est dessous, la recliquer ne rouvrirait rien.
   await page.getByRole('button', { name: 'Retour', exact: true }).click()
+  await page
+    .getByRole('group', { name: 'Périmètre' })
+    .getByRole('button', { name: 'Compte personnel' })
+    .click()
   await page.getByRole('button', { name: 'Mon compte' }).click()
   await expect(page.getByRole('heading', { name: 'Supprimer mon compte' })).toBeVisible()
   await expect(

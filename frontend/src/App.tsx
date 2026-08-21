@@ -25,6 +25,7 @@ import { vueCourante } from './design/vue'
 import { Enveloppes } from './ecrans/Enveloppes'
 import { Epargne } from './ecrans/Epargne'
 import { ImportReleve } from './ecrans/ImportReleve'
+import { AucunCompteJoint } from './composants/AucunCompteJoint'
 import { PremierCompte } from './ecrans/PremierCompte'
 import { Statistiques } from './ecrans/Statistiques'
 import { Parametres } from './ecrans/Parametres'
@@ -63,6 +64,11 @@ export function App() {
   // il doit naître. Deux états séparés auraient pu se contredire — panneau ouvert sans
   // origine, et une transition partant du coin haut-gauche de l'écran.
   const [origineParametres, setOrigineParametres] = useState<Origine | null>(null)
+  /* Rubrique visée à l'ouverture. `null` quand on ouvre depuis l'avatar : on ne vise
+     alors rien en particulier. L'état vide de l'accueil, lui, ouvre droit sur les
+     comptes — c'est la seule action qu'il propose, et la faire chercher dans une liste
+     de cinq rubriques annulerait ce qu'un état vide sert à éviter. */
+  const [rubriqueParametres, setRubriqueParametres] = useState<'comptes' | null>(null)
   // Même règle que pour les paramètres : l'origine porte l'ouverture. Un booléen séparé
   // aurait pu se contredire — écran ouvert sans origine, et une éclosion partant du coin
   // haut-gauche au lieu de la bulle touchée.
@@ -122,6 +128,12 @@ export function App() {
     return <PremierCompte surCreation={apresEcriture} />
   }
 
+  /* Vue foyer sans aucun compte joint : l'invitation prend la place du CONTENU, jamais
+     celle de la navigation. Les quatre onglets mesuraient sinon un ensemble vide — un
+     solde à 0,00 €, des jauges consommées à 0 % par des comptes qui n'existent pas.
+     Voir `AucunCompteJoint` pour le détail du raisonnement. */
+  const aucunCompteJoint = comptes.length === 0
+
   return (
     <>
       <div
@@ -130,7 +142,16 @@ export function App() {
         key={onglet}
         className={sens === 'droite' ? 'mouvement-entree-droite' : 'mouvement-entree-gauche'}
       >
-        {onglet === 'accueil' && (
+        {aucunCompteJoint && (
+          <AucunCompteJoint
+            surCreation={(origine) => {
+              setRubriqueParametres('comptes')
+              setOrigineParametres(origine)
+            }}
+          />
+        )}
+
+        {!aucunCompteJoint && onglet === 'accueil' && (
           <Accueil
             comptes={comptes}
             categories={categories}
@@ -145,7 +166,7 @@ export function App() {
           />
         )}
 
-        {onglet === 'budget' && (
+        {!aucunCompteJoint && onglet === 'budget' && (
           <Budget
             categories={categories}
             rafraichissement={rafraichissement}
@@ -153,7 +174,7 @@ export function App() {
           />
         )}
 
-        {onglet === 'enveloppes' && (
+        {!aucunCompteJoint && onglet === 'enveloppes' && (
           <Enveloppes
             categories={categories}
             rafraichissement={rafraichissement}
@@ -161,7 +182,7 @@ export function App() {
           />
         )}
 
-        {onglet === 'epargne' && (
+        {!aucunCompteJoint && onglet === 'epargne' && (
           <Epargne
             rafraichissement={rafraichissement}
             surCompteChoisi={setLivretChoisi}
@@ -178,7 +199,11 @@ export function App() {
         cote="gauche"
         rang={0}
         libelle={`Paramètres de ${utilisateur.nom_affichage}`}
-        surOuverture={setOrigineParametres}
+        surOuverture={(origine) => {
+          // Ouvrir depuis l'avatar ne vise aucune rubrique : on arrive à la racine.
+          setRubriqueParametres(null)
+          setOrigineParametres(origine)
+        }}
       >
         <span aria-hidden>{initialesDeLUtilisateur(utilisateur.nom_affichage)}</span>
       </Bulle>
@@ -199,10 +224,14 @@ export function App() {
       <BarreOnglets
         onglets={ONGLETS}
         actif={onglet}
-        surAjout={() => {
-          setSensDeLaSaisie(undefined)
-          setSaisieOuverte(true)
-        }}
+        surAjout={
+          aucunCompteJoint
+            ? null
+            : () => {
+                setSensDeLaSaisie(undefined)
+                setSaisieOuverte(true)
+              }
+        }
         surChangement={(cle) => {
           const depart = ONGLETS.findIndex((o) => o.cle === onglet)
           const arrivee = ONGLETS.findIndex((o) => o.cle === cle)
@@ -274,6 +303,7 @@ export function App() {
       {origineParametres !== null && (
         <Parametres
           origine={origineParametres}
+          sousMenuInitial={rubriqueParametres}
           utilisateur={utilisateur}
           categories={categories}
           comptes={comptes}

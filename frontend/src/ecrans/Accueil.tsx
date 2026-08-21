@@ -241,6 +241,10 @@ export function Accueil({
         )}
       </section>
 
+      {/* « Aucun compte » et « aucune opération » sont deux faits DIFFÉRENTS. Le
+          premier est traité plus haut, par un retour anticipé : il n'y a alors rien à
+          mesurer, donc rien à afficher d'autre que l'invitation. Ici, des comptes
+          existent — leur journal est simplement vide sur la période. */}
       {journal.length === 0 ? (
         <div className={styles.vide}>
           <p>Aucune opération sur cette période.</p>

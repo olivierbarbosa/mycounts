@@ -64,30 +64,30 @@ def _en_compte(compte: Compte) -> ComptePublic:
 def lister_comptes(
     session: SessionBase,
     principal: PrincipalCourant,
-    toutes_vues: bool = Query(
+    inclure_archives: bool = Query(
         default=False,
         description=(
-            "Lister aussi les comptes de l'autre périmètre. Réservé à l'écran de GESTION "
-            "des comptes : les écrans de budget doivent rester étanches."
+            "Rendre aussi les comptes archivés. Réservé à l'écran de GESTION : les "
+            "écrans qui proposent ou totalisent des comptes ne doivent pas les voir."
         ),
     ),
 ) -> list[ComptePublic]:
-    """Les comptes du périmètre courant, ou tous ceux que l'appelant peut voir.
+    """Les comptes du périmètre courant.
 
-    `toutes_vues` sert à l'écran de gestion, et à lui seul. L'étanchéité des deux mondes
-    porte sur les SOLDES et les budgets — mélanger un compte joint à un total personnel
-    donnerait un chiffre que personne ne peut interpréter. Elle n'a pas de sens dans un
-    écran qui sert à créer, renommer et supprimer : ne pas y voir un compte joint parce
-    qu'on se trouve en vue personnelle rendait ce compte impossible à supprimer sans
-    comprendre pourquoi.
+    Le périmètre suit la VUE, ici comme partout ailleurs. Un paramètre `toutes_vues` a
+    brièvement existé, qui réunissait les deux mondes dans l'écran de gestion ; il est
+    retiré le 22 août 2026 au profit d'une règle unique — chaque vue montre son monde, et
+    l'on bascule pour voir l'autre. Deux écrans qui répondent différemment à la même
+    bascule s'apprennent deux fois.
 
-    Ce paramètre n'élargit RIEN : il réunit les deux périmètres que l'appelant a déjà le
-    droit de voir séparément, jamais les comptes privés de quelqu'un d'autre. Il rend
-    aussi les comptes ARCHIVÉS, que cet écran est le seul à pouvoir désarchiver.
+    `inclure_archives` reste, lui, indispensable : l'écran qui propose l'archivage doit
+    continuer de montrer ce qu'il a rangé, sinon l'action est sans retour
+    (ERREURS.md #043).
     """
-    if not toutes_vues:
-        return [_en_compte(c) for c in depot.comptes_visibles(session, principal)]
-    return [_en_compte(c) for c in depot.comptes_a_gerer(session, principal)]
+    return [
+        _en_compte(c)
+        for c in depot.comptes_visibles(session, principal, inclure_archives=inclure_archives)
+    ]
 
 
 @routeur.post("/comptes", response_model=ComptePublic, status_code=status.HTTP_201_CREATED)
@@ -149,58 +149,38 @@ def catalogue_des_comptes(principal: PrincipalCourant) -> list[ProduitPublic]:
 def soldes_des_comptes(
     session: SessionBase,
     principal: PrincipalCourant,
-    toutes_vues: bool = Query(
+    inclure_archives: bool = Query(
         default=False,
-        description=(
-            "Rendre aussi les soldes de l'autre périmètre. Réservé à l'écran de GESTION "
-            "des comptes, comme sur `GET /comptes`."
-        ),
+        description="Rendre aussi les soldes des comptes archivés, comme `GET /comptes`.",
     ),
 ) -> list[SoldeDeCompte]:
-    """Solde RÉEL de chaque compte, archivés compris.
+    """Solde RÉEL de chaque compte du périmètre courant.
 
     Le réel et non le projeté : une carte de compte répond à « combien y a-t-il dessus »,
     pas à « combien restera-t-il ». Y projeter des échéances ferait diverger le chiffre de
     ce que la banque affiche, qui est la seule référence pour un rapprochement.
 
-    « Archivés compris » était FAUX jusqu'au 21 août 2026 : la docstring l'annonçait, la
-    boucle passait par `comptes_visibles`, qui filtre `archive = false`. Un compte archivé
-    s'affichait donc sans son solde. Une phrase de documentation n'est pas une mesure —
-    celle-ci a survécu parce que rien ne pouvait la contredire (ERREURS.md #043).
-
-    `toutes_vues` suit `GET /comptes` : l'écran de gestion liste les deux périmètres, et
-    des cartes sans montant sur la moitié d'entre elles se lisent comme un compte vide.
-    Les écrans qui totalisent gardent le défaut — un solde ne mélange jamais les mondes.
+    La docstring annonçait « archivés compris » alors que la boucle les excluait, et cette
+    phrase a survécu des semaines parce que rien ne pouvait la contredire (ERREURS.md
+    #043). Ils le sont maintenant, mais seulement sur demande : une carte archivée sans
+    montant se lit comme un compte vide.
     """
     jour = aujourd_hui()
-    comptes = (
-        depot.comptes_a_gerer(session, principal)
-        if toutes_vues
-        else depot.comptes_visibles(session, principal)
-    )
     return [
         SoldeDeCompte(
             compte_id=compte.id,
             solde_centimes=int(
                 calculer(
                     Agregat.SOLDE_REEL,
-                    depot.operations_pour_calcul(
-                        session,
-                        # Le périmètre des OPÉRATIONS suit celui du compte, pas la vue
-                        # courante : demander les lignes d'un compte joint avec un
-                        # principal en vue personnelle rend une liste vide, donc un solde
-                        # de zéro — un chiffre faux, et faux sans rien dire.
-                        depot.perimetre_du_compte(principal, compte)
-                        if toutes_vues
-                        else principal,
-                        comptes=[compte.id],
-                    ),
+                    depot.operations_pour_calcul(session, principal, comptes=[compte.id]),
                     aujourd_hui=jour,
                     fin_de_fenetre=jour,
                 )
             ),
         )
-        for compte in comptes
+        for compte in depot.comptes_visibles(
+            session, principal, inclure_archives=inclure_archives
+        )
     ]
 
 

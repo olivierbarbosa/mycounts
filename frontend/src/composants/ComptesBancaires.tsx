@@ -3,6 +3,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react'
 
 import type { ComptePublic, ProduitPublic } from '../api/client'
 import { ErreurApi, api } from '../api/client'
+import { vueCourante } from '../design/vue'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import { Montant } from './Montant'
 import styles from './ComptesBancaires.module.css'
@@ -16,10 +17,9 @@ type Formulaire = {
   readonly nom: string
   readonly produit: string
   readonly ouverture: string
-  readonly joint: boolean
 }
 
-const VIDE: Formulaire = { nom: '', produit: 'compte_courant', ouverture: '', joint: false }
+const VIDE: Formulaire = { nom: '', produit: 'compte_courant', ouverture: '' }
 
 /**
  * Comptes bancaires du foyer, une carte par compte.
@@ -34,6 +34,9 @@ const VIDE: Formulaire = { nom: '', produit: 'compte_courant', ouverture: '', jo
  * proposé à la place, et le refus dit pourquoi.
  */
 export function ComptesBancaires({ comptes, surChangement }: Props) {
+  // Lue au rendu et non mise en état : l'écran est remonté à chaque bascule, et un état
+  // figé au montage afficherait le monde qu'on venait de quitter.
+  const jointe = vueCourante() === 'foyer'
   const [catalogue, setCatalogue] = useState<readonly ProduitPublic[]>([])
   const [soldes, setSoldes] = useState<ReadonlyMap<string, number>>(new Map())
   const [enEdition, setEnEdition] = useState<string | null>(null)
@@ -42,22 +45,22 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
   const [aSupprimer, setASupprimer] = useState<ComptePublic | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
 
-  /* Cet écran charge SA propre liste, les deux périmètres réunis.
+  /* Cet écran charge SA propre liste : celle de la vue courante, ARCHIVÉS COMPRIS.
    *
-   * La liste reçue en prop est celle des écrans de budget : elle est étanche, et c'est
-   * voulu — un solde ne mélange jamais le personnel et le joint. Mais ici on gère les
-   * comptes, on ne les additionne pas : ne pas voir un compte joint parce qu'on se trouve
-   * en vue personnelle le rendait impossible à supprimer sans comprendre pourquoi.
+   * La liste reçue en prop est celle des écrans de budget, qui écartent les archivés —
+   * ils ne doivent plus être proposés à la saisie. Ici on gère les comptes : celui qu'on
+   * vient de ranger doit rester visible, sinon l'archivage est un aller sans retour.
    *
-   * `toutes_vues` n'élargit aucun droit : il réunit deux périmètres que l'appelant peut
-   * déjà consulter séparément. */
-  const [tous, setTous] = useState<readonly ComptePublic[]>([])
+   * Le PÉRIMÈTRE, lui, suit la vue comme partout ailleurs. Une version intermédiaire
+   * réunissait les deux mondes dans cet écran ; deux écrans qui répondent différemment à
+   * la même bascule s'apprennent deux fois. */
+  const [tous, setTous] = useState<readonly ComptePublic[] | null>(null)
 
   const charger = useCallback(async () => {
     const [produits, montants, liste] = await Promise.all([
       api.catalogueDesComptes(),
-      api.soldesDeTousLesComptes(),
-      api.tousLesComptes(),
+      api.soldesAGerer(),
+      api.comptesAGerer(),
     ])
     setCatalogue(produits)
     setSoldes(new Map(montants.map((s) => [s.compte_id, s.solde_centimes])))
@@ -78,15 +81,7 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
   function ouvrirEdition(compte: ComptePublic) {
     setErreur(null)
     setAjout(false)
-    // `joint` reprend l'état réel du compte, sans que l'édition puisse le changer : la
-    // case n'est pas rendue en modification, et une valeur incohérente ici serait un piège
-    // pour qui la lirait plus tard.
-    setFormulaire({
-      nom: compte.nom,
-      produit: compte.produit,
-      ouverture: '',
-      joint: !compte.prive,
-    })
+    setFormulaire({ nom: compte.nom, produit: compte.produit, ouverture: '' })
     setEnEdition(compte.id)
   }
 
@@ -115,10 +110,12 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
       } else {
         await api.creerCompte({
           nom: formulaire.nom.trim(),
-          // Un compte JOINT n'est pas privé : c'est ce seul drapeau qui décide dans
-          // laquelle des deux vues il apparaîtra, et il n'est pas modifiable ensuite —
-          // basculer un compte déjà mouvementé changerait qui voit son historique.
-          prive: !formulaire.joint,
+          // Un compte JOINT n'est pas privé : ce seul drapeau décide dans laquelle des
+          // deux vues il apparaîtra, et il n'est pas modifiable ensuite — basculer un
+          // compte déjà mouvementé changerait qui voit son historique. Il est déduit de
+          // la vue en cours, seul endroit où l'utilisateur a déjà exprimé le monde qu'il
+          // regarde ; le lui redemander dans le formulaire permettait de le contredire.
+          prive: !jointe,
           produit: formulaire.produit,
           solde_ouverture_centimes: ouverture,
         })
@@ -203,23 +200,18 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
       {/* Le partage se décide à la CRÉATION et pas après : basculer un compte déjà
           mouvementé changerait qui voit son historique, sans que personne l'ait demandé.
           La case n'apparaît donc que pour un compte neuf. */}
+      {/* Plus de case à cocher : c'est la VUE qui décide, et elle seule.
+          Depuis que l'écran ne liste que le périmètre courant, une case libre permettait
+          de créer, en vue joints, un compte personnel qui disparaissait aussitôt de la
+          liste où on venait de le créer. Un contrôle dont l'usage le plus naturel fait
+          s'évaporer son résultat ne se corrige pas par un avertissement. */}
       {enEdition === null && (
-        <>
-          <label className={styles.etiquette} htmlFor="compte-joint">
-            <input
-              id="compte-joint"
-              type="checkbox"
-              checked={formulaire.joint}
-              onChange={(e) => setFormulaire({ ...formulaire, joint: e.target.checked })}
-            />{' '}
-            Compte joint du foyer
-          </label>
-          <p className={styles.note}>
-            {formulaire.joint
-              ? 'Visible par tous les membres du foyer, dans la vue « Le foyer ».'
-              : 'Visible de vous seul, dans la vue « Mon argent ».'}
-          </p>
-        </>
+        <p className={styles.note}>
+          {jointe
+            ? 'Ce compte sera JOINT : visible par tous les membres du foyer.'
+            : 'Ce compte sera PERSONNEL : visible de vous seul.'}{' '}
+          C’est la vue en cours qui le décide — basculez pour créer l’autre.
+        </p>
       )}
 
       {ajout && (
@@ -243,8 +235,26 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
 
   return (
     <div className={styles.bloc}>
+      {/* Un état vide DIT lequel des deux mondes est vide, et propose l'action.
+          « Aucun compte » sans plus laisserait croire que le foyer n'en a aucun, alors
+          qu'il en a peut-être deux dans l'autre vue. Et il ne s'affiche qu'une fois la
+          liste ARRIVÉE : `null` tant qu'elle est en vol, sans quoi l'écran annonce
+          « aucun compte joint » pendant la requête qui va en rendre trois. */}
+      {tous !== null && tous.length === 0 && !ajout && (
+        <div className={styles.vide}>
+          <p className={styles.titreVide}>
+            {jointe ? 'Aucun compte joint' : 'Aucun compte personnel'}
+          </p>
+          <p className={styles.note}>
+            {jointe
+              ? 'Un compte joint est visible de tous les membres du foyer, et sert à ce que vous payez ensemble.'
+              : 'Un compte personnel n’est visible que de vous, opérations comprises.'}
+          </p>
+        </div>
+      )}
+
       <ul className={styles.liste}>
-        {tous.map((compte) => (
+        {(tous ?? []).map((compte) => (
           <li key={compte.id} className={styles.carte}>
             {enEdition === compte.id ? (
               <form className={styles.formulaire} onSubmit={enregistrer} noValidate>
@@ -380,7 +390,7 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
       ) : (
         <button type="button" className={styles.secondaire} onClick={ouvrirAjout}>
           <Plus size={16} strokeWidth={2} aria-hidden />
-          Ajouter un compte
+          {jointe ? 'Créer un compte joint' : 'Ajouter un compte'}
         </button>
       )}
     </div>

@@ -103,12 +103,24 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   celui qui veut détruire, mais celui qui ne le veut pas et dont le doigt a glissé.
   `repository/auth.supprimer_le_foyer` reste le seul endroit autorisé à tout défaire.
   Aucune sauvegarde, aucune corbeille.
-- **Afficher un objet est une promesse qu'on peut agir dessus.** L'écran de gestion des
-  comptes liste les DEUX périmètres et les archivés : ses actions unitaires doivent suivre,
-  via `compte_administrable` et `comptes_a_gerer`. Lister large et agir étroit ne produit
-  pas un refus mais un mensonge — « introuvable » à propos de ce qui est à l'écran
-  (ERREURS.md #043). Les écrans qui TOTALISENT gardent `compte_visible` : un solde ne
-  mélange jamais les deux mondes.
+- **Chaque vue montre son monde, partout.** Les rubriques des paramètres suivent la vue,
+  l'écran de gestion des comptes aussi (`inclure_archives`, jamais `toutes_vues`), et le
+  drapeau `prive` d'un compte neuf est DÉDUIT de la vue — jamais redemandé dans le
+  formulaire, où l'on pouvait le contredire et créer un compte qui s'évaporait de la liste.
+  Deux écrans qui répondraient différemment à la même bascule s'apprennent deux fois.
+- **Afficher un objet est une promesse qu'on peut agir dessus.** La LISTE se resserre sur
+  la vue courante, mais `compte_administrable` reste large des deux côtés : une action part
+  avec l'en-tête du moment où l'on clique, et refuser dès qu'il ne concorde plus produirait
+  un « introuvable » à propos de ce qui est à l'écran (ERREURS.md #043). Les écrans qui
+  TOTALISENT gardent `compte_visible` : un solde ne mélange jamais les deux mondes.
+- **Un périmètre vide n'affiche AUCUNE mesure.** Sans compte joint, la vue foyer montre
+  l'invitation et rien d'autre — pas de solde à 0,00 €, pas de jauge, pas de bouton de
+  saisie. « Zéro » répond faux à une question dont la vraie réponse est « il n'y a rien à
+  compter ». Mais l'écran vidé garde la bascule et « Foyer » : un état vide ne doit jamais
+  emporter la porte de sortie.
+- **Le libellé et le chiffre changent ENSEMBLE.** `basculerVers` attend les données du
+  nouveau monde avant de poser la vue : les mettre à jour séparément affiche l'ancien
+  compte sous le nouveau nom (ERREURS.md #045).
 - **Un état d'attente affiché par défaut est un état d'attente qui ment.** « Rien reçu » et
   « reçu que c'est vide » sont deux faits distincts : les confondre rend la panne
   rigoureusement indistinguable du fonctionnement normal (ERREURS.md #041).

@@ -16,8 +16,11 @@ type Props = {
   readonly onglets: readonly Onglet[]
   readonly actif: string
   readonly surChangement: (cle: string) => void
-  /** Action d'ajout, dans sa PROPRE capsule à droite de la barre. */
-  readonly surAjout: () => void
+  /** Action d'ajout, dans sa PROPRE capsule à droite de la barre. `null` la retire :
+   *  un périmètre sans aucun compte n'a nulle part où écrire, et le bouton ouvrirait une
+   *  feuille de saisie sans compte à proposer. Retirer vaut mieux que griser — un bouton
+   *  grisé sans explication se lit comme une panne. */
+  readonly surAjout: (() => void) | null
 }
 
 /** Navigation principale, en bas de l'écran et en Liquid Glass.
@@ -80,14 +83,16 @@ export function BarreOnglets({ onglets, actif, surChangement, surAjout }: Props)
         })}
       </div>
 
-      <button
-        type="button"
-        className={styles.ajouter}
-        onClick={surAjout}
-        aria-label="Saisir une opération"
-      >
-        <Plus size={24} strokeWidth={2.5} aria-hidden />
-      </button>
+      {surAjout !== null && (
+        <button
+          type="button"
+          className={styles.ajouter}
+          onClick={surAjout}
+          aria-label="Saisir une opération"
+        >
+          <Plus size={24} strokeWidth={2.5} aria-hidden />
+        </button>
+      )}
     </nav>
   )
 }

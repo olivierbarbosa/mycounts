@@ -140,7 +140,11 @@ def supprimer_compte(session: Session, compte: Compte) -> None:
 
 
 def comptes_visibles(
-    session: Session, principal: Principal, *, type_compte: TypeCompte | None = None
+    session: Session,
+    principal: Principal,
+    *,
+    type_compte: TypeCompte | None = None,
+    inclure_archives: bool = False,
 ) -> list[Compte]:
     """Comptes que l'appelant peut voir, éventuellement d'un seul type.
 
@@ -148,11 +152,15 @@ def comptes_visibles(
     donc l'attribut vaut une chaîne à l'exécution et non un membre de `TypeCompte`. Un
     `is` sur cette valeur est faux pour TOUS les comptes, silencieusement — c'est ce qui
     a d'abord rendu une épargne vide.
+
+    `inclure_archives` sert à l'écran de GESTION, et à lui seul. Le défaut les écarte :
+    un compte archivé ne doit plus être proposé à la saisie ni compté dans un total. Mais
+    l'écran qui propose l'archivage doit continuer de montrer ce qu'il a rangé, sinon
+    l'action présentée comme réversible est sans retour (ERREURS.md #043).
     """
-    conditions: list[ColumnElement[bool]] = [
-        _comptes_autorises(principal),
-        Compte.archive.is_(False),
-    ]
+    conditions: list[ColumnElement[bool]] = [_comptes_autorises(principal)]
+    if not inclure_archives:
+        conditions.append(Compte.archive.is_(False))
     if type_compte is not None:
         conditions.append(Compte.type_compte == type_compte)
     return list(
@@ -171,7 +179,7 @@ def compte_visible(session: Session, principal: Principal, compte_id: uuid.UUID)
 
 
 def _comptes_administrables(principal: Principal) -> ColumnElement[bool]:
-    """Les deux périmètres RÉUNIS, pour l'écran qui gère les comptes.
+    """Les deux périmètres RÉUNIS, pour AGIR sur un compte déjà désigné.
 
     N'élargit aucun droit, et c'est la seule raison pour laquelle cette condition a le
     droit d'exister : elle réunit ce que l'appelant voit déjà en basculant de vue, jamais
@@ -179,43 +187,15 @@ def _comptes_administrables(principal: Principal) -> ColumnElement[bool]:
     plutôt que réécrite — une seconde version de la règle de confidentialité divergerait
     de la première, et c'est la plus permissive des deux qui ne préviendrait pas.
 
-    L'étanchéité des deux mondes porte sur les SOLDES et les budgets : additionner un
-    compte joint à un total personnel donne un chiffre que personne ne peut interpréter.
-    Elle n'a aucun sens dans un écran qui sert à renommer, archiver et supprimer.
+    Depuis le 22 août 2026, l'écran de gestion ne LISTE plus qu'un périmètre à la fois :
+    il suit la vue, comme le reste de l'application. Cette condition reste néanmoins plus
+    large que la vue courante, et volontairement — c'est un filet. Une action part avec
+    l'en-tête de vue du moment où l'on clique ; refuser dès que celui-ci ne concorde plus
+    avec la liste affichée produirait un « Compte introuvable » à propos de quelque chose
+    qui est à l'écran. Ce message-là envoie chercher une panne qui n'existe pas, et c'est
+    exactement ce qui s'est produit (ERREURS.md #043).
     """
     return or_(*(_comptes_autorises(replace(principal, vue=vue)) for vue in Vue))
-
-
-def comptes_a_gerer(session: Session, principal: Principal) -> list[Compte]:
-    """Tous les comptes que l'appelant administre, ARCHIVÉS COMPRIS.
-
-    Les archivés en font partie, et c'est une correction du 21 août 2026. L'écran de
-    gestion propose l'archivage comme l'alternative douce à une suppression refusée, mais
-    la liste filtrait `archive = false` : le compte disparaissait de l'écran même qui
-    venait de le proposer, et devenait impossible à désarchiver comme à supprimer.
-    L'action présentée comme réversible était sans retour (ERREURS.md #043).
-    """
-    return list(
-        session.execute(
-            select(Compte)
-            .where(_comptes_administrables(principal))
-            .order_by(Compte.nom)
-        ).scalars()
-    )
-
-
-def perimetre_du_compte(principal: Principal, compte: Compte) -> Principal:
-    """Le principal dans lequel CE compte est visible, quelle que soit la vue courante.
-
-    Un solde se calcule à partir des opérations, et les opérations sont filtrées par une
-    jointure sur `compte` : demander celles d'un compte joint avec un principal en vue
-    personnelle rend une liste VIDE, donc un solde de zéro. Pas une erreur, pas un vide —
-    un montant faux, affiché avec le même aplomb qu'un montant juste.
-
-    Réservé aux écrans qui administrent les comptes et doivent en montrer les deux
-    périmètres. Un écran qui TOTALISE ne s'en sert jamais : il additionnerait deux mondes.
-    """
-    return replace(principal, vue=Vue.PERSONNELLE if compte.prive else Vue.FOYER)
 
 
 def compte_administrable(
@@ -223,10 +203,8 @@ def compte_administrable(
 ) -> Compte | None:
     """Un compte désigné pour être renommé, archivé ou supprimé.
 
-    À utiliser partout où l'écran de gestion agit sur un compte qu'il vient de LISTER :
-    lister les deux périmètres puis n'accepter d'agir que sur celui de la vue courante
-    rendait un compte joint intouchable depuis la vue personnelle — l'écran l'affichait,
-    et le serveur répondait « Compte introuvable » (ERREURS.md #043).
+    À utiliser partout où l'écran de gestion agit sur un compte qu'il vient de LISTER.
+    Voir `_comptes_administrables` pour ce que cette largeur protège.
 
     Les écrans qui CALCULENT — ajustement de solde, détail d'épargne — gardent
     `compte_visible` : leur chiffre appartient à un seul des deux mondes.

@@ -158,11 +158,10 @@ export const api = {
 
   comptes: () => appeler<ComptePublic[]>('/comptes'),
 
-  /** Tous les comptes que l'appelant peut voir, les deux périmètres réunis, ARCHIVÉS
-   *  COMPRIS. Pour l'écran de GESTION seulement : ne pas y voir un compte joint parce
-   *  qu'on se trouve en vue personnelle le rendait impossible à supprimer sans comprendre
-   *  pourquoi, et un compte archivé n'y revenait jamais. */
-  tousLesComptes: () => appeler<ComptePublic[]>('/comptes?toutes_vues=true'),
+  /** Les comptes du périmètre courant, ARCHIVÉS COMPRIS. Pour l'écran de GESTION
+   *  seulement : lui seul peut désarchiver, et un compte qu'il ne montre plus ne revient
+   *  jamais. Le périmètre suit la vue, comme partout ailleurs. */
+  comptesAGerer: () => appeler<ComptePublic[]>('/comptes?inclure_archives=true'),
 
   /** Le corps entier est passé : la signature positionnelle précédente obligeait à
    *  ajouter un paramètre à chaque champ nouveau, et un appelant sur deux l'oubliait. */
@@ -175,11 +174,10 @@ export const api = {
 
   soldesDesComptes: () => appeler<SoldeDeCompte[]>('/comptes/soldes'),
 
-  /** Les soldes des deux périmètres, pour accompagner `tousLesComptes`. Sans lui, l'écran
-   *  de gestion affichait les comptes de l'autre vue sans montant — ce qui se lit comme
-   *  un compte vide, pas comme une donnée absente. */
-  soldesDeTousLesComptes: () =>
-    appeler<SoldeDeCompte[]>('/comptes/soldes?toutes_vues=true'),
+  /** Les soldes archivés compris, pour accompagner `comptesAGerer`. Sans lui, une carte
+   *  archivée s'affichait sans montant — ce qui se lit comme un compte vide, pas comme
+   *  une donnée absente. */
+  soldesAGerer: () => appeler<SoldeDeCompte[]>('/comptes/soldes?inclure_archives=true'),
 
   modifierCompte: (id: string, demande: ModificationCompte) =>
     appeler<ComptePublic>(`/comptes/${id}`, {

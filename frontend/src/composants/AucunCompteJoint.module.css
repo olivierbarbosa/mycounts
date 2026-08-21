@@ -1,0 +1,41 @@
+/* Centré verticalement : ce n'est pas un bloc parmi d'autres mais tout ce que l'écran a
+   à dire. La hauteur est en dvh et non vh — sur iOS, `vh` compte la barre du navigateur
+   rétractée et pousse le bouton sous le pli tant qu'elle est déployée. */
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-m);
+  min-height: 70dvh;
+  padding: var(--espace-xl);
+  text-align: center;
+}
+
+.titre {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: -0.01em;
+  color: var(--couleur-texte);
+}
+
+.detail {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.action {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}

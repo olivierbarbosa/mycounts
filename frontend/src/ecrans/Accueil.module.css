@@ -456,3 +456,15 @@
 .entete[data-signe='positif'] {
   --lueur-du-solde: var(--couleur-lueur-credit);
 }
+
+/* Le pourquoi, sous le constat. Un état vide qui nomme ce qui manque sans dire à quoi ça
+   sert laisse décider sans savoir — et « compte joint » n'est pas une évidence pour qui
+   ouvre l'application pour la première fois. */
+.detailVide {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--couleur-texte-faible);
+  font-size: 13px;
+  line-height: 1.5;
+}
+

@@ -4,6 +4,7 @@ import {
   Landmark,
   LogOut,
   Palette,
+  Plus,
   Tags,
   UserRound,
   Users,
@@ -30,11 +31,15 @@ type Props = {
   readonly utilisateur: UtilisateurPublic
   readonly categories: readonly CategoriePublique[]
   readonly comptes: readonly ComptePublic[]
-  readonly surChangement: () => void
+  readonly surChangement: () => Promise<void>
   readonly surFermeture: () => void
   readonly surDeconnexion: () => void
   /** D'où le panneau doit naître. Voir `Bulle`. */
   readonly origine: Origine
+  /** Rubrique à ouvrir d'emblée, quand on arrive ici pour une raison précise — l'état
+   *  vide de l'accueil, qui propose de créer un compte joint. Le défaut reste la racine :
+   *  ouvrir les paramètres depuis l'avatar ne vise rien en particulier. */
+  readonly sousMenuInitial?: Cle | null
 }
 
 type Cle = 'compte' | 'comptes' | 'categories' | 'apparence' | 'foyer'
@@ -55,8 +60,9 @@ export function Parametres({
   surFermeture,
   surDeconnexion,
   origine,
+  sousMenuInitial = null,
 }: Props) {
-  const [sousMenu, setSousMenu] = useState<Cle | null>(null)
+  const [sousMenu, setSousMenu] = useState<Cle | null>(sousMenuInitial)
   // La sous-page reste montée le temps de sortir : la démonter tout de suite la ferait
   // disparaître d'un coup, sans le mouvement qui dit où elle repart.
   const [sortant, setSortant] = useState(false)
@@ -123,12 +129,21 @@ export function Parametres({
    *  statistiques dépendent tous de la vue, et n'en rafraîchir qu'une partie laisserait à
    *  l'écran des chiffres appartenant à l'autre monde — le pire des états, puisqu'il a
    *  l'air juste. */
-  function basculerVers(nouvelle: Vue) {
+  async function basculerVers(nouvelle: Vue) {
     if (nouvelle === vue) return
+    // L'en-tête part AVANT le rechargement : c'est lui qui décide du périmètre servi.
     changerDeVue(nouvelle)
+    /* Puis on ATTEND les données du nouveau monde avant de dire qu'on y est.
+     *
+     * Mettre `vue` à jour tout de suite faisait afficher, le temps d'un aller-retour,
+     * les comptes de l'ancienne vue sous les libellés de la nouvelle — « Comptes du
+     * foyer 2 » alors que ces deux comptes sont personnels. Bref, mais faux : c'est la
+     * version fugace du défaut qu'Olivier a signalé le 21 août 2026, et un chiffre faux
+     * ne devient pas acceptable parce qu'il ne dure pas. */
+    await surChangement()
     setVue(nouvelle)
-    void surChangement()
   }
+
   const avatar = useRef<HTMLSpanElement>(null)
   // Éclosion depuis la bulle, repli vers elle, et glissement de retour au doigt : la même
   // mécanique que pour toute autre bulle du haut, tenue à un seul endroit.
@@ -211,17 +226,47 @@ export function Parametres({
     surDeconnexion()
   }
 
+  /* Les rubriques suivent la VUE : chaque monde ne montre que ce qui le concerne.
+   *
+   * Ce qui est propre à une vue :
+   * — « Mon compte » porte l'identité et sa suppression : personnel, par définition ;
+   * — « Foyer » porte les membres, l'invitation et la dissolution du partage : joint.
+   *
+   * Ce qui reste dans les DEUX, et pourquoi — parce que masquer une rubrique laisse
+   * croire qu'elle a un équivalent dans l'autre vue :
+   * — les catégories sont partagées en base (`Categorie.foyer_id`, sans notion de vue) :
+   *   il n'existe pas de catégories personnelles à opposer à des catégories jointes, et
+   *   les dédoubler à l'écran afficherait une distinction qui n'existe pas ;
+   * — l'apparence est une préférence d'affichage, elle ne regarde aucun argent. */
+  // `comptes` est la liste du périmètre COURANT, servie par `App` : en vue foyer elle
+  // ne contient que les comptes joints. Pas besoin de la recompter ici.
+  const sansCompteJoint = vue === 'foyer' && comptes.length === 0
+
   const entrees: { cle: Cle; libelle: string; detail: string; Icone: typeof UserRound }[] = [
-    { cle: 'compte', libelle: 'Mon compte', detail: utilisateur.courriel, Icone: UserRound },
+    ...(vue === 'personnelle'
+      ? [
+          {
+            cle: 'compte' as const,
+            libelle: 'Mon compte',
+            detail: utilisateur.courriel,
+            Icone: UserRound,
+          },
+        ]
+      : []),
     {
       cle: 'comptes',
-      libelle: 'Comptes bancaires',
+      // « Comptes du foyer » et non « Comptes joints » : la capsule de bascule porte
+      // déjà ce dernier nom, et deux boutons homonymes sur le même écran se confondent —
+      // au clavier et au lecteur d'écran, rien ne les distingue.
+      libelle: vue === 'foyer' ? 'Comptes du foyer' : 'Comptes bancaires',
       detail: `${comptes.length}`,
       Icone: Landmark,
     },
     { cle: 'categories', libelle: 'Catégories', detail: `${categories.length}`, Icone: Tags },
     { cle: 'apparence', libelle: 'Apparence', detail: '', Icone: Palette },
-    { cle: 'foyer', libelle: 'Foyer', detail: '', Icone: Users },
+    ...(vue === 'foyer'
+      ? [{ cle: 'foyer' as const, libelle: 'Foyer', detail: '', Icone: Users }]
+      : []),
   ]
 
   const pages: Record<Cle, { titre: string; contenu: ReactNode }> = {
@@ -501,7 +546,7 @@ export function Parametres({
               type="button"
               className={styles.perimetre}
               aria-pressed={vue === 'personnelle'}
-              onClick={() => basculerVers('personnelle')}
+              onClick={() => void basculerVers('personnelle')}
               tabIndex={page === null ? 0 : -1}
             >
               <UserRound size={16} strokeWidth={2} aria-hidden />
@@ -511,7 +556,7 @@ export function Parametres({
               type="button"
               className={styles.perimetre}
               aria-pressed={vue === 'foyer'}
-              onClick={() => basculerVers('foyer')}
+              onClick={() => void basculerVers('foyer')}
               tabIndex={page === null ? 0 : -1}
             >
               <Users size={16} strokeWidth={2} aria-hidden />
@@ -524,26 +569,75 @@ export function Parametres({
               : 'Vous voyez vos comptes personnels. Les comptes joints n’y figurent pas.'}
           </p>
 
-          <ul className={styles.liste}>
-            {entrees.map(({ cle, libelle, detail, Icone }) => (
-              <li key={cle}>
+          {/* Aucun compte joint : l'invitation prend la place des rubriques.
+              Les catégories et l'apparence restent atteignables depuis l'autre vue — ce
+              sont les mêmes, elles ne dépendent pas du périmètre.
+              « Foyer » reste, lui, et c'est délibéré : il porte l'invitation des membres,
+              la liste de ceux qui sont là et la dissolution. Le masquer aussi rendait
+              impossible d'inviter quelqu'un tant qu'aucun compte joint n'existe — alors
+              que constituer le foyer précède naturellement l'ouverture d'un compte
+              commun. Un écran vidé ne doit pas emporter la porte de sortie. */}
+          {sansCompteJoint ? (
+            <div className={styles.invitation}>
+              <p className={styles.titreInvitation}>Aucun compte joint</p>
+              <p className={styles.note}>
+                Un compte joint est visible de tous les membres du foyer, et sert à ce que
+                vous payez ensemble. Créez-en un pour ouvrir cet espace.
+              </p>
+              <button
+                type="button"
+                className={styles.bouton}
+                onClick={() => naviguer('comptes')}
+                tabIndex={page === null ? 0 : -1}
+              >
+                <Plus size={18} strokeWidth={2} aria-hidden />
+                Créer un compte joint
+              </button>
+            </div>
+          ) : null}
+
+          {sansCompteJoint ? (
+            <ul className={styles.liste}>
+              <li>
                 <button
                   type="button"
                   className={styles.entree}
-                  onClick={() => naviguer(cle)}
-                  // Le sous-menu n'est atteignable que depuis la racine : masquer la
-                  // racine à l'assistance vocale ne suffit pas à empêcher le clavier d'y
-                  // revenir, il faut aussi retirer ses boutons du parcours.
+                  onClick={() => naviguer('foyer')}
                   tabIndex={page === null ? 0 : -1}
                 >
-                  <Icone size={18} strokeWidth={2} aria-hidden className={styles.icone} />
-                  <span className={styles.libelle}>{libelle}</span>
-                  {detail !== '' && <span className={styles.detail}>{detail}</span>}
+                  <Users size={18} strokeWidth={2} aria-hidden className={styles.icone} />
+                  <span className={styles.libelle}>Foyer</span>
                   <ChevronRight size={18} strokeWidth={2} aria-hidden className={styles.chevron} />
                 </button>
               </li>
-            ))}
-          </ul>
+            </ul>
+          ) : (
+            <ul className={styles.liste}>
+              {entrees.map(({ cle, libelle, detail, Icone }) => (
+                <li key={cle}>
+                  <button
+                    type="button"
+                    className={styles.entree}
+                    onClick={() => naviguer(cle)}
+                    // Le sous-menu n'est atteignable que depuis la racine : masquer la
+                    // racine à l'assistance vocale ne suffit pas à empêcher le clavier d'y
+                    // revenir, il faut aussi retirer ses boutons du parcours.
+                    tabIndex={page === null ? 0 : -1}
+                  >
+                    <Icone size={18} strokeWidth={2} aria-hidden className={styles.icone} />
+                    <span className={styles.libelle}>{libelle}</span>
+                    {detail !== '' && <span className={styles.detail}>{detail}</span>}
+                    <ChevronRight
+                      size={18}
+                      strokeWidth={2}
+                      aria-hidden
+                      className={styles.chevron}
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <button
             type="button"
