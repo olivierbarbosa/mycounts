@@ -1376,3 +1376,38 @@ son journal l'aurait enterré. Un test qui échoue est d'abord un témoin, pas u
 d'abord — c'est lui qui décide du périmètre servi — puis on ATTEND le rechargement avant de
 poser `vue`. L'écran montre l'ancien monde, entièrement cohérent, jusqu'à ce que le nouveau
 soit là.
+
+## #046 — Un fait de schéma raconté comme un fait social
+
+**Ce que je croyais.** Que l'écran « Foyer » décrivait un groupe : des membres, un partage,
+une invitation. Il affichait « Membres » et la liste de ceux qui en font partie.
+
+**Ce qu'il s'est passé.** Olivier, seul dans son foyer : « pourquoi il me dit membre d'un
+foyer alors que non, et pourquoi je peux pas le quitter non plus ? » L'écran lui annonçait
+qu'il était membre d'un groupe d'une personne — lui — sans porte de sortie. Sur la même
+capture, la zone « Dissoudre le partage » était dépliée sur son propre refus : « il n'y a
+aucun compte joint à dissoudre ». Un bouton qui ne pouvait qu'échouer.
+
+**La cause.** `Utilisateur.foyer_id` est non nullable : tout compte reçoit un foyer d'office,
+créé par `creer_premier_compte`. C'est un conteneur technique — le point d'accroche des
+comptes, catégories et enveloppes — et je l'ai exposé sous son nom de modèle, avec son
+vocabulaire de modèle. « Membre » est vrai dans la base et faux dans la vie : on n'est pas
+membre d'un groupe qu'on n'a jamais rejoint et dont on est seul.
+
+**Ce que ça dit de plus général.** Deux occurrences en deux jours pour la même cause : #044
+faisait payer à l'utilisateur la contrainte « le foyer contient tout » ; celle-ci lui fait
+lire le mot « foyer » à la place de « votre espace ». Un modèle de données a le droit
+d'avoir ses noms ; l'écran n'a pas le droit de les emprunter sans se demander ce qu'ils
+affirment. Et une action ne se propose pas quand son échec est certain : l'écran savait
+qu'il n'y avait aucun compte joint, il le savait avant de proposer.
+
+**Le contrôle en place maintenant.** Le titre devient « Partage » et la liste cède la place
+à « Vous n'avez encore partagé avec personne » tant qu'on est seul ; « Dissoudre le
+partage » n'apparaît que s'il existe un compte joint. Deux tests e2e, dont un qui mesure la
+règle dans les DEUX sens en lisant l'état réel du foyer — une assertion qui ne vaudrait que
+dans un cas passerait aussi pour un code qui affiche la zone toujours, ou jamais.
+
+**Ce qui reste faux et n'est pas corrigé.** On ne peut toujours pas QUITTER un foyer quand
+on y a été invité : il faudrait un foyer d'accueil, le déplacement des comptes personnels
+et la duplication des catégories utilisées, puisqu'elles appartiennent au foyer. Seul
+« supprimer mon compte » existe. La limite est connue et écrite, elle n'est pas résolue.

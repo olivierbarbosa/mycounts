@@ -113,6 +113,16 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   avec l'en-tête du moment où l'on clique, et refuser dès qu'il ne concorde plus produirait
   un « introuvable » à propos de ce qui est à l'écran (ERREURS.md #043). Les écrans qui
   TOTALISENT gardent `compte_visible` : un solde ne mélange jamais les deux mondes.
+- **Le foyer est un conteneur technique, pas un groupe.** Tout compte en reçoit un
+  d'office (`foyer_id` non nullable) : tant qu'on est seul, l'écran dit « Partage » et non
+  « Membres », et n'affiche pas une liste d'une personne. Un modèle a le droit d'avoir ses
+  noms ; l'écran n'a pas le droit de les emprunter sans se demander ce qu'ils affirment
+  (ERREURS.md #046). **On ne peut pas QUITTER un foyer** — il faudrait un foyer d'accueil,
+  le déplacement des comptes privés et la duplication des catégories, qui appartiennent au
+  foyer. Seul « supprimer mon compte » existe.
+- **Une action ne se propose pas quand son échec est certain.** « Dissoudre le partage »
+  n'apparaît que s'il existe un compte joint : l'écran sait, avant de proposer, que le
+  serveur refusera.
 - **Un périmètre vide n'affiche AUCUNE mesure.** Sans compte joint, la vue foyer montre
   l'invitation et rien d'autre — pas de solde à 0,00 €, pas de jauge, pas de bouton de
   saisie. « Zéro » répond faux à une question dont la vraie réponse est « il n'y a rien à

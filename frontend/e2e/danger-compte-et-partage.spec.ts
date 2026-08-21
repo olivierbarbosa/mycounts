@@ -37,14 +37,45 @@ async function connecter(page: Page) {
 async function ouvrirParametres(page: Page, vue: 'personnelle' | 'foyer') {
   await page.getByRole('button', { name: /^Paramètres de / }).click()
   const capsule = vue === 'foyer' ? 'Comptes joints' : 'Compte personnel'
-  await page.getByRole('group', { name: 'Périmètre' }).getByRole('button', { name: capsule }).click()
+  await page
+    .getByRole('group', { name: 'Périmètre' })
+    .getByRole('button', { name: capsule })
+    .click()
 }
 
 async function ouvrirFoyer(page: Page) {
   // « Foyer » ne vit que dans la vue joints : c'est le monde qu'il décrit.
   await ouvrirParametres(page, 'foyer')
   await page.getByRole('button', { name: 'Foyer', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Membres' })).toBeVisible()
+  // « Partage » quand on est seul, « Membres » dès qu'on est plusieurs : le titre dit
+  // lequel des deux est vrai, et le helper accepte les deux pour ne pas présumer.
+  await expect(
+    page
+      .getByRole('heading', { name: 'Partage', exact: true })
+      .or(page.getByRole('heading', { name: 'Membres', exact: true })),
+  ).toBeVisible()
+}
+
+/** Pose un compte joint et rend de quoi le retirer.
+ *
+ *  La zone « Dissoudre le partage » n'existe que s'il y a quelque chose à dissoudre —
+ *  c'est la règle même que `la dissolution n'est proposée que…` vérifie. Les tests qui
+ *  portent sur son CONTENU doivent donc créer ce qu'ils vont lire, et le reprendre après :
+ *  les tests partagent un foyer, et en laisser un derrière changerait ce que les suivants
+ *  mesurent. */
+async function avecCompteJoint(page: Page, nom: string) {
+  const cree = await page.request.post('/api/comptes', {
+    data: { nom, prive: false, produit: 'compte_courant' },
+    headers: { 'X-Mycounts-Vue': 'foyer' },
+  })
+  const { id } = (await cree.json()) as { id: string }
+  /* Rechargement obligatoire : `App` tient la liste des comptes en état, et un compte
+     posé par l'API après le chargement lui reste inconnu. Basculer ne suffit pas — quand
+     la vue demandée est déjà l'active, `basculerVers` sort sans relire. */
+  await page.reload()
+  return async () => {
+    await page.request.delete(`/api/comptes/${id}`, { headers: { 'X-Mycounts-Vue': 'foyer' } })
+  }
 }
 
 async function ouvrirMonCompte(page: Page) {
@@ -64,8 +95,18 @@ test('la liste des membres s’affiche au lieu de charger sans fin', async ({ pa
   await connecter(page)
   await ouvrirFoyer(page)
 
+  /* Ce que ce test mesure est l'ARRIVÉE d'un état, quel qu'il soit : la liste des
+     membres quand on est plusieurs, la phrase « pas encore partagé » quand on est seul.
+     Ce qu'il refuse, c'est le troisième — « Chargement… » qui ne finit jamais. */
   await expect(page.getByText('Chargement…')).toHaveCount(0)
-  await expect(page.getByRole('listitem').first()).toBeVisible()
+  // `.first()` sur la réunion : la racine du panneau reste montée sous le sous-écran et
+  // porte ses propres `listitem`. Les deux branches peuvent donc matcher à la fois.
+  await expect(
+    page
+      .getByText(/n’avez encore partagé avec personne/)
+      .or(page.getByRole('listitem'))
+      .first(),
+  ).toBeVisible()
 })
 
 test('arrêter de partager et disparaître sont deux écrans', async ({ page }) => {
@@ -73,26 +114,31 @@ test('arrêter de partager et disparaître sont deux écrans', async ({ page }) 
    * et pas celle de l'autre. Une assertion sur la seule présence des deux boutons
    * passerait encore s'ils étaient tous deux revenus sur l'écran du foyer. */
   await connecter(page)
-  await ouvrirFoyer(page)
-  await expect(page.getByRole('heading', { name: 'Dissoudre le partage' })).toBeVisible()
-  await expect(
-    page.getByRole('heading', { name: 'Supprimer mon compte' }),
-    'effacer son compte n’a rien à faire sur l’écran du foyer',
-  ).toHaveCount(0)
+  const retirer = await avecCompteJoint(page, `Deux ecrans ${Date.now()}`)
+  try {
+    await ouvrirFoyer(page)
+    await expect(page.getByRole('heading', { name: 'Dissoudre le partage' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Supprimer mon compte' }),
+      'effacer son compte n’a rien à faire sur l’écran du foyer',
+    ).toHaveCount(0)
 
-  // Retour à la racine du panneau, puis l'autre monde. Le panneau reste ouvert : la
-  // bulle qui le lance est dessous, la recliquer ne rouvrirait rien.
-  await page.getByRole('button', { name: 'Retour', exact: true }).click()
-  await page
-    .getByRole('group', { name: 'Périmètre' })
-    .getByRole('button', { name: 'Compte personnel' })
-    .click()
-  await page.getByRole('button', { name: 'Mon compte' }).click()
-  await expect(page.getByRole('heading', { name: 'Supprimer mon compte' })).toBeVisible()
-  await expect(
-    page.getByRole('heading', { name: 'Dissoudre le partage' }),
-    'le partage ne se dissout pas depuis son compte',
-  ).toHaveCount(0)
+    // Retour à la racine du panneau, puis l'autre monde. Le panneau reste ouvert : la
+    // bulle qui le lance est dessous, la recliquer ne rouvrirait rien.
+    await page.getByRole('button', { name: 'Retour', exact: true }).click()
+    await page
+      .getByRole('group', { name: 'Périmètre' })
+      .getByRole('button', { name: 'Compte personnel' })
+      .click()
+    await page.getByRole('button', { name: 'Mon compte' }).click()
+    await expect(page.getByRole('heading', { name: 'Supprimer mon compte' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Dissoudre le partage' }),
+      'le partage ne se dissout pas depuis son compte',
+    ).toHaveCount(0)
+  } finally {
+    await retirer()
+  }
 })
 
 test('dissoudre annonce ce qu’il NE touche pas', async ({ page }) => {
@@ -100,11 +146,15 @@ test('dissoudre annonce ce qu’il NE touche pas', async ({ page }) => {
    * était brutale. Celle-ci doit dire l'inverse, et le dire explicitement : c'est la
    * seule chose qui distingue les deux boutons aux yeux de qui les lit. */
   await connecter(page)
-  await ouvrirFoyer(page)
-
-  const zone = page.getByText(/Supprime les comptes joints/)
-  await expect(zone).toContainText('comptes personnels')
-  await expect(zone, 'la promesse qui manquait').toContainText('restez connecté')
+  const retirer = await avecCompteJoint(page, `Annonce ${Date.now()}`)
+  try {
+    await ouvrirFoyer(page)
+    const zone = page.getByText(/Supprime les comptes joints/)
+    await expect(zone).toContainText('comptes personnels')
+    await expect(zone, 'la promesse qui manquait').toContainText('restez connecté')
+  } finally {
+    await retirer()
+  }
 })
 
 test('le bouton reste inerte tant que l’adresse n’est pas exacte', async ({ page }) => {
@@ -143,4 +193,49 @@ test('supprimer son compte dit ce qu’il détruit avant de le détruire', async
   const zone = page.getByText(/Efface définitivement votre compte/)
   await expect(zone).toContainText('comptes personnels')
   await expect(zone).toContainText('Aucune sauvegarde')
+})
+
+test('seul dans son foyer, l’écran ne prétend pas à un groupe', async ({ page }) => {
+  /* Tout compte reçoit un foyer d'office — `Utilisateur.foyer_id` est non nullable — si
+   * bien qu'une personne seule était annoncée « Membres » avec une liste d'une ligne :
+   * elle-même. Un fait de schéma présenté comme un fait social. Olivier : « pourquoi il
+   * me dit membre d'un foyer alors que non » (ERREURS.md #046).
+   *
+   * Le foyer de démonstration n'a qu'un membre — `creer_premier_compte` en crée un seul,
+   * et rien dans la suite n'en ajoute : les tests d'invitation lisent le code sans le
+   * consommer. Si cela changeait, ce test rougirait plutôt que de mentir en silence.
+   */
+  await connecter(page)
+  await ouvrirFoyer(page)
+
+  await expect(page.getByRole('heading', { name: 'Partage', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Membres', exact: true }),
+    'un groupe d’une personne n’est pas un groupe',
+  ).toHaveCount(0)
+  await expect(page.getByText(/n’avez encore partagé avec personne/)).toBeVisible()
+
+  // Inviter reste proposé : c'est précisément ce qu'il faut faire depuis cet état.
+  await expect(page.getByRole('button', { name: 'Inviter un membre' })).toBeVisible()
+})
+
+test('la dissolution n’est proposée que s’il y a quelque chose à dissoudre', async ({ page }) => {
+  /* La règle est mesurée dans les DEUX sens, à partir de l'état réel du foyer : une
+   * assertion qui ne vaudrait que dans un cas passerait aussi pour un code qui affiche
+   * la zone toujours, ou jamais.
+   *
+   * Olivier a rencontré le premier sens : la zone s'affichait sans aucun compte joint, il
+   * a déplié, cliqué, et reçu « Il n'y a aucun compte joint à dissoudre ». Proposer une
+   * action dont l'échec est certain fait porter à l'utilisateur le coût d'une vérification
+   * que l'écran pouvait faire seul.
+   */
+  await connecter(page)
+  const joints = (await (
+    await page.request.get('/api/comptes', { headers: { 'X-Mycounts-Vue': 'foyer' } })
+  ).json()) as { nom: string }[]
+
+  await ouvrirFoyer(page)
+  const zone = page.getByRole('heading', { name: 'Dissoudre le partage' })
+  if (joints.length === 0) await expect(zone, 'rien à dissoudre : rien à proposer').toHaveCount(0)
+  else await expect(zone, 'des comptes joints existent : la zone doit être là').toBeVisible()
 })

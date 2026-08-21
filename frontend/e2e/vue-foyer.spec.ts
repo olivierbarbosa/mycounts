@@ -193,7 +193,12 @@ test('un compte joint se crée depuis la VUE joints', async ({ page }) => {
   await panneau.getByLabel('Nom du compte').fill(nom)
   await expect(panneau.getByText(/Ce compte sera JOINT/)).toBeVisible()
   await panneau.getByRole('button', { name: 'Créer le compte' }).click()
-  await expect(panneau.getByRole('heading', { name: 'Comptes bancaires' })).toBeVisible()
+
+  /* On attend le RÉSULTAT, pas le titre de l'écran : celui-ci reste affiché pendant que
+     le formulaire est ouvert, si bien que l'attendre passait immédiatement et le test
+     interrogeait l'API avant que la création n'ait abouti. Une attente qui est déjà
+     satisfaite au moment où on la pose ne synchronise rien. */
+  await expect(panneau.getByText(nom)).toBeVisible()
 
   const joints = (await (
     await page.request.get('/api/comptes', {

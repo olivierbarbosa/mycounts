@@ -19,6 +19,25 @@ export default defineConfig({
   globalSetup: './e2e/preparation.ts',
   use: {
     baseURL: 'http://127.0.0.1:5189',
+    /* Chaque test part de la vue PERSONNELLE, le défaut de l'application.
+     *
+     * La vue est conservée dans `localStorage` (voir `design/vue.ts`) : elle survit d'un
+     * test à l'autre. Tant que les deux vues affichaient la même chose, l'oubli était
+     * sans conséquence ; depuis qu'un périmètre sans compte n'affiche plus que son
+     * invitation, un test laissé en vue foyer fait échouer le suivant — qui cherche un
+     * écran que sa propre exécution n'a pas rendu vide. Poser l'état ici plutôt que dans
+     * les dix-huit fichiers de tests : une valeur par défaut a un auteur, pas dix-huit.
+     *
+     * `vue-foyer.spec.ts` bascule explicitement, c'est son sujet. */
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://127.0.0.1:5189',
+          localStorage: [{ name: 'mycounts.vue', value: 'personnelle' }],
+        },
+      ],
+    },
   },
   /* Playwright démarre lui-même les deux serveurs : les tests ne dépendent donc d'aucun
      processus lancé à la main. C'est exactement la leçon d'ERREURS.md #006 — une

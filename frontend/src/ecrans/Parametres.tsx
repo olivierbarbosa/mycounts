@@ -140,8 +140,16 @@ export function Parametres({
      * foyer 2 » alors que ces deux comptes sont personnels. Bref, mais faux : c'est la
      * version fugace du défaut qu'Olivier a signalé le 21 août 2026, et un chiffre faux
      * ne devient pas acceptable parce qu'il ne dure pas. */
-    await surChangement()
-    setVue(nouvelle)
+    try {
+      await surChangement()
+    } finally {
+      /* `finally` et non la suite du `try` : `changerDeVue` a DÉJÀ posé le nouvel en-tête,
+         et le client l'envoie depuis. Ne pas poser `vue` quand le rechargement échoue
+         laisserait l'écran annoncer un monde pendant que les requêtes en interrogent un
+         autre — deux sources pour un même fait, divergentes, et rien pour le signaler.
+         Mieux vaut afficher la vue demandée et laisser chaque écran dire son erreur. */
+      setVue(nouvelle)
+    }
   }
 
   const avatar = useRef<HTMLSpanElement>(null)
@@ -241,6 +249,9 @@ export function Parametres({
   // `comptes` est la liste du périmètre COURANT, servie par `App` : en vue foyer elle
   // ne contient que les comptes joints. Pas besoin de la recompter ici.
   const sansCompteJoint = vue === 'foyer' && comptes.length === 0
+  // Personne d'autre dans le foyer. `null` tant que la liste est en vol : une liste pas
+  // encore arrivée n'est pas une liste vide, et la confondre ferait clignoter le titre.
+  const seulDansLeFoyer = membres !== null && membres.length === 1
 
   const entrees: { cle: Cle; libelle: string; detail: string; Icone: typeof UserRound }[] = [
     ...(vue === 'personnelle'
@@ -388,7 +399,12 @@ export function Parametres({
       titre: 'Foyer',
       contenu: (
         <div className={styles.carte}>
-          <h2 className={styles.titreBloc}>Membres</h2>
+          {/* « Membres » suppose un groupe. Or tout compte reçoit un foyer d'office —
+              `Utilisateur.foyer_id` est non nullable — si bien qu'une personne seule était
+              annoncée « membre » d'un foyer qu'elle n'a jamais rejoint, avec une liste
+              d'une ligne : elle-même. Un fait de schéma présenté comme un fait social.
+              Olivier : « pourquoi il me dit membre d'un foyer alors que non » (#046). */}
+          <h2 className={styles.titreBloc}>{seulDansLeFoyer ? 'Partage' : 'Membres'}</h2>
           {echecMembres ? (
             <p className={styles.note} role="alert">
               La liste des membres n’a pas pu être chargée.{' '}
@@ -398,6 +414,11 @@ export function Parametres({
             </p>
           ) : membres === null ? (
             <p className={styles.note}>Chargement…</p>
+          ) : seulDansLeFoyer ? (
+            <p className={styles.note}>
+              Vous n’avez encore partagé avec personne. Ce foyer ne contient que vos données,
+              et personne d’autre n’y a accès.
+            </p>
           ) : (
             <ul className={styles.membres}>
               {membres.map((membre) => (
@@ -418,8 +439,9 @@ export function Parametres({
           )}
 
           <p className={styles.note}>
-            Les membres partagent les comptes joints. Chacun garde ses comptes personnels pour lui —
-            personne d’autre ne les voit, ni leurs opérations.
+            {seulDansLeFoyer
+              ? 'Invitez quelqu’un pour partager des comptes joints. Vos comptes personnels resteront à vous seul : personne d’autre ne les voit, ni leurs opérations.'
+              : 'Les membres partagent les comptes joints. Chacun garde ses comptes personnels pour lui — personne d’autre ne les voit, ni leurs opérations.'}
           </p>
 
           <button type="button" className={styles.bouton} onClick={inviter}>
@@ -443,7 +465,7 @@ export function Parametres({
               Elle ne détruit QUE le partage. « Supprimer mon compte » vit sur l'écran
               « Mon compte », parce que c'est de son compte qu'il s'agit — les mettre
               côte à côte les ferait confondre, ce qui est exactement le défaut corrigé. */}
-          {utilisateur.est_proprietaire && (
+          {utilisateur.est_proprietaire && !sansCompteJoint && (
             <div className={styles.danger}>
               <h2 className={styles.titreDanger}>Dissoudre le partage</h2>
               <p className={styles.note}>
