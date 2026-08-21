@@ -72,6 +72,20 @@ class Utilisateur(Base):
     est_proprietaire: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false"
     )
+    # Secret TOTP, en base32. `None` tant que la personne ne s'est pas enrôlée.
+    #
+    # En clair en base, et c'est un choix à connaître : le chiffrer exigerait une clé que
+    # le serveur doit de toute façon détenir pour vérifier les codes, ce qui déplacerait le
+    # secret sans le protéger. Ce qui protège vraiment, c'est que la base ne soit pas
+    # lisible — voir le chiffrement des libellés et le chiffrement du disque.
+    secret_totp: Mapped[str | None] = mapped_column(String(64), default=None)
+    # Passe à vrai quand un PREMIER code a été vérifié, jamais à l'enregistrement du
+    # secret. Sans cette distinction, une application mal configurée — mauvaise heure,
+    # QR scanné à moitié — verrouillerait le compte : le serveur croirait l'enrôlement
+    # fait, et aucun code ne fonctionnerait plus jamais.
+    totp_actif: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
     # Nombre de versements de salaire qui composent UN cycle budgétaire. À 2 (quinzaine),
     # seule une paie sur deux ouvre une période : sans ce réglage, une prime ferait
     # repartir tous les plafonds à zéro en plein mois.
@@ -106,6 +120,32 @@ class Invitation(Base):
     )
     expire_le: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
     utilisee_le: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+
+class CodeDeSecours(Base):
+    """Un code à usage unique, pour entrer sans son téléphone.
+
+    **Haché, comme un mot de passe.** Quarante bits d'aléa ne se cassent pas par
+    dictionnaire, mais un vol de dump donnerait sinon dix accès complets à chaque compte.
+
+    **Consommé, jamais supprimé.** `utilise_le` marque l'usage et la ligne reste : savoir
+    qu'un code de secours a servi, et quand, est exactement le genre de trace qu'on
+    cherche après coup. Une ligne effacée ne raconte rien.
+    """
+
+    __tablename__ = "code_de_secours"
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    utilisateur_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="CASCADE")
+    )
+    empreinte: Mapped[str] = mapped_column(String(255))
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    utilise_le: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
 
 
 class Avatar(Base):

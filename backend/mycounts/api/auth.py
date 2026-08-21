@@ -5,27 +5,42 @@ Aucune inscription publique : on entre par un code d'invitation, ou pas du tout.
 
 from __future__ import annotations
 
+import io
 import uuid
 from typing import Annotated
 
+import qrcode
+import qrcode.image.svg
 from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile, status
 from sqlalchemy.exc import IntegrityError
 
 from mycounts.api.dependances import NOM_COOKIE, PrincipalCourant, SessionBase
 from mycounts.api.schemas import (
+    DemandeActivationSecondFacteur,
     DemandeAdhesion,
     DemandeChangementCourriel,
     DemandeChangementMotDePasse,
     DemandeConnexion,
     DemandeRenommage,
     DemandeSuppressionCompte,
+    EnrolementPropose,
+    EtatSecondFacteur,
     InvitationCreee,
     MembrePublic,
+    SecondFacteurActive,
     UtilisateurPublic,
 )
 from mycounts.config import charger_configuration
 from mycounts.domain.avatars import TYPE_MIME as TYPE_MIME_AVATAR
 from mycounts.domain.avatars import ImageRefusee, normaliser
+from mycounts.domain.second_facteur import (
+    code_de_secours_correspond,
+    code_valide,
+    engendrer_codes_de_secours,
+    engendrer_secret,
+    hacher_code_de_secours,
+    uri_denrolement,
+)
 from mycounts.domain.securite import (
     DUREE_SESSION,
     empreinte_jeton,
@@ -65,6 +80,18 @@ def _pose_le_cookie(reponse: Response, jeton: str) -> None:
 
 def _version_avatar(session: SessionBase, utilisateur_id: uuid.UUID) -> str | None:
     return depot.versions_des_avatars(session, [utilisateur_id]).get(utilisateur_id)
+
+
+def _qr_en_svg(uri: str) -> str:
+    """Le QR d'enrôlement en SVG inline.
+
+    SVG et non PNG : il reste net quelle que soit la taille d'écran, pèse moins, et évite
+    de faire transiter le secret par une seconde requête d'image — qui atterrirait dans
+    l'historique du navigateur et dans les journaux du serveur.
+    """
+    tampon = io.BytesIO()
+    qrcode.make(uri, image_factory=qrcode.image.svg.SvgPathImage).save(tampon)
+    return tampon.getvalue().decode()
 
 
 def _utilisateur_courant(session: SessionBase, principal: PrincipalCourant) -> Utilisateur:
@@ -121,6 +148,9 @@ def connexion(
     if utilisateur is None or not mot_de_passe_correct:
         raise refus
 
+    if utilisateur.totp_actif and utilisateur.secret_totp is not None:
+        _exiger_le_second_facteur(session, utilisateur, demande.code)
+
     jeton = engendrer_jeton()
     depot.enregistrer_session_web(
         session,
@@ -132,6 +162,49 @@ def connexion(
     _pose_le_cookie(reponse, jeton)
 
     return _vue_publique(utilisateur, version_avatar=_version_avatar(session, utilisateur.id))
+
+
+def _exiger_le_second_facteur(
+    session: SessionBase, utilisateur: Utilisateur, code: str | None
+) -> None:
+    """Vérifie le code, ou consomme un code de secours. Lève 401 sinon.
+
+    **Le motif est machine-lisible** — `detail` est un objet et non une phrase — parce que
+    l'écran doit distinguer deux situations que rien ne sépare autrement : « il faut
+    maintenant un code » et « ce code est faux ». Les confondre afficherait « code
+    incorrect » à quelqu'un qui n'en a encore saisi aucun.
+
+    **TOTP d'abord, code de secours ensuite.** Un seul champ pour les deux : celui qui a
+    perdu son téléphone tape son code de secours là où il tapait ses six chiffres, sans
+    chercher un second formulaire. Les formats ne se confondent pas.
+
+    **Un code de secours est consommé même si la session échouait ensuite.** C'est voulu :
+    un code rejouable ne serait plus à usage unique, et l'usage est justement ce qu'on veut
+    tracer.
+    """
+    if code is None or code.strip() == "":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "motif": "second_facteur_requis",
+                "message": "Entrez le code de votre application.",
+            },
+        )
+
+    assert utilisateur.secret_totp is not None
+    if code_valide(utilisateur.secret_totp, code):
+        return
+
+    for candidat in depot.codes_de_secours_valides(session, utilisateur.id):
+        if code_de_secours_correspond(candidat.empreinte, code):
+            depot.consommer_le_code_de_secours(session, candidat, a_l_instant=maintenant())
+            session.commit()
+            return
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail={"motif": "second_facteur_invalide", "message": "Ce code n’est pas valable."},
+    )
 
 
 @routeur.post("/deconnexion", status_code=status.HTTP_204_NO_CONTENT)
@@ -352,6 +425,104 @@ async def envoyer_son_avatar(
     depot.enregistrer_avatar(
         session, principal.utilisateur_id, contenu=normalisee, type_mime=TYPE_MIME_AVATAR
     )
+    session.commit()
+
+
+@routeur.get("/moi/second-facteur", response_model=EtatSecondFacteur)
+def etat_du_second_facteur(
+    session: SessionBase, principal: PrincipalCourant
+) -> EtatSecondFacteur:
+    utilisateur = _utilisateur_courant(session, principal)
+    return EtatSecondFacteur(
+        actif=utilisateur.totp_actif,
+        codes_de_secours_restants=len(depot.codes_de_secours_valides(session, utilisateur.id)),
+    )
+
+
+@routeur.post("/moi/second-facteur/preparer", response_model=EnrolementPropose)
+def preparer_le_second_facteur(
+    session: SessionBase, principal: PrincipalCourant
+) -> EnrolementPropose:
+    """Engendre un secret et rend de quoi le configurer. **N'active rien.**
+
+    Rappeler cette route AVANT l'activation engendre un NOUVEAU secret, et c'est voulu :
+    on la rappelle quand la première tentative a échoué — QR mal scanné, application
+    refermée — et réutiliser le secret d'un enrôlement raté laisserait la moitié du travail
+    faite avec une application dont on ne sait plus ce qu'elle contient.
+
+    Une fois le second facteur ACTIF, elle est refusée : régénérer un secret depuis une
+    session ouverte permettrait de remplacer le facteur sans posséder l'ancien, ce qui le
+    viderait de son sens.
+    """
+    utilisateur = _utilisateur_courant(session, principal)
+    if utilisateur.totp_actif:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Le second facteur est déjà actif. Désactivez-le d’abord.",
+        )
+
+    secret = engendrer_secret()
+    depot.preparer_lenrolement(session, utilisateur, secret=secret)
+    session.commit()
+
+    uri = uri_denrolement(secret, utilisateur.courriel)
+    return EnrolementPropose(secret=secret, uri=uri, qr_svg=_qr_en_svg(uri))
+
+
+@routeur.post("/moi/second-facteur/activer", response_model=SecondFacteurActive)
+def activer_le_second_facteur(
+    demande: DemandeActivationSecondFacteur,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> SecondFacteurActive:
+    """Vérifie un PREMIER code, puis active. Rend les dix codes de secours, une seule fois.
+
+    L'activation exige une preuve que l'application est correctement configurée. Sans elle,
+    une heure fausse sur le téléphone ou un QR scanné à moitié verrouillerait le compte :
+    le serveur croirait l'enrôlement fait, et aucun code ne fonctionnerait plus.
+    """
+    utilisateur = _utilisateur_courant(session, principal)
+    if utilisateur.secret_totp is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Commencez par préparer l’enrôlement.",
+        )
+    if not code_valide(utilisateur.secret_totp, demande.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ce code ne correspond pas. Vérifiez l’heure de votre téléphone.",
+        )
+
+    codes = engendrer_codes_de_secours()
+    depot.activer_le_second_facteur(
+        session,
+        utilisateur,
+        empreintes_de_secours=[hacher_code_de_secours(c) for c in codes],
+    )
+    session.commit()
+    return SecondFacteurActive(codes_de_secours=codes)
+
+
+@routeur.delete("/moi/second-facteur", status_code=status.HTTP_204_NO_CONTENT)
+def desactiver_le_second_facteur(
+    demande: DemandeActivationSecondFacteur,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> None:
+    """Retire le second facteur. Un code EN COURS est exigé.
+
+    Une session ouverte ne suffit pas : c'est précisément contre l'usage d'une session
+    volée que le second facteur existe, et le retirer sans preuve de possession annulerait
+    la protection depuis l'endroit même qu'elle protège.
+    """
+    utilisateur = _utilisateur_courant(session, principal)
+    if not utilisateur.totp_actif or utilisateur.secret_totp is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Le second facteur n’est pas actif."
+        )
+    _exiger_le_second_facteur(session, utilisateur, demande.code)
+
+    depot.desactiver_le_second_facteur(session, utilisateur)
     session.commit()
 
 

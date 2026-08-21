@@ -26,6 +26,20 @@ class DemandeConnexion(BaseModel):
     courriel: Courriel
     mot_de_passe: str = Field(min_length=1)
 
+    code: str | None = None
+    """Code à six chiffres, ou code de secours. Absent au premier envoi.
+
+    Un seul champ pour les deux : l'utilisateur qui a perdu son téléphone tape son code de
+    secours là où il tapait ses six chiffres, sans avoir à trouver un second formulaire.
+    Le serveur essaie le TOTP d'abord, le code de secours ensuite — leurs formats ne se
+    confondent pas."""
+
+
+class DemandeActivationSecondFacteur(BaseModel):
+    """Le premier code, celui qui prouve que l'application est bien configurée."""
+
+    code: str = Field(min_length=6, max_length=10)
+
 
 class DemandeAdhesion(BaseModel):
     """Rejoindre un foyer avec un code d'invitation."""
@@ -171,3 +185,40 @@ class DemandeSuppressionCompte(BaseModel):
     """
 
     courriel: str = Field(min_length=1, max_length=254)
+
+
+class EnrolementPropose(BaseModel):
+    """De quoi configurer une application d'authentification.
+
+    Le secret est rendu EN CLAIR, et c'est nécessaire : sans lui, impossible de configurer
+    une application qui ne peut pas scanner — un ordinateur de bureau sans caméra, une
+    application qui n'accepte que la saisie manuelle. Il ne sort qu'une fois, vers
+    quelqu'un déjà authentifié par mot de passe, sur sa propre session.
+    """
+
+    secret: str
+    uri: str
+    """`otpauth://…`, à ouvrir directement depuis un téléphone."""
+
+    qr_svg: str
+    """Le même URI en QR, en SVG inline. Rendu par le serveur : le générer côté client
+    demanderait une bibliothèque de plus, pour une image que seul le serveur connaît
+    déjà."""
+
+
+class SecondFacteurActive(BaseModel):
+    """Les dix codes de secours, montrés UNE seule fois.
+
+    Les rendre une seconde fois demanderait de les stocker en clair — une porte ouverte à
+    côté de celle qu'on vient de fermer. L'écran doit donc insister pour qu'on les note
+    avant de fermer.
+    """
+
+    codes_de_secours: list[str]
+
+
+class EtatSecondFacteur(BaseModel):
+    actif: bool
+    codes_de_secours_restants: int
+    """Ce qui reste après usage. Zéro n'est pas une alerte décorative : sans téléphone et
+    sans code, il n'existe aucun chemin de retour."""

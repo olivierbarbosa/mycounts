@@ -14,7 +14,14 @@ from typing import Any, cast
 from sqlalchemy import CursorResult, delete, select
 from sqlalchemy.orm import Session
 
-from mycounts.models.auth import Avatar, Foyer, Invitation, SessionWeb, Utilisateur
+from mycounts.models.auth import (
+    Avatar,
+    CodeDeSecours,
+    Foyer,
+    Invitation,
+    SessionWeb,
+    Utilisateur,
+)
 from mycounts.models.budget import (
     Categorie,
     Compte,
@@ -471,3 +478,72 @@ def versions_des_avatars(
         )
     ).all()
     return {identifiant: str(int(date.timestamp())) for identifiant, date in lignes}
+
+
+def preparer_lenrolement(session: Session, utilisateur: Utilisateur, *, secret: str) -> None:
+    """Écrit le secret SANS activer le second facteur.
+
+    Les deux sont distincts, et c'est ce qui évite de verrouiller un compte : entre le
+    moment où l'on montre le QR et celui où l'application le lit correctement, tout peut
+    échouer — mauvaise heure sur le téléphone, code scanné à moitié, application refermée.
+    Activer d'emblée ferait croire au serveur que l'enrôlement a réussi, et plus aucun code
+    ne fonctionnerait.
+    """
+    utilisateur.secret_totp = secret
+    utilisateur.totp_actif = False
+    session.flush()
+
+
+def activer_le_second_facteur(
+    session: Session, utilisateur: Utilisateur, *, empreintes_de_secours: Sequence[str]
+) -> None:
+    """Active le TOTP et remplace les codes de secours.
+
+    Remplace, et non ajoute : réactiver le second facteur repart de dix codes neufs, et
+    laisser vivre les anciens laisserait des portes dont on aurait oublié l'existence.
+    """
+    utilisateur.totp_actif = True
+    session.execute(
+        delete(CodeDeSecours).where(CodeDeSecours.utilisateur_id == utilisateur.id)
+    )
+    session.add_all(
+        CodeDeSecours(utilisateur_id=utilisateur.id, empreinte=empreinte)
+        for empreinte in empreintes_de_secours
+    )
+    session.flush()
+
+
+def desactiver_le_second_facteur(session: Session, utilisateur: Utilisateur) -> None:
+    """Retire le secret ET les codes. Laisser le secret derrière permettrait de réactiver
+    sans repasser par un QR, donc avec une application dont on ne sait plus si elle est
+    encore installée sur le bon téléphone."""
+    utilisateur.secret_totp = None
+    utilisateur.totp_actif = False
+    session.execute(
+        delete(CodeDeSecours).where(CodeDeSecours.utilisateur_id == utilisateur.id)
+    )
+    session.flush()
+
+
+def codes_de_secours_valides(session: Session, utilisateur_id: uuid.UUID) -> list[CodeDeSecours]:
+    """Les codes non encore consommés."""
+    return list(
+        session.execute(
+            select(CodeDeSecours).where(
+                CodeDeSecours.utilisateur_id == utilisateur_id,
+                CodeDeSecours.utilise_le.is_(None),
+            )
+        ).scalars()
+    )
+
+
+def consommer_le_code_de_secours(
+    session: Session, code: CodeDeSecours, *, a_l_instant: dt.datetime
+) -> None:
+    """Marque le code comme utilisé. La ligne RESTE.
+
+    Savoir qu'un code de secours a servi, et quand, est exactement la trace qu'on cherche
+    après coup — une ligne effacée ne raconte rien.
+    """
+    code.utilise_le = a_l_instant
+    session.flush()

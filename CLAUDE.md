@@ -31,6 +31,12 @@ mot de passe oublié ; chiffrement des libellés et des noms — les montants re
 sans quoi soldes et plafonds quitteraient SQL (tranché le 22 août 2026) ; quitter un
 foyer ; historique des corrections de solde ; logos et icônes PWA ; déploiement VPS.
 
+**Simplifier l'écran des enveloppes**, demandé le 22 août 2026 : il doit s'adresser à
+quelqu'un qui a du mal à épargner, pas à quelqu'un qui connaît déjà le vocabulaire.
+« Rollover », « usage », « priorité », « non affecté » sont des mots du modèle, pas de la
+vie. Chaque réglage doit dire ce qu'il change POUR L'UTILISATEUR, et l'écran doit se lire
+sans avoir rien appris au préalable.
+
 **Import PDF : abandonné**, tranché le 22 août 2026. Le CSV de la Caisse d'Épargne suffit,
 et un relevé PDF n'a aucune structure garantie — chaque refonte de maquette casserait
 l'extraction.

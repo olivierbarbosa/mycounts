@@ -19,6 +19,13 @@ dependencies = [
     # quelle — un fichier téléversé est une donnée non fiable, et le réencoder est ce qui
     # garantit qu'on sert bien une image et non ce qu'elle prétendait être.
     "pillow>=11.0",
+    # Second facteur. `pyotp` implémente la RFC 6238 : l'écrire soi-même exposerait à des
+    # fautes silencieuses — fenêtre de tolérance, comparaison non constante — qu'aucun
+    # test fonctionnel ne révélerait.
+    "pyotp>=2.9",
+    # Le QR d'enrôlement, rendu en SVG côté serveur. Pas d'image : un SVG reste net à
+    # toute taille et ne dépend pas de Pillow pour cet usage.
+    "qrcode>=8.0",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +34,8 @@ dev = [
     "mypy>=1.13",
     "ruff>=0.8",
     "httpx>=0.28",
+    # Stubs de typage : `qrcode` n'en fournit pas, et mypy est en mode strict.
+    "types-qrcode>=8.0",
 ]
 
 [tool.setuptools.packages.find]

@@ -26,6 +26,7 @@ import datetime as dt
 import io
 import uuid
 
+import pyotp
 from fastapi.testclient import TestClient
 from mycounts.domain.import_releve import GenreCorrespondance
 from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
@@ -130,6 +131,16 @@ def remplir_toutes_les_tables(
             files={"fichier": ("p.png", tampon.getvalue(), "image/png")},
         ).status_code
         == 204
+    )
+
+    # Un second facteur enrôlé : sans lui, `code_de_secours` resterait vide et le test
+    # ne prouverait rien de cette table-là.
+    secret = client.post("/api/auth/moi/second-facteur/preparer").json()["secret"]
+    assert (
+        client.post(
+            "/api/auth/moi/second-facteur/activer", json={"code": pyotp.TOTP(secret).now()}
+        ).status_code
+        == 200
     )
 
     depot_budget.retenir_la_correspondance(
