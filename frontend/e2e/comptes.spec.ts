@@ -152,7 +152,64 @@ test('supprimer un compte qui porte des opérations est refusé, et l’archivag
   )
   await expect(carte(page, nom), 'le compte doit rester').toHaveCount(1)
 
+  /* Archivé, le compte RESTE dans l'écran qui gère les comptes.
+   *
+   * Ce test attendait auparavant `toHaveCount(0)` — il affirmait le défaut. L'archivage
+   * est proposé deux lignes plus haut comme l'alternative douce à une suppression
+   * refusée ; le faire disparaître de l'écran même qui vient de le proposer le rendait
+   * ni désarchivable ni supprimable. Une action présentée comme réversible était sans
+   * retour. C'est le deuxième test de ce fichier à verrouiller un bug en le décrivant
+   * comme une intention (ERREURS.md #042 puis #043).
+   */
   await carte(page, nom).getByRole('button', { name: 'Archiver' }).click()
-  await expect(carte(page, nom)).toHaveCount(0)
+  await expect(carte(page, nom)).toContainText('archivé')
+
+  // Et il quitte bien les écrans qui PROPOSENT des comptes : c'est à cela qu'il sert.
+  await fermer(page)
+  const proposes = (await (await page.request.get('/api/comptes')).json()) as { nom: string }[]
+  expect(proposes.map((compte) => compte.nom)).not.toContain(nom)
+
+  // Le chemin du retour existe, et il ramène le compte parmi les propositions.
+  await ouvrirComptes(page)
+  await carte(page, nom)
+    .getByRole('button', { name: `Désarchiver ${nom}` })
+    .click()
+  await expect(carte(page, nom)).not.toContainText('archivé')
+  await fermer(page)
+  const revenus = (await (await page.request.get('/api/comptes')).json()) as { nom: string }[]
+  expect(revenus.map((compte) => compte.nom)).toContain(nom)
+})
+
+test('un compte joint se gère depuis la vue personnelle', async ({ page }) => {
+  /* L'écran de gestion liste les deux périmètres ; il doit pouvoir AGIR sur les deux.
+   *
+   * Lister sans pouvoir agir est le pire des deux états : le compte s'affiche sous le
+   * doigt et le serveur répond « Compte introuvable » — une panne à chercher là où il
+   * n'y en a pas. Signalé par Olivier le 21 août 2026 (ERREURS.md #043).
+   */
+  const nom = `Joint ${Date.now()}`
+  await connecter(page)
+
+  // Le décor passe par l'API : créer un compte joint depuis l'écran a ses propres tests,
+  // et le SUJET ici est ce qu'on peut lui faire ensuite, depuis l'autre vue.
+  await page.request.post('/api/comptes', {
+    data: { nom, prive: false, produit: 'compte_courant', solde_ouverture_centimes: 1234 },
+    headers: { 'X-Mycounts-Vue': 'foyer' },
+  })
+
+  // La vue par défaut est PERSONNELLE : le compte joint n'y appartient pas.
+  await page.reload()
+  await ouvrirComptes(page)
+  await expect(carte(page, nom), 'l’écran de gestion voit les deux mondes').toHaveCount(1)
+  await expect(carte(page, nom), 'et le montre avec son solde').toContainText('12')
+
+  await carte(page, nom)
+    .getByRole('button', { name: `Supprimer ${nom}` })
+    .click()
+  await carte(page, nom)
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Supprimer', exact: true })
+    .click()
+  await expect(carte(page, nom), 'affiché donc supprimable').toHaveCount(0)
   await fermer(page)
 })

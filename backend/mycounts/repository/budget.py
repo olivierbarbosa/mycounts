@@ -16,8 +16,9 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 from collections.abc import Sequence
+from dataclasses import replace
 
-from sqlalchemy import ColumnElement, and_, func, select
+from sqlalchemy import ColumnElement, and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from mycounts.domain.agregats import EtatOperation, OperationCalcul
@@ -166,6 +167,72 @@ def comptes_visibles(
 def compte_visible(session: Session, principal: Principal, compte_id: uuid.UUID) -> Compte | None:
     return session.execute(
         select(Compte).where(Compte.id == compte_id, _comptes_autorises(principal))
+    ).scalar_one_or_none()
+
+
+def _comptes_administrables(principal: Principal) -> ColumnElement[bool]:
+    """Les deux périmètres RÉUNIS, pour l'écran qui gère les comptes.
+
+    N'élargit aucun droit, et c'est la seule raison pour laquelle cette condition a le
+    droit d'exister : elle réunit ce que l'appelant voit déjà en basculant de vue, jamais
+    les comptes privés de quelqu'un d'autre. Elle est dérivée de `_comptes_autorises`
+    plutôt que réécrite — une seconde version de la règle de confidentialité divergerait
+    de la première, et c'est la plus permissive des deux qui ne préviendrait pas.
+
+    L'étanchéité des deux mondes porte sur les SOLDES et les budgets : additionner un
+    compte joint à un total personnel donne un chiffre que personne ne peut interpréter.
+    Elle n'a aucun sens dans un écran qui sert à renommer, archiver et supprimer.
+    """
+    return or_(*(_comptes_autorises(replace(principal, vue=vue)) for vue in Vue))
+
+
+def comptes_a_gerer(session: Session, principal: Principal) -> list[Compte]:
+    """Tous les comptes que l'appelant administre, ARCHIVÉS COMPRIS.
+
+    Les archivés en font partie, et c'est une correction du 21 août 2026. L'écran de
+    gestion propose l'archivage comme l'alternative douce à une suppression refusée, mais
+    la liste filtrait `archive = false` : le compte disparaissait de l'écran même qui
+    venait de le proposer, et devenait impossible à désarchiver comme à supprimer.
+    L'action présentée comme réversible était sans retour (ERREURS.md #043).
+    """
+    return list(
+        session.execute(
+            select(Compte)
+            .where(_comptes_administrables(principal))
+            .order_by(Compte.nom)
+        ).scalars()
+    )
+
+
+def perimetre_du_compte(principal: Principal, compte: Compte) -> Principal:
+    """Le principal dans lequel CE compte est visible, quelle que soit la vue courante.
+
+    Un solde se calcule à partir des opérations, et les opérations sont filtrées par une
+    jointure sur `compte` : demander celles d'un compte joint avec un principal en vue
+    personnelle rend une liste VIDE, donc un solde de zéro. Pas une erreur, pas un vide —
+    un montant faux, affiché avec le même aplomb qu'un montant juste.
+
+    Réservé aux écrans qui administrent les comptes et doivent en montrer les deux
+    périmètres. Un écran qui TOTALISE ne s'en sert jamais : il additionnerait deux mondes.
+    """
+    return replace(principal, vue=Vue.PERSONNELLE if compte.prive else Vue.FOYER)
+
+
+def compte_administrable(
+    session: Session, principal: Principal, compte_id: uuid.UUID
+) -> Compte | None:
+    """Un compte désigné pour être renommé, archivé ou supprimé.
+
+    À utiliser partout où l'écran de gestion agit sur un compte qu'il vient de LISTER :
+    lister les deux périmètres puis n'accepter d'agir que sur celui de la vue courante
+    rendait un compte joint intouchable depuis la vue personnelle — l'écran l'affichait,
+    et le serveur répondait « Compte introuvable » (ERREURS.md #043).
+
+    Les écrans qui CALCULENT — ajustement de solde, détail d'épargne — gardent
+    `compte_visible` : leur chiffre appartient à un seul des deux mondes.
+    """
+    return session.execute(
+        select(Compte).where(Compte.id == compte_id, _comptes_administrables(principal))
     ).scalar_one_or_none()
 
 

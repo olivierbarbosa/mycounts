@@ -1268,3 +1268,45 @@ deux tests d'intégration tiennent les deux bords : un compte qui ne porte que s
 se supprime, un compte qui porte une vraie dépense reste protégé. Vérifiés par deux
 mutations opposées — supprimer la protection fait rougir le second, restaurer l'ancien
 comportement fait rougir le premier.
+
+## #043 — Un écran qui montre ce qu'il ne peut pas toucher
+
+**Ce que je croyais.** Que #042 avait réglé « impossible de supprimer un compte joint ».
+La garde avait été corrigée, deux tests opposés la tenaient, la CI était verte.
+
+**Ce qu'il s'est passé.** Olivier, le lendemain : « j'ai l'espace joint complètement bug et
+impossible de le supprimer ». Trois défauts distincts se cachaient derrière la même phrase,
+et aucun n'était celui que j'avais corrigé :
+
+1. l'écran de gestion listait les deux périmètres — corrigé exprès pour qu'un compte joint
+   soit visible depuis la vue personnelle — mais `PATCH` et `DELETE` continuaient d'exiger
+   la vue courante. Le compte s'affichait sous le doigt, le serveur répondait « Compte
+   introuvable » ;
+2. la liste filtrait `archive = false`. L'écran proposait l'archivage comme l'alternative
+   douce à une suppression refusée, et le compte disparaissait de l'écran même qui venait
+   de le proposer — ni désarchivable, ni supprimable ;
+3. la route des soldes annonçait « archivés compris » dans sa docstring et bouclait sur
+   `comptes_visibles`, qui les exclut.
+
+**La cause.** Le correctif précédent avait élargi la LECTURE sans élargir l'ACTION. Une
+liste et les opérations unitaires qui la suivent sont un seul geste pour l'utilisateur, et
+deux fonctions pour moi : j'ai corrigé celle que le symptôme désignait. La règle des deux
+périmètres vivait d'ailleurs dans la route — une boucle `for vue in Vue` posée dans l'API,
+loin de `_comptes_autorises` qui en est l'auteur. Une règle recopiée hors de chez elle ne
+s'applique qu'aux appelants dont on se souvient.
+
+**Ce que ça dit de plus général.** Afficher un objet est une promesse qu'on peut agir
+dessus. Un écran qui liste large et agit étroit ne produit pas un refus, il produit un
+mensonge : « introuvable » à propos de quelque chose qui est à l'écran envoie chercher une
+panne qui n'existe pas. Et une phrase de docstring — « archivés compris » — a tenu des
+semaines parce que rien ne pouvait la contredire : une affirmation sans mesure est une
+intention, pas un fait.
+
+**Le contrôle en place maintenant.** `_comptes_administrables` dérive de
+`_comptes_autorises` par réunion des deux vues, dans le repository, auteur unique ;
+`comptes_a_gerer` et `compte_administrable` s'en servent ; `perimetre_du_compte` calcule
+chaque solde dans le monde du compte et non dans la vue courante. Quatre tests
+d'intégration, chacun prouvé rouge contre sa faute. Le plus important est celui de la
+fuite : remplacer la condition par « tous les comptes du foyer » laisse passer **19 tests
+sur 20** — seul `test_le_compte_prive_dun_autre_membre_reste_intouchable` l'attrape. Une
+règle de confidentialité élargie n'échoue jamais bruyamment.

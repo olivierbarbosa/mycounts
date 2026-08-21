@@ -1,4 +1,4 @@
-import { Archive, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Pencil, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 
 import type { ComptePublic, ProduitPublic } from '../api/client'
@@ -56,7 +56,7 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
   const charger = useCallback(async () => {
     const [produits, montants, liste] = await Promise.all([
       api.catalogueDesComptes(),
-      api.soldesDesComptes(),
+      api.soldesDeTousLesComptes(),
       api.tousLesComptes(),
     ])
     setCatalogue(produits)
@@ -149,6 +149,19 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
     setASupprimer(null)
     setErreur(null)
     surChangement()
+  }
+
+  /* Le chemin du retour. L'archivage est proposé comme l'alternative DOUCE à une
+     suppression refusée : sans quoi le rendre, l'adjectif est faux, et le compte reste
+     là où on l'a mis pour toujours. */
+  async function desarchiver(compte: ComptePublic) {
+    setErreur(null)
+    try {
+      await api.modifierCompte(compte.id, { archive: false })
+      surChangement()
+    } catch (cause) {
+      setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
+    }
   }
 
   const champs = (
@@ -274,6 +287,17 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
                     <Pencil size={16} strokeWidth={2} aria-hidden />
                     Modifier
                   </button>
+                  {compte.archive && (
+                    <button
+                      type="button"
+                      className={styles.secondaire}
+                      onClick={() => void desarchiver(compte)}
+                      aria-label={`Désarchiver ${compte.nom}`}
+                    >
+                      <ArchiveRestore size={16} strokeWidth={2} aria-hidden />
+                      Désarchiver
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={styles.destructif}

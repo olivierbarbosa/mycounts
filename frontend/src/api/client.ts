@@ -151,9 +151,10 @@ export const api = {
 
   comptes: () => appeler<ComptePublic[]>('/comptes'),
 
-  /** Tous les comptes que l'appelant peut voir, les deux périmètres réunis. Pour l'écran
-   *  de GESTION seulement : ne pas y voir un compte joint parce qu'on se trouve en vue
-   *  personnelle le rendait impossible à supprimer sans comprendre pourquoi. */
+  /** Tous les comptes que l'appelant peut voir, les deux périmètres réunis, ARCHIVÉS
+   *  COMPRIS. Pour l'écran de GESTION seulement : ne pas y voir un compte joint parce
+   *  qu'on se trouve en vue personnelle le rendait impossible à supprimer sans comprendre
+   *  pourquoi, et un compte archivé n'y revenait jamais. */
   tousLesComptes: () => appeler<ComptePublic[]>('/comptes?toutes_vues=true'),
 
   /** Le corps entier est passé : la signature positionnelle précédente obligeait à
@@ -166,6 +167,12 @@ export const api = {
   catalogueDesComptes: () => appeler<ProduitPublic[]>('/comptes/catalogue'),
 
   soldesDesComptes: () => appeler<SoldeDeCompte[]>('/comptes/soldes'),
+
+  /** Les soldes des deux périmètres, pour accompagner `tousLesComptes`. Sans lui, l'écran
+   *  de gestion affichait les comptes de l'autre vue sans montant — ce qui se lit comme
+   *  un compte vide, pas comme une donnée absente. */
+  soldesDeTousLesComptes: () =>
+    appeler<SoldeDeCompte[]>('/comptes/soldes?toutes_vues=true'),
 
   modifierCompte: (id: string, demande: ModificationCompte) =>
     appeler<ComptePublic>(`/comptes/${id}`, {

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import replace
 from typing import Final
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -43,7 +42,6 @@ from mycounts.jobs.materialisation import materialiser
 from mycounts.models.budget import Compte
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot
-from mycounts.repository.base import Vue
 
 routeur = APIRouter(tags=["budget"])
 
@@ -84,17 +82,12 @@ def lister_comptes(
     comprendre pourquoi.
 
     Ce paramètre n'élargit RIEN : il réunit les deux périmètres que l'appelant a déjà le
-    droit de voir séparément, jamais les comptes privés de quelqu'un d'autre.
+    droit de voir séparément, jamais les comptes privés de quelqu'un d'autre. Il rend
+    aussi les comptes ARCHIVÉS, que cet écran est le seul à pouvoir désarchiver.
     """
     if not toutes_vues:
         return [_en_compte(c) for c in depot.comptes_visibles(session, principal)]
-
-    vus = {
-        compte.id: compte
-        for vue in Vue
-        for compte in depot.comptes_visibles(session, replace(principal, vue=vue))
-    }
-    return [_en_compte(c) for c in sorted(vus.values(), key=lambda c: c.nom)]
+    return [_en_compte(c) for c in depot.comptes_a_gerer(session, principal)]
 
 
 @routeur.post("/comptes", response_model=ComptePublic, status_code=status.HTTP_201_CREATED)
@@ -154,28 +147,60 @@ def catalogue_des_comptes(principal: PrincipalCourant) -> list[ProduitPublic]:
 
 @routeur.get("/comptes/soldes", response_model=list[SoldeDeCompte])
 def soldes_des_comptes(
-    session: SessionBase, principal: PrincipalCourant
+    session: SessionBase,
+    principal: PrincipalCourant,
+    toutes_vues: bool = Query(
+        default=False,
+        description=(
+            "Rendre aussi les soldes de l'autre périmètre. Réservé à l'écran de GESTION "
+            "des comptes, comme sur `GET /comptes`."
+        ),
+    ),
 ) -> list[SoldeDeCompte]:
     """Solde RÉEL de chaque compte, archivés compris.
 
     Le réel et non le projeté : une carte de compte répond à « combien y a-t-il dessus »,
     pas à « combien restera-t-il ». Y projeter des échéances ferait diverger le chiffre de
     ce que la banque affiche, qui est la seule référence pour un rapprochement.
+
+    « Archivés compris » était FAUX jusqu'au 21 août 2026 : la docstring l'annonçait, la
+    boucle passait par `comptes_visibles`, qui filtre `archive = false`. Un compte archivé
+    s'affichait donc sans son solde. Une phrase de documentation n'est pas une mesure —
+    celle-ci a survécu parce que rien ne pouvait la contredire (ERREURS.md #043).
+
+    `toutes_vues` suit `GET /comptes` : l'écran de gestion liste les deux périmètres, et
+    des cartes sans montant sur la moitié d'entre elles se lisent comme un compte vide.
+    Les écrans qui totalisent gardent le défaut — un solde ne mélange jamais les mondes.
     """
     jour = aujourd_hui()
+    comptes = (
+        depot.comptes_a_gerer(session, principal)
+        if toutes_vues
+        else depot.comptes_visibles(session, principal)
+    )
     return [
         SoldeDeCompte(
             compte_id=compte.id,
             solde_centimes=int(
                 calculer(
                     Agregat.SOLDE_REEL,
-                    depot.operations_pour_calcul(session, principal, comptes=[compte.id]),
+                    depot.operations_pour_calcul(
+                        session,
+                        # Le périmètre des OPÉRATIONS suit celui du compte, pas la vue
+                        # courante : demander les lignes d'un compte joint avec un
+                        # principal en vue personnelle rend une liste vide, donc un solde
+                        # de zéro — un chiffre faux, et faux sans rien dire.
+                        depot.perimetre_du_compte(principal, compte)
+                        if toutes_vues
+                        else principal,
+                        comptes=[compte.id],
+                    ),
                     aujourd_hui=jour,
                     fin_de_fenetre=jour,
                 )
             ),
         )
-        for compte in depot.comptes_visibles(session, principal)
+        for compte in comptes
     ]
 
 
@@ -192,7 +217,7 @@ def modifier_compte(
     voulu : c'est le seul moyen de corriger une création faite trop vite. L'argent ne
     bouge pas, seul l'écran qui le totalise change.
     """
-    compte = depot.compte_visible(session, principal, compte_id)
+    compte = depot.compte_administrable(session, principal, compte_id)
     if compte is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
 
@@ -220,7 +245,7 @@ def supprimer_compte(
     L'archivage existe pour cela — il retire le compte des propositions sans toucher à
     son histoire.
     """
-    compte = depot.compte_visible(session, principal, compte_id)
+    compte = depot.compte_administrable(session, principal, compte_id)
     if compte is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
 

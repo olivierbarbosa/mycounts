@@ -94,6 +94,12 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   seul endroit autorisé à tout défaire. Aucune sauvegarde, aucune corbeille. La route exige
   que le nom du foyer soit retapé à l'identique, casse comprise : la barrière ne vise pas
   celui qui veut détruire, mais celui qui ne le veut pas et dont le doigt a glissé.
+- **Afficher un objet est une promesse qu'on peut agir dessus.** L'écran de gestion des
+  comptes liste les DEUX périmètres et les archivés : ses actions unitaires doivent suivre,
+  via `compte_administrable` et `comptes_a_gerer`. Lister large et agir étroit ne produit
+  pas un refus mais un mensonge — « introuvable » à propos de ce qui est à l'écran
+  (ERREURS.md #043). Les écrans qui TOTALISENT gardent `compte_visible` : un solde ne
+  mélange jamais les deux mondes.
 - **Un état d'attente affiché par défaut est un état d'attente qui ment.** « Rien reçu » et
   « reçu que c'est vide » sont deux faits distincts : les confondre rend la panne
   rigoureusement indistinguable du fonctionnement normal (ERREURS.md #041).

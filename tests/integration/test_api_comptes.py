@@ -357,3 +357,138 @@ def test_lecran_de_gestion_voit_les_DEUX_perimetres(
     # …mais l'écran de gestion voit les deux.
     tous = [c["nom"] for c in client.get("/api/comptes?toutes_vues=true").json()]
     assert sorted(tous) == ["Le joint", "Mon perso"]
+
+
+def test_un_compte_joint_se_gere_depuis_la_vue_personnelle(
+    client: TestClient, session_bd: Session
+) -> None:
+    """L'écran de gestion liste les deux périmètres ; il doit pouvoir AGIR sur les deux.
+
+    Lister sans pouvoir agir est le pire des deux états : le compte s'affiche sous le
+    doigt et le serveur répond « Compte introuvable ». Olivier l'a rencontré sur son
+    compte joint, et la réponse l'envoyait chercher une panne qui n'existait pas.
+    """
+    session_ouverte(client, session_bd)
+    joint = client.post(
+        "/api/comptes",
+        json={"nom": "Le joint", "prive": False, "produit": "compte_courant"},
+        headers={"X-Mycounts-Vue": "foyer"},
+    ).json()
+
+    # Tout ce qui suit se fait en vue PERSONNELLE, sur un compte JOINT.
+    renomme = client.patch(
+        f"/api/comptes/{joint['id']}",
+        json={"nom": "Renomme", "produit": "compte_courant", "archive": False},
+    )
+    assert renomme.status_code == 200, renomme.text
+    assert renomme.json()["nom"] == "Renomme"
+
+    efface = client.delete(f"/api/comptes/{joint['id']}")
+    assert efface.status_code == 204, efface.text
+    assert client.get("/api/comptes?toutes_vues=true").json() == []
+
+
+def test_un_compte_archive_reste_atteignable_dans_lecran_de_gestion(
+    client: TestClient, session_bd: Session
+) -> None:
+    """L'archivage est proposé comme l'alternative DOUCE à une suppression refusée.
+
+    La liste filtrait `archive = false` : le compte disparaissait de l'écran même qui
+    venait de le proposer, sans moyen de le désarchiver ni de le supprimer. Une action
+    présentée comme réversible était sans retour.
+    """
+    session_ouverte(client, session_bd)
+    compte = creer(client, "A ranger")
+
+    archive = client.patch(
+        f"/api/comptes/{compte['id']}",
+        json={"nom": "A ranger", "produit": "compte_courant", "archive": True},
+    )
+    assert archive.status_code == 200, archive.text
+
+    # Il quitte les écrans qui proposent des comptes…
+    assert client.get("/api/comptes").json() == []
+    # …mais reste dans celui qui les gère, marqué comme tel.
+    gestion = client.get("/api/comptes?toutes_vues=true").json()
+    assert [(c["nom"], c["archive"]) for c in gestion] == [("A ranger", True)]
+
+    # Et le chemin du retour existe.
+    retour = client.patch(
+        f"/api/comptes/{compte['id']}",
+        json={"nom": "A ranger", "produit": "compte_courant", "archive": False},
+    )
+    assert retour.status_code == 200, retour.text
+    assert [c["nom"] for c in client.get("/api/comptes").json()] == ["A ranger"]
+
+
+def test_le_solde_dun_compte_joint_nest_pas_zero_en_vue_personnelle(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le périmètre des OPÉRATIONS suit le compte, pas la vue courante.
+
+    Les opérations sont filtrées par une jointure sur `compte` : les demander pour un
+    compte joint avec un principal en vue personnelle rend une liste vide, donc un solde
+    de zéro. Pas une absence, pas une erreur — un montant FAUX, affiché avec le même
+    aplomb qu'un montant juste. C'est la mesure qui peut rendre la réponse inverse.
+    """
+    session_ouverte(client, session_bd)
+    joint = client.post(
+        "/api/comptes",
+        json={
+            "nom": "Le joint",
+            "prive": False,
+            "produit": "compte_courant",
+            "solde_ouverture_centimes": 1234,
+        },
+        headers={"X-Mycounts-Vue": "foyer"},
+    ).json()
+
+    soldes = {
+        s["compte_id"]: s["solde_centimes"]
+        for s in client.get("/api/comptes/soldes?toutes_vues=true").json()
+    }
+    assert soldes.get(joint["id"]) == 1234
+
+    # Le défaut reste étanche : un total personnel n'a jamais vu ce compte.
+    etanches = client.get("/api/comptes/soldes").json()
+    assert [s["compte_id"] for s in etanches] == []
+
+
+def test_le_compte_prive_dun_autre_membre_reste_intouchable(
+    client: TestClient, session_bd: Session
+) -> None:
+    """La non-régression qui compte : élargir la GESTION aux deux vues n'ouvre pas la
+    porte aux comptes privés d'autrui.
+
+    `toutes_vues` réunit les deux périmètres que l'appelant peut déjà consulter, jamais
+    un troisième. Sans ce test, une condition trop permissive — « tous les comptes du
+    foyer » au lieu de « les miens et les joints » — passerait tous les autres tests de
+    ce fichier en silence, et c'est la plus permissive des deux versions qui ne prévient
+    jamais.
+    """
+    alice = session_ouverte(client, session_bd)
+    secret = creer(client, "Le carnet d'Alice")
+
+    depot_auth.creer_utilisateur(
+        session_bd,
+        foyer_id=alice.foyer_id,
+        courriel=normaliser_courriel("bruno@essai.fr"),
+        nom_affichage="Bruno",
+        empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+    )
+    session_bd.commit()
+    connecter(client, "bruno@essai.fr")
+
+    # Bruno ne le voit pas, même dans l'écran qui réunit les deux périmètres.
+    assert client.get("/api/comptes?toutes_vues=true").json() == []
+    assert client.get("/api/comptes/soldes?toutes_vues=true").json() == []
+
+    # Et il ne peut ni le renommer ni le supprimer. Un 404 et non un 403 : ici le compte
+    # n'est pas « visible mais interdit », il est hors de son monde — le lui nommer
+    # apprendrait déjà son existence.
+    renommage = client.patch(
+        f"/api/comptes/{secret['id']}",
+        json={"nom": "Vole", "produit": "compte_courant", "archive": False},
+    )
+    assert renommage.status_code == 404, renommage.text
+    assert client.delete(f"/api/comptes/{secret['id']}").status_code == 404
