@@ -5,18 +5,27 @@ Aucune inscription publique : on entre par un code d'invitation, ou pas du tout.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Response, status
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile, status
+from sqlalchemy.exc import IntegrityError
 
 from mycounts.api.dependances import NOM_COOKIE, PrincipalCourant, SessionBase
 from mycounts.api.schemas import (
     DemandeAdhesion,
+    DemandeChangementCourriel,
+    DemandeChangementMotDePasse,
     DemandeConnexion,
+    DemandeRenommage,
     DemandeSuppressionCompte,
     InvitationCreee,
     MembrePublic,
     UtilisateurPublic,
 )
 from mycounts.config import charger_configuration
+from mycounts.domain.avatars import TYPE_MIME as TYPE_MIME_AVATAR
+from mycounts.domain.avatars import ImageRefusee, normaliser
 from mycounts.domain.securite import (
     DUREE_SESSION,
     empreinte_jeton,
@@ -54,7 +63,24 @@ def _pose_le_cookie(reponse: Response, jeton: str) -> None:
     )
 
 
-def _vue_publique(utilisateur: Utilisateur) -> UtilisateurPublic:
+def _version_avatar(session: SessionBase, utilisateur_id: uuid.UUID) -> str | None:
+    return depot.versions_des_avatars(session, [utilisateur_id]).get(utilisateur_id)
+
+
+def _utilisateur_courant(session: SessionBase, principal: PrincipalCourant) -> Utilisateur:
+    """L'utilisateur derrière la session.
+
+    Le 404 n'arrive qu'entre une suppression de compte et la fin d'une requête déjà
+    partie : la dépendance qui fabrique le `Principal` a déjà validé la session. Le lever
+    quand même vaut mieux qu'un `assert`, qui disparaîtrait sous `python -O`.
+    """
+    utilisateur = depot.utilisateur_par_id(session, principal.utilisateur_id)
+    if utilisateur is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
+    return utilisateur
+
+
+def _vue_publique(utilisateur: Utilisateur, *, version_avatar: str | None) -> UtilisateurPublic:
     """Ce que le client apprend de lui-même. Auteur unique de cette traduction.
 
     Trois routes la renvoyaient chacune à sa façon ; ajouter un champ obligeait à le poser
@@ -68,6 +94,8 @@ def _vue_publique(utilisateur: Utilisateur) -> UtilisateurPublic:
         foyer_id=utilisateur.foyer_id,
         foyer_nom=utilisateur.foyer.nom,
         est_proprietaire=utilisateur.est_proprietaire,
+        a_un_avatar=version_avatar is not None,
+        avatar_version=version_avatar,
     )
 
 
@@ -103,7 +131,7 @@ def connexion(
     session.commit()
     _pose_le_cookie(reponse, jeton)
 
-    return _vue_publique(utilisateur)
+    return _vue_publique(utilisateur, version_avatar=_version_avatar(session, utilisateur.id))
 
 
 @routeur.post("/deconnexion", status_code=status.HTTP_204_NO_CONTENT)
@@ -122,7 +150,7 @@ def moi(session: SessionBase, principal: PrincipalCourant) -> UtilisateurPublic:
     utilisateur = depot.utilisateur_par_id(session, principal.utilisateur_id)
     if utilisateur is None:  # pragma: no cover — le principal vient d'être validé
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session invalide.")
-    return _vue_publique(utilisateur)
+    return _vue_publique(utilisateur, version_avatar=_version_avatar(session, utilisateur.id))
 
 
 @routeur.post("/invitations", response_model=InvitationCreee, status_code=status.HTTP_201_CREATED)
@@ -184,7 +212,7 @@ def rejoindre(
     session.commit()
     _pose_le_cookie(reponse, jeton)
 
-    return _vue_publique(utilisateur)
+    return _vue_publique(utilisateur, version_avatar=_version_avatar(session, utilisateur.id))
 
 
 @routeur.get("/foyer/membres", response_model=list[MembrePublic])
@@ -195,6 +223,10 @@ def membres_du_foyer(session: SessionBase, principal: PrincipalCourant) -> list[
     pas de session, pas de solde — savoir avec qui l'on partage un compte joint ne donne
     aucun droit sur l'argent de l'autre.
     """
+    membres = depot.membres_du_foyer(session, principal)
+    # Une seule requête pour tout le monde : un appel par membre ferait autant
+    # d'allers-retours que le foyer compte de personnes, pour un booléen chacun.
+    versions = depot.versions_des_avatars(session, [m.id for m in membres])
     return [
         MembrePublic(
             id=membre.id,
@@ -203,9 +235,173 @@ def membres_du_foyer(session: SessionBase, principal: PrincipalCourant) -> list[
             cree_le=membre.cree_le,
             est_vous=membre.id == principal.utilisateur_id,
             est_proprietaire=membre.est_proprietaire,
+            a_un_avatar=membre.id in versions,
+            avatar_version=versions.get(membre.id),
         )
-        for membre in depot.membres_du_foyer(session, principal)
+        for membre in membres
     ]
+
+
+@routeur.patch("/moi", response_model=UtilisateurPublic)
+def renommer(
+    demande: DemandeRenommage, session: SessionBase, principal: PrincipalCourant
+) -> UtilisateurPublic:
+    """Change le nom affiché. Aucun mot de passe exigé : rien de sensible ne se joue ici.
+
+    Le nom alimente aussi les initiales de la bulle, faute d'avatar : le laisser vide
+    donnerait un disque muet, d'où la longueur minimale portée par le schéma.
+    """
+    utilisateur = _utilisateur_courant(session, principal)
+    depot.renommer_utilisateur(session, utilisateur, nom=demande.nom_affichage.strip())
+    session.commit()
+    return _vue_publique(utilisateur, version_avatar=_version_avatar(session, utilisateur.id))
+
+
+@routeur.post("/moi/mot-de-passe", status_code=status.HTTP_204_NO_CONTENT)
+def changer_le_mot_de_passe(
+    demande: DemandeChangementMotDePasse,
+    requete: Request,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> None:
+    """Change le mot de passe et ferme les AUTRES sessions.
+
+    L'ancien est vérifié avec la même fonction que la connexion : une seconde comparaison
+    écrite ici pourrait diverger, et c'est la plus permissive qui ne préviendrait pas.
+
+    La longueur minimale du nouveau est celle du domaine, levée en `ValueError` par
+    `hacher_mot_de_passe`. On la traduit en 400 plutôt que de la recopier : deux endroits
+    qui déclarent la même borne finissent par ne plus déclarer la même.
+    """
+    utilisateur = _utilisateur_courant(session, principal)
+    if not verifier_mot_de_passe(utilisateur.empreinte_mot_de_passe, demande.ancien):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le mot de passe actuel est incorrect.",
+        )
+    try:
+        empreinte = hacher_mot_de_passe(demande.nouveau)
+    except ValueError as cause:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(cause)
+        ) from cause
+
+    depot.changer_le_mot_de_passe(
+        session,
+        utilisateur,
+        empreinte=empreinte,
+        # La session qui demande survit : la fermer renverrait vers l'écran de connexion
+        # juste après avoir annoncé un succès, ce qui se lit comme un échec.
+        sauf_empreinte_jeton=empreinte_jeton(requete.cookies.get(NOM_COOKIE, "")),
+    )
+    session.commit()
+
+
+@routeur.post("/moi/courriel", response_model=UtilisateurPublic)
+def changer_le_courriel(
+    demande: DemandeChangementCourriel, session: SessionBase, principal: PrincipalCourant
+) -> UtilisateurPublic:
+    """Change l'adresse de connexion. Le mot de passe est exigé.
+
+    Le conflit d'unicité est rendu en 409 avec un message neutre — « cette adresse ne peut
+    pas être utilisée » — et non « elle existe déjà » : cette seconde formulation
+    permettrait de savoir, depuis un compte quelconque, qui d'autre a un compte ici.
+    """
+    utilisateur = _utilisateur_courant(session, principal)
+    if not verifier_mot_de_passe(utilisateur.empreinte_mot_de_passe, demande.mot_de_passe):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Le mot de passe est incorrect."
+        )
+
+    try:
+        depot.changer_le_courriel(session, utilisateur, courriel=demande.courriel)
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cette adresse ne peut pas être utilisée.",
+        ) from None
+    return _vue_publique(utilisateur, version_avatar=_version_avatar(session, utilisateur.id))
+
+
+@routeur.put("/moi/avatar", status_code=status.HTTP_204_NO_CONTENT)
+async def envoyer_son_avatar(
+    session: SessionBase,
+    principal: PrincipalCourant,
+    fichier: Annotated[UploadFile, File(description="Image de profil.")],
+) -> None:
+    """Reçoit une image, la normalise, la remplace.
+
+    Rien de ce qui arrive n'est stocké tel quel : `normaliser` décode, redresse, recadre et
+    réencode. C'est ce qui garantit qu'on sert bien une image — un fichier téléversé
+    annonce son type lui-même — et c'est aussi ce qui efface les métadonnées, dont la
+    position GPS que transporte toute photo de téléphone.
+
+    Le poids est vérifié APRÈS lecture, pas par un en-tête : `Content-Length` est déclaré
+    par l'appelant et ne contraint rien.
+    """
+    donnees = await fichier.read()
+    try:
+        normalisee = normaliser(donnees)
+    except ImageRefusee as cause:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(cause)
+        ) from cause
+
+    depot.enregistrer_avatar(
+        session, principal.utilisateur_id, contenu=normalisee, type_mime=TYPE_MIME_AVATAR
+    )
+    session.commit()
+
+
+@routeur.delete("/moi/avatar", status_code=status.HTTP_204_NO_CONTENT)
+def retirer_son_avatar(session: SessionBase, principal: PrincipalCourant) -> None:
+    """Retire l'avatar. 404 s'il n'y en avait pas.
+
+    « Retiré » et « il n'y en avait pas » sont deux réponses différentes : les confondre
+    ferait afficher un succès à qui clique deux fois, et douter du premier clic.
+    """
+    if not depot.supprimer_avatar(session, principal.utilisateur_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Aucun avatar à retirer."
+        )
+    session.commit()
+
+
+@routeur.get(
+    "/utilisateurs/{utilisateur_id}/avatar",
+    responses={200: {"content": {"image/webp": {}}}, 404: {}},
+)
+def avatar_dune_personne(
+    utilisateur_id: uuid.UUID, session: SessionBase, principal: PrincipalCourant
+) -> Response:
+    """Sert l'image d'un membre du foyer.
+
+    Restreint au foyer de l'appelant : une image de profil n'est pas publique, et un
+    identifiant se devine assez mal pour être un secret mais assez bien pour ne pas en
+    être un. Hors du foyer, 404 et non 403 — dire « interdit » confirmerait l'existence du
+    compte.
+
+    `ETag` sur la date de modification, et `private` : l'image est nominative, un cache
+    partagé n'a pas à la garder.
+    """
+    cible = depot.utilisateur_par_id(session, utilisateur_id)
+    if cible is None or cible.foyer_id != principal.foyer_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aucun avatar.")
+
+    avatar = depot.avatar_de(session, utilisateur_id)
+    if avatar is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aucun avatar.")
+
+    return Response(
+        content=avatar.contenu,
+        media_type=avatar.type_mime,
+        headers={
+            "Cache-Control": "private, max-age=0, must-revalidate",
+            "ETag": f'"{avatar.modifie_le.timestamp()}"',
+        },
+    )
 
 
 @routeur.delete("/foyer/partage", status_code=status.HTTP_204_NO_CONTENT)

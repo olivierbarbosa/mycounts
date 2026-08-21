@@ -106,6 +106,7 @@
   place-items: center;
   width: 84px;
   height: 84px;
+  overflow: hidden;
   border-radius: 50%;
   border: 1px solid var(--couleur-bordure);
   background: var(--couleur-degrade-accent);
@@ -325,6 +326,7 @@
   height: 36px;
   display: grid;
   place-items: center;
+  overflow: hidden;
   border-radius: 50%;
   background: var(--couleur-surface-haute);
   border: 1px solid var(--couleur-bordure);
@@ -479,4 +481,15 @@
   font-size: 16px;
   font-weight: var(--typo-gras-fort);
   color: var(--couleur-texte);
+}
+
+/* `Portrait` posé dans le disque de l'en-tête : il remplit son parent, qui garde la
+   mesure et la couleur. Sans cela l'image se dimensionnerait sur son contenu et
+   dépasserait du cercle. */
+.portraitAvatar {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }

@@ -17,7 +17,8 @@ soldes et liste ; amorçage avec solde d'ouverture ; récurrences, matérialisat
 idempotente, calendrier mensuel et file « à confirmer » ; plafonds par catégorie avec leur
 écran et les jauges de l'accueil ; virements ; page Épargne et détail d'un livret ;
 correction du solde par ajustement ; enveloppes avec leurs réglages et la préparation
-mensuelle ; statistiques et constats chiffrés ; import de relevé CSV avec écran de revue.
+mensuelle ; statistiques et constats chiffrés ; import de relevé CSV avec écran de revue ;
+profil personnel — nom, adresse, mot de passe — et **image de profil**.
 Interface Liquid Glass sur palette **bleu ardoise**, mobile d'abord, rail latéral au-delà
 de 1024 px. Barre d'onglets à deux capsules (modèle Apple Music) ; écrans ouverts depuis
 une bulle du haut, avec glissement de retour au doigt. Onglet Foyer : bascule entre
@@ -25,7 +26,8 @@ comptes personnels et comptes joints, liste des membres, invitation, dissolution
 partage et suppression définitive de son compte.
 
 **Manque** : couverture des enveloppes par compte et déclaration de virement (lots E2 et
-E4) ; avatar / image de profil ; « voir qui modifie quoi » (`cree_par_id` existe sur trois
+E4) ; TOTP obligatoire et codes de secours (décidé, repoussé à la clôture) ; « voir qui
+modifie quoi » (`cree_par_id` existe sur trois
 tables, rien ne l'expose) ; filtrage des plafonds et enveloppes par `vue` (les colonnes et
 la migration existent, aucune requête ne les lit) ; chiffrement de la base ; import de
 relevé au format PDF, non tranché ; déploiement VPS.
@@ -136,6 +138,17 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 - **Un état d'attente affiché par défaut est un état d'attente qui ment.** « Rien reçu » et
   « reçu que c'est vide » sont deux faits distincts : les confondre rend la panne
   rigoureusement indistinguable du fonctionnement normal (ERREURS.md #041).
+- **Une image reçue n'est JAMAIS servie telle quelle** — `domain/avatars.normaliser`
+  décode, redresse selon l'EXIF, recadre en carré et réencode en WebP. Le réencodage porte
+  trois garanties qu'un contrôle du type déclaré ne donne pas : c'est bien une image, les
+  métadonnées partent — dont la position GPS que transporte toute photo de téléphone —, et
+  la borne de taille est réelle. Stockée en base, table `avatar` à part : une seule chose à
+  sauvegarder et à chiffrer, et pas cinquante kilo-octets traînés à chaque lecture de
+  session. La version d'URL vient du SERVEUR : un compteur local ne rafraîchirait que
+  l'écran qui l'incrémente.
+- **Changer son mot de passe ferme les AUTRES sessions, jamais la sienne.** On en change
+  surtout quand quelqu'un d'autre pourrait le connaître ; fermer la sienne renverrait vers
+  l'écran de connexion juste après un succès, ce qui se lit comme un échec.
 - **Une adresse électronique est validée par `normaliser_courriel()`**, dans le domaine.
   Le schéma d'API l'appelle via `AfterValidator` — pas d'`EmailStr`, qui ferait un second
   auteur de la règle.

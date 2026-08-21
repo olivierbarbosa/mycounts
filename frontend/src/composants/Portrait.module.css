@@ -1,0 +1,21 @@
+/* L'image remplit le disque que l'appelant a dessiné. `cover` et non `contain` : le
+   serveur rend déjà un carré, mais un conteneur non carré déformerait le visage plutôt
+   que de le recadrer. */
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+/* Défaut : le portrait épouse le disque que son parent a déjà dessiné — le cas de la
+   bulle. Il n'impose aucune mesure, il en hérite. */
+.remplit {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}

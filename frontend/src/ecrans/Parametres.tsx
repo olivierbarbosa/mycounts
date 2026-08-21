@@ -18,7 +18,8 @@ import type {
   UtilisateurPublic,
 } from '../api/client'
 import { ErreurApi, api } from '../api/client'
-import { initialesDeLUtilisateur } from '../composants/Bulle'
+import { Portrait } from '../composants/Portrait'
+import { ProfilPersonnel } from '../composants/ProfilPersonnel'
 import { ComptesBancaires } from '../composants/ComptesBancaires'
 import { type Origine, useEcranDeBulle } from '../composants/EcranDeBulle'
 import { ReglageTheme } from '../composants/ReglageTheme'
@@ -285,10 +286,7 @@ export function Parametres({
       titre: 'Mon compte',
       contenu: (
         <div className={styles.carte}>
-          <span className={styles.libelleCarte}>Nom affiché</span>
-          <span>{utilisateur.nom_affichage}</span>
-          <span className={styles.libelleCarte}>Adresse électronique</span>
-          <span>{utilisateur.courriel}</span>
+          <ProfilPersonnel utilisateur={utilisateur} surChangement={surChangement} />
 
           {/* Supprimer son compte vit ICI, et non sur l'écran du foyer : ce qu'on efface
               est son identité et son argent, pas le partage. C'est la séparation que ce
@@ -423,9 +421,13 @@ export function Parametres({
             <ul className={styles.membres}>
               {membres.map((membre) => (
                 <li key={membre.id} className={styles.membre}>
-                  <span className={styles.avatarMembre} aria-hidden>
-                    {initialesDeLUtilisateur(membre.nom_affichage)}
-                  </span>
+                  <Portrait
+                    utilisateurId={membre.id}
+                    nom={membre.nom_affichage}
+                    aUnAvatar={membre.a_un_avatar}
+                    version={membre.avatar_version ?? undefined}
+                    className={styles.avatarMembre}
+                  />
                   <span className={styles.corpsMembre}>
                     <span className={styles.nomMembre}>
                       {membre.nom_affichage}
@@ -552,8 +554,14 @@ export function Parametres({
           </header>
 
           <div className={styles.identite}>
-            <span ref={avatar} className={styles.avatar} aria-hidden>
-              {initialesDeLUtilisateur(utilisateur.nom_affichage)}
+            <span ref={avatar} className={styles.avatar}>
+              <Portrait
+                utilisateurId={utilisateur.id}
+                nom={utilisateur.nom_affichage}
+                aUnAvatar={utilisateur.a_un_avatar}
+                version={utilisateur.avatar_version ?? undefined}
+                className={styles.portraitAvatar}
+              />
             </span>
             <h1 className={styles.nom}>{utilisateur.nom_affichage}</h1>
             <p className={styles.courriel}>{utilisateur.courriel}</p>

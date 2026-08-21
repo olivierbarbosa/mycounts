@@ -10,7 +10,8 @@ import type {
 } from './api/client'
 import { api } from './api/client'
 import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
-import { Bulle, initialesDeLUtilisateur } from './composants/Bulle'
+import { Bulle } from './composants/Bulle'
+import { Portrait } from './composants/Portrait'
 import type { Origine } from './composants/EcranDeBulle'
 import { FeuilleOperation } from './composants/FeuilleOperation'
 import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
@@ -79,19 +80,24 @@ export function App() {
   const [livretChoisi, setLivretChoisi] = useState<string | null>(null)
   const [rafraichissement, setRafraichissement] = useState(0)
 
+  /* Relit TOUT ce dont les écrans dépendent, l'utilisateur compris.
+   *
+   * Il en était absent : seuls les comptes et les catégories étaient rechargés. Tant que
+   * le profil ne se modifiait pas, l'oubli ne se voyait pas ; le jour où l'on a pu changer
+   * son nom et sa photo, l'écran a continué d'afficher les anciens jusqu'au rechargement
+   * complet de la page — l'action réussissait et paraissait sans effet. Une liste de
+   * choses à relire qui en oublie une ne se signale jamais elle-même. */
   const chargerReferentiels = useCallback(async () => {
-    const [c, k] = await Promise.all([api.comptes(), api.categories()])
+    const [u, c, k] = await Promise.all([api.moi(), api.comptes(), api.categories()])
+    setUtilisateur(u)
     setComptes(c)
     setCategories(k)
   }, [])
 
   useEffect(() => {
-    api
-      .moi()
-      .then(async (u) => {
-        setUtilisateur(u)
-        await chargerReferentiels()
-      })
+    // `chargerReferentiels` relit déjà l'utilisateur : un `api.moi()` de plus ici en
+    // ferait deux au démarrage, et deux auteurs pour le même état.
+    chargerReferentiels()
       .catch(() => setUtilisateur(null))
       .finally(() => setChargement(false))
   }, [chargerReferentiels])
@@ -205,7 +211,12 @@ export function App() {
           setOrigineParametres(origine)
         }}
       >
-        <span aria-hidden>{initialesDeLUtilisateur(utilisateur.nom_affichage)}</span>
+        <Portrait
+          utilisateurId={utilisateur.id}
+          nom={utilisateur.nom_affichage}
+          aUnAvatar={utilisateur.a_un_avatar}
+          version={utilisateur.avatar_version ?? undefined}
+        />
       </Bulle>
 
       {/* Le calendrier a quitté la barre pour une bulle : les prélèvements se consultent,

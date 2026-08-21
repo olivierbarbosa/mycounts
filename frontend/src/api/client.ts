@@ -139,6 +139,53 @@ export const api = {
 
   creerInvitation: () => appeler<InvitationCreee>('/auth/invitations', { method: 'POST' }),
 
+  /** Change le nom affiché. Aucun mot de passe : rien de sensible ne s'y joue. */
+  renommer: (nomAffichage: string) =>
+    appeler<UtilisateurPublic>('/auth/moi', {
+      method: 'PATCH',
+      body: JSON.stringify({ nom_affichage: nomAffichage }),
+    }),
+
+  /** Change le mot de passe et ferme les AUTRES sessions — celle-ci survit.
+   *
+   *  L'ancien est exigé par le serveur : une session laissée ouverte sur un téléphone
+   *  déverrouillé ne doit pas permettre d'exclure son propriétaire de son compte. */
+  changerLeMotDePasse: (ancien: string, nouveau: string) =>
+    appeler<void>('/auth/moi/mot-de-passe', {
+      method: 'POST',
+      body: JSON.stringify({ ancien, nouveau }),
+    }),
+
+  /** Change l'adresse de connexion. Le mot de passe est exigé.
+   *
+   *  Aucune vérification n'est possible — l'application n'envoie pas de courriel : une
+   *  adresse mal tapée verrouille le compte à la déconnexion suivante. L'écran le dit
+   *  AVANT de valider, c'est la seule protection qu'on puisse offrir. */
+  changerLeCourriel: (courriel: string, motDePasse: string) =>
+    appeler<UtilisateurPublic>('/auth/moi/courriel', {
+      method: 'POST',
+      body: JSON.stringify({ courriel, mot_de_passe: motDePasse }),
+    }),
+
+  /** Envoie une image de profil. Le serveur la recadre, la réencode et efface ses
+   *  métadonnées — dont la position GPS que transporte toute photo de téléphone. */
+  envoyerSonAvatar: (fichier: File) => {
+    const corps = new FormData()
+    corps.append('fichier', fichier)
+    return appeler<void>('/auth/moi/avatar', { method: 'PUT', body: corps })
+  },
+
+  retirerSonAvatar: () => appeler<void>('/auth/moi/avatar', { method: 'DELETE' }),
+
+  /** L'adresse de l'image d'un membre, à poser dans un `src`.
+   *
+   *  `version` casse le cache du navigateur après un changement. L'`ETag` du serveur ne
+   *  suffit pas : il fait revalider, mais une image déjà affichée dans le DOM n'est pas
+   *  redemandée tant que son URL ne change pas — on croit alors l'envoi perdu. */
+  urlAvatar: (utilisateurId: string, version?: number | string) =>
+    `${BASE}/auth/utilisateurs/${utilisateurId}/avatar` +
+    (version === undefined ? '' : `?v=${encodeURIComponent(String(version))}`),
+
   /** Arrête le partage : supprime les comptes JOINTS, et rien d'autre.
    *
    *  Ne déconnecte pas et ne touche ni au compte, ni aux comptes personnels. Refusé par

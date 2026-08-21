@@ -101,6 +101,29 @@ const MESURE = ([seuilNormal, seuilGrand, debit, plancherDebit]: [
       .map(([r, v, b]) => [r, v, b] as [number, number, number])
   }
 
+  /** Les arrêts du dégradé qui COUVRE réellement cet élément, fût-il porté par un ancêtre.
+   *
+   *  `arretsDeDegrade` ne regarde que l'élément lui-même. Il a suffi d'un composant
+   *  imbriqué — le portrait posé DANS le disque de l'en-tête, le 22 août 2026 — pour que
+   *  la sonde perde de vue le dégradé bleu qui était pourtant bien là, remonte jusqu'au
+   *  fond clair de la page et annonce 1,1:1 sur des initiales blanches parfaitement
+   *  lisibles. Quatrième fois que cette sonde se trompe de sujet (#011, #021, #035).
+   *
+   *  La remontée s'arrête au premier fond OPAQUE — au-delà, ce qu'on mesurerait est caché.
+   *  Elle s'arrête aussi au corps de page, dont le dégradé a son propre traitement, avec
+   *  le halo : le laisser gagner ici court-circuiterait cette composition-là. */
+  const arretsCouvrants = (element: Element): [number, number, number][] => {
+    let courant: Element | null = element
+    while (courant && courant !== document.body) {
+      const arrets = arretsDeDegrade(courant)
+      if (arrets.length > 0) return arrets
+      const [, , , a] = lire(getComputedStyle(courant).backgroundColor)
+      if (a >= 1) return []
+      courant = courant.parentElement
+    }
+    return []
+  }
+
   /** Arrêts translucides du halo dérivant, lus sur le pseudo-élément qui le porte.
    *
    *  Sans cette lecture, le halo échappe entièrement a la sonde : il vit dans un
@@ -172,7 +195,7 @@ const MESURE = ([seuilNormal, seuilGrand, debit, plancherDebit]: [
     // Tout texte passe donc réellement sous leur pic au cours du cycle, et ce candidat est
     // un vrai pire cas. Mesurer le fond immobile ne prouverait plus rien : la sonde lit un
     // instant, le fond, lui, bouge.
-    const arrets = arretsDeDegrade(element)
+    const arrets = arretsCouvrants(element)
     const candidats: [number, number, number][] =
       arrets.length > 0
         ? arrets

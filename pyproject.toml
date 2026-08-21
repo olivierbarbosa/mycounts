@@ -15,6 +15,10 @@ dependencies = [
     # Envoi de fichiers : requis par FastAPI pour lire un formulaire multipart, c'est-à-dire
     # pour l'import de relevé. Sans lui, la route lève à l'exécution et non au démarrage.
     "python-multipart>=0.0.20",
+    # Avatars : décodage, recadrage et réencodage. Aucune image reçue n'est stockée telle
+    # quelle — un fichier téléversé est une donnée non fiable, et le réencoder est ce qui
+    # garantit qu'on sert bien une image et non ce qu'elle prétendait être.
+    "pillow>=11.0",
 ]
 
 [project.optional-dependencies]

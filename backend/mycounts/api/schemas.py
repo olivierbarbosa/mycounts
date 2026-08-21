@@ -51,6 +51,23 @@ class UtilisateurPublic(BaseModel):
     mais l'autorisation réelle est revérifiée à chaque appel — cacher un bouton n'a jamais
     empêché personne d'appeler la route."""
 
+    a_un_avatar: bool = False
+    """Dit à l'écran s'il doit demander l'image ou dessiner les initiales.
+
+    Sans ce drapeau, le client ne peut le découvrir qu'en demandant l'image et en
+    recevant un 404 : une requête sur deux échouerait par conception, et la console
+    afficherait une erreur à chaque affichage d'un membre sans portrait — du bruit qui
+    finit par masquer les vraies pannes."""
+
+    avatar_version: str | None = None
+    """Change à chaque envoi, pour que le navigateur redemande l'image.
+
+    Servie par le SERVEUR et non comptée par l'écran : le portrait paraît à trois endroits
+    et l'image d'un autre membre peut changer sans qu'on ait rien fait ici. Un compteur
+    local ne rafraîchirait que le formulaire qui l'incrémente, et la bulle garderait
+    l'ancienne photo — l'`ETag` ne suffit pas, une image déjà dans le DOM n'est pas
+    redemandée tant que son URL ne bouge pas."""
+
 
 class MembrePublic(BaseModel):
     """Un membre du foyer, tel que les autres membres peuvent le voir.
@@ -68,6 +85,24 @@ class MembrePublic(BaseModel):
     """Marqué par le SERVEUR et non déduit à l'écran : le client connaît son nom, pas son
     identifiant, et deux membres peuvent porter le même nom d'affichage."""
 
+    a_un_avatar: bool = False
+    """Dit à l'écran s'il doit demander l'image ou dessiner les initiales.
+
+    Sans ce drapeau, le client ne peut le découvrir qu'en demandant l'image et en
+    recevant un 404 : une requête sur deux échouerait par conception, et la console
+    afficherait une erreur à chaque affichage d'un membre sans portrait — du bruit qui
+    finit par masquer les vraies pannes."""
+
+    avatar_version: str | None = None
+    """Change à chaque envoi, pour que le navigateur redemande l'image.
+
+    Servie par le SERVEUR et non comptée par l'écran : le portrait paraît à trois endroits
+    et l'image d'un autre membre peut changer sans qu'on ait rien fait ici. Un compteur
+    local ne rafraîchirait que le formulaire qui l'incrémente, et la bulle garderait
+    l'ancienne photo — l'`ETag` ne suffit pas, une image déjà dans le DOM n'est pas
+    redemandée tant que son URL ne bouge pas."""
+
+
     est_proprietaire: bool
     """Qui administre le foyer. Visible de tous les membres, comme la liste elle-même :
     savoir à qui s'adresser pour une invitation n'est pas une information sensible."""
@@ -82,6 +117,42 @@ class InvitationCreee(BaseModel):
 
     code: str
     expire_le: dt.datetime
+
+
+class DemandeRenommage(BaseModel):
+    """Le nom affiché, et lui seul.
+
+    Séparé du changement d'adresse et de mot de passe : ceux-là exigent le mot de passe
+    en cours, celui-ci non. Les réunir dans un seul corps obligerait à redemander le mot
+    de passe pour corriger une faute de frappe dans son prénom.
+    """
+
+    nom_affichage: str = Field(min_length=1, max_length=80)
+
+
+class DemandeChangementMotDePasse(BaseModel):
+    """L'ancien est exigé, et ce n'est pas une formalité.
+
+    Une session volée — un téléphone laissé déverrouillé — permettrait sinon de changer le
+    mot de passe sans le connaître, donc d'exclure le propriétaire de son propre compte.
+    La longueur minimale du NOUVEAU est tenue par le domaine, auteur unique de la règle :
+    la répéter ici en ferait une seconde, et les deux divergeraient.
+    """
+
+    ancien: str = Field(min_length=1)
+    nouveau: str = Field(min_length=1)
+
+
+class DemandeChangementCourriel(BaseModel):
+    """L'adresse de connexion. Le mot de passe est exigé pour la même raison que ci-dessus.
+
+    Aucune vérification n'est possible : l'application n'envoie pas de courriel. Une
+    adresse mal tapée verrouille donc le compte à la déconnexion suivante — l'écran le dit
+    avant de valider, c'est la seule protection qu'on puisse offrir.
+    """
+
+    courriel: Courriel
+    mot_de_passe: str = Field(min_length=1)
 
 
 class DemandeSuppressionCompte(BaseModel):

@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from collections.abc import Sequence
 from typing import Any, cast
 
 from sqlalchemy import CursorResult, delete, select
 from sqlalchemy.orm import Session
 
-from mycounts.models.auth import Foyer, Invitation, SessionWeb, Utilisateur
+from mycounts.models.auth import Avatar, Foyer, Invitation, SessionWeb, Utilisateur
 from mycounts.models.budget import (
     Categorie,
     Compte,
@@ -350,3 +351,123 @@ def supprimer_mon_compte(session: Session, principal: Principal) -> None:
     session.execute(delete(SessionWeb).where(SessionWeb.utilisateur_id == moi))
     session.execute(delete(Utilisateur).where(Utilisateur.id == moi))
     session.flush()
+
+
+def avatar_de(session: Session, utilisateur_id: uuid.UUID) -> Avatar | None:
+    """L'avatar d'une personne, ou None.
+
+    Sans `Principal` : une image de profil n'est pas une donnée de foyer. Elle est vue par
+    tous ceux qui voient la personne, et la route qui l'expose exige d'être connecté —
+    c'est la seule barrière utile ici. Lui appliquer le périmètre des comptes ferait
+    disparaître le portrait d'un membre selon la vue en cours, ce qui n'a aucun sens.
+    """
+    return session.get(Avatar, utilisateur_id)
+
+
+def enregistrer_avatar(
+    session: Session, utilisateur_id: uuid.UUID, *, contenu: bytes, type_mime: str
+) -> Avatar:
+    """Pose ou remplace l'avatar. Le contenu est déjà normalisé par le domaine.
+
+    Remplacement en place plutôt que suppression puis insertion : la clé primaire est
+    l'identifiant de la personne, et deux lignes ne peuvent pas coexister. `modifie_le`
+    est repoussé par `onupdate`, ce qui suffit à faire changer l'`ETag` — sans quoi le
+    navigateur continuerait d'afficher l'ancienne image et l'on croirait l'envoi perdu.
+    """
+    existant = session.get(Avatar, utilisateur_id)
+    if existant is None:
+        existant = Avatar(utilisateur_id=utilisateur_id, contenu=contenu, type_mime=type_mime)
+        session.add(existant)
+    else:
+        existant.contenu = contenu
+        existant.type_mime = type_mime
+    session.flush()
+    return existant
+
+
+def supprimer_avatar(session: Session, utilisateur_id: uuid.UUID) -> bool:
+    """Retire l'avatar. Rend `False` s'il n'y en avait pas.
+
+    La distinction sert la route : « retiré » et « il n'y en avait pas » sont deux
+    réponses différentes, et les confondre ferait afficher un succès à qui vient de
+    cliquer deux fois — donc douter du premier clic.
+    """
+    existant = session.get(Avatar, utilisateur_id)
+    if existant is None:
+        return False
+    session.delete(existant)
+    session.flush()
+    return True
+
+
+def renommer_utilisateur(session: Session, utilisateur: Utilisateur, *, nom: str) -> Utilisateur:
+    utilisateur.nom_affichage = nom
+    session.flush()
+    return utilisateur
+
+
+def changer_le_courriel(
+    session: Session, utilisateur: Utilisateur, *, courriel: str
+) -> Utilisateur:
+    """Change l'adresse de connexion. Déjà normalisée par l'appelant.
+
+    L'unicité est tenue par la base (`uq_utilisateur_courriel`) : la vérifier ici en plus
+    créerait une seconde règle, et une fenêtre entre la lecture et l'écriture où deux
+    demandes concurrentes passeraient toutes les deux.
+    """
+    utilisateur.courriel = courriel
+    session.flush()
+    return utilisateur
+
+
+def changer_le_mot_de_passe(
+    session: Session, utilisateur: Utilisateur, *, empreinte: str, sauf_empreinte_jeton: str
+) -> int:
+    """Change le mot de passe et ferme les AUTRES sessions. Rend le nombre de fermetures.
+
+    Fermer les autres est le point : on change son mot de passe le plus souvent parce que
+    quelqu'un d'autre pourrait l'avoir. Le laisser connecté ailleurs viderait la mesure de
+    son sens — l'ancienne session continuerait de fonctionner avec l'ancien secret.
+
+    Celle qui a fait la demande survit, sinon l'écran renverrait vers la connexion juste
+    après avoir annoncé un succès, ce qui se lit comme un échec.
+    """
+    utilisateur.empreinte_mot_de_passe = empreinte
+    fermees = cast(
+        "CursorResult[Any]",
+        session.execute(
+            delete(SessionWeb).where(
+                SessionWeb.utilisateur_id == utilisateur.id,
+                SessionWeb.empreinte_jeton != sauf_empreinte_jeton,
+            )
+        ),
+    )
+    session.flush()
+    return fermees.rowcount
+
+
+def versions_des_avatars(
+    session: Session, utilisateur_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """Qui, parmi ceux-là, a un avatar, et depuis quand. UNE requête, quel que soit le nombre.
+
+    Un `avatar_de` par membre serait plus court à écrire et ferait autant d'allers-retours
+    que le foyer compte de personnes, pour ne rendre qu'un booléen chacun. La liste des
+    membres est courte aujourd'hui ; la forme qui ne dégénère pas ne coûte pas plus cher à
+    écrire une fois.
+
+    Seules la clé et la date sont lues, jamais `contenu` : rapporter les images pour
+    répondre « oui, il y en a une » chargerait plusieurs centaines de kilo-octets par appel.
+
+    La date sert de version d'URL côté client. Un entier de secondes suffit — deux envois
+    dans la même seconde par la même personne ne se produisent pas, et si cela arrivait la
+    seconde image porterait la même URL une seconde de trop.
+    """
+    if not utilisateur_ids:
+        return {}
+    lignes = session.execute(
+        select(Avatar.utilisateur_id, Avatar.modifie_le).where(
+            Avatar.utilisateur_id.in_(utilisateur_ids)
+        )
+    ).all()
+    return {identifiant: str(int(date.timestamp())) for identifiant, date in lignes}

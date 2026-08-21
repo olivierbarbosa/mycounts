@@ -1414,3 +1414,34 @@ dans un cas passerait aussi pour un code qui affiche la zone toujours, ou jamais
 on y a été invité : il faudrait un foyer d'accueil, le déplacement des comptes personnels
 et la duplication des catégories utilisées, puisqu'elles appartiennent au foyer. Seul
 « supprimer mon compte » existe. La limite est connue et écrite, elle n'est pas résolue.
+
+## #047 — La sonde de contraste, aveugle à un niveau d'imbrication
+
+**Ce que je croyais.** Que la sonde de contraste, corrigée trois fois déjà (#011, #021,
+#035), mesurait enfin le rendu réel. Elle sait lire les dégradés, composer les calques
+translucides, tenir compte du halo dérivant. Elle a même un témoin qui prouve qu'elle
+détecte un texte illisible.
+
+**Ce qu'il s'est passé.** J'ai remplacé les initiales écrites en dur par un composant
+`Portrait`, qui affiche une photo ou les initiales. Un `<span>` de plus, à l'intérieur du
+disque. Le test de contraste est passé au rouge : « ES », rapport 1,1 contre un seuil de 3.
+Le rendu, lui, n'avait pas bougé d'un pixel — texte blanc sur un disque bleu.
+
+**La cause.** `arretsDeDegrade` ne regardait que l'élément PORTANT le texte. Tant que les
+initiales étaient posées directement dans le disque, elle trouvait le dégradé. Une fois le
+texte descendu d'un cran, elle n'a plus rien vu à cet endroit, et la remontée des ancêtres
+— qui ne lit que `backgroundColor`, transparent pour un dégradé — a traversé le disque
+sans le voir jusqu'au fond clair de la page.
+
+**Ce que ça dit de plus général.** Quatrième fois que cette sonde se trompe de sujet, et la
+première où elle accuse à tort du code neuf. C'est le pire mode d'échec d'une mesure :
+elle ne dit pas « je ne sais pas », elle dit « c'est cassé », et l'on part corriger ce qui
+allait bien. La tentation était de rendre le fond explicite sur le nouveau span — deux
+lignes, test au vert, sonde toujours fausse pour le composant imbriqué suivant. Le domaine
+de validité d'une sonde se corrige dans la sonde.
+
+**Le contrôle en place maintenant.** `arretsCouvrants` remonte les ancêtres à la recherche
+du dégradé qui couvre réellement l'élément, et s'arrête au premier fond OPAQUE — au-delà,
+ce qu'on mesurerait est caché — ainsi qu'au corps de page, dont le dégradé a son propre
+traitement avec le halo. Le témoin « la sonde sait détecter un texte illisible » reste
+vert : la correction ne l'a pas rendue complaisante.

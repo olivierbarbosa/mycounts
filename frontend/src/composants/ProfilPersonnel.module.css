@@ -1,0 +1,179 @@
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
+.identite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-m);
+  padding-bottom: var(--espace-l);
+}
+
+/* Le disque porte la taille et la forme ; `Portrait` n'y met qu'un contenu — image ou
+   initiales. C'est ce qui permet à la bulle de 44 px et à ce portrait de 112 px de
+   partager le même composant sans que l'un impose sa mesure à l'autre. */
+.portrait {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--couleur-degrade-accent);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  color: var(--couleur-accent-contraste);
+  font-size: 34px;
+  font-weight: var(--typo-gras-display);
+  letter-spacing: 0.02em;
+}
+
+.actionsPhoto {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--espace-s);
+}
+
+.boutonPhoto,
+.retirerPhoto {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-xs);
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  font-size: 14px;
+  font-weight: var(--typo-gras-moyen);
+  cursor: pointer;
+}
+
+.retirerPhoto {
+  color: var(--couleur-debit);
+}
+
+.boutonPhoto:focus-within {
+  outline: 2px solid var(--couleur-accent-clair);
+  outline-offset: 2px;
+}
+
+/* Masqué mais PRÉSENT et focalisable : le retirer du parcours priverait le clavier et les
+   lecteurs d'écran de l'action, pour un gain purement visuel. */
+.champFichier {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-m);
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: var(--espace-s) 0;
+  border: none;
+  border-bottom: 1px solid var(--couleur-bordure);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.libelle {
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.valeur {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+}
+
+.formulaire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+  padding: var(--espace-m) 0 var(--espace-l);
+}
+
+.etiquette {
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.champ {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-m);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  /* 16 px au moins : en dessous, iOS agrandit la page à la mise au point du champ et ne
+     la réduit jamais ensuite. */
+  font-size: 16px;
+}
+
+.valider {
+  min-height: var(--cible-tactile);
+  margin-top: var(--espace-s);
+  padding: 0 var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  box-shadow: inset 0 0 0 1px var(--couleur-contour-clair);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+  cursor: pointer;
+}
+
+.valider:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.note {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* L'avertissement du changement d'adresse : aligné à gauche, contrairement à la note du
+   portrait — il se lit comme une phrase, pas comme une légende. */
+.avertissement {
+  margin: 0 0 var(--espace-s);
+  padding: var(--espace-m);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.erreur {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 14px;
+}
+
+.succes {
+  margin: 0;
+  color: var(--couleur-credit);
+  font-size: 14px;
+}

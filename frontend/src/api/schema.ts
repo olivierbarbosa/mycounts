@@ -214,6 +214,99 @@ export interface paths {
         delete: operations["supprimer_mon_compte_api_auth_moi_delete"];
         options?: never;
         head?: never;
+        /**
+         * Renommer
+         * @description Change le nom affiché. Aucun mot de passe exigé : rien de sensible ne se joue ici.
+         *
+         *     Le nom alimente aussi les initiales de la bulle, faute d'avatar : le laisser vide
+         *     donnerait un disque muet, d'où la longueur minimale portée par le schéma.
+         */
+        patch: operations["renommer_api_auth_moi_patch"];
+        trace?: never;
+    };
+    "/api/auth/moi/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Envoyer Son Avatar
+         * @description Reçoit une image, la normalise, la remplace.
+         *
+         *     Rien de ce qui arrive n'est stocké tel quel : `normaliser` décode, redresse, recadre et
+         *     réencode. C'est ce qui garantit qu'on sert bien une image — un fichier téléversé
+         *     annonce son type lui-même — et c'est aussi ce qui efface les métadonnées, dont la
+         *     position GPS que transporte toute photo de téléphone.
+         *
+         *     Le poids est vérifié APRÈS lecture, pas par un en-tête : `Content-Length` est déclaré
+         *     par l'appelant et ne contraint rien.
+         */
+        put: operations["envoyer_son_avatar_api_auth_moi_avatar_put"];
+        post?: never;
+        /**
+         * Retirer Son Avatar
+         * @description Retire l'avatar. 404 s'il n'y en avait pas.
+         *
+         *     « Retiré » et « il n'y en avait pas » sont deux réponses différentes : les confondre
+         *     ferait afficher un succès à qui clique deux fois, et douter du premier clic.
+         */
+        delete: operations["retirer_son_avatar_api_auth_moi_avatar_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/moi/courriel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Changer Le Courriel
+         * @description Change l'adresse de connexion. Le mot de passe est exigé.
+         *
+         *     Le conflit d'unicité est rendu en 409 avec un message neutre — « cette adresse ne peut
+         *     pas être utilisée » — et non « elle existe déjà » : cette seconde formulation
+         *     permettrait de savoir, depuis un compte quelconque, qui d'autre a un compte ici.
+         */
+        post: operations["changer_le_courriel_api_auth_moi_courriel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/moi/mot-de-passe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Changer Le Mot De Passe
+         * @description Change le mot de passe et ferme les AUTRES sessions.
+         *
+         *     L'ancien est vérifié avec la même fonction que la connexion : une seconde comparaison
+         *     écrite ici pourrait diverger, et c'est la plus permissive qui ne préviendrait pas.
+         *
+         *     La longueur minimale du nouveau est celle du domaine, levée en `ValueError` par
+         *     `hacher_mot_de_passe`. On la traduit en 400 plutôt que de la recopier : deux endroits
+         *     qui déclarent la même borne finissent par ne plus déclarer la même.
+         */
+        post: operations["changer_le_mot_de_passe_api_auth_moi_mot_de_passe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -231,6 +324,34 @@ export interface paths {
          * @description Crée un compte dans le foyer désigné par un code d'invitation valide.
          */
         post: operations["rejoindre_api_auth_rejoindre_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/utilisateurs/{utilisateur_id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Avatar Dune Personne
+         * @description Sert l'image d'un membre du foyer.
+         *
+         *     Restreint au foyer de l'appelant : une image de profil n'est pas publique, et un
+         *     identifiant se devine assez mal pour être un secret mais assez bien pour ne pas en
+         *     être un. Hors du foyer, 404 et non 403 — dire « interdit » confirmerait l'existence du
+         *     compte.
+         *
+         *     `ETag` sur la date de modification, et `private` : l'image est nominative, un cache
+         *     partagé n'a pas à la garder.
+         */
+        get: operations["avatar_dune_personne_api_auth_utilisateurs__utilisateur_id__avatar_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -943,6 +1064,14 @@ export interface components {
              */
             fichier: string;
         };
+        /** Body_envoyer_son_avatar_api_auth_moi_avatar_put */
+        Body_envoyer_son_avatar_api_auth_moi_avatar_put: {
+            /**
+             * Fichier
+             * @description Image de profil.
+             */
+            fichier: string;
+        };
         /**
          * BornesDuMois
          * @description Premier et dernier jour du mois **civil** courant, bornes incluses.
@@ -1090,6 +1219,35 @@ export interface components {
             /** Nom */
             nom: string;
             teinte: components["schemas"]["TeinteCategorie"];
+        };
+        /**
+         * DemandeChangementCourriel
+         * @description L'adresse de connexion. Le mot de passe est exigé pour la même raison que ci-dessus.
+         *
+         *     Aucune vérification n'est possible : l'application n'envoie pas de courriel. Une
+         *     adresse mal tapée verrouille donc le compte à la déconnexion suivante — l'écran le dit
+         *     avant de valider, c'est la seule protection qu'on puisse offrir.
+         */
+        DemandeChangementCourriel: {
+            /** Courriel */
+            courriel: string;
+            /** Mot De Passe */
+            mot_de_passe: string;
+        };
+        /**
+         * DemandeChangementMotDePasse
+         * @description L'ancien est exigé, et ce n'est pas une formalité.
+         *
+         *     Une session volée — un téléphone laissé déverrouillé — permettrait sinon de changer le
+         *     mot de passe sans le connaître, donc d'exclure le propriétaire de son propre compte.
+         *     La longueur minimale du NOUVEAU est tenue par le domaine, auteur unique de la règle :
+         *     la répéter ici en ferait une seconde, et les deux divergeraient.
+         */
+        DemandeChangementMotDePasse: {
+            /** Ancien */
+            ancien: string;
+            /** Nouveau */
+            nouveau: string;
         };
         /** DemandeCompte */
         DemandeCompte: {
@@ -1250,6 +1408,18 @@ export interface components {
              */
             montant_centimes: number;
             unite: components["schemas"]["UniteRecurrence"];
+        };
+        /**
+         * DemandeRenommage
+         * @description Le nom affiché, et lui seul.
+         *
+         *     Séparé du changement d'adresse et de mot de passe : ceux-là exigent le mot de passe
+         *     en cours, celui-ci non. Les réunir dans un seul corps obligerait à redemander le mot
+         *     de passe pour corriger une faute de frappe dans son prénom.
+         */
+        DemandeRenommage: {
+            /** Nom Affichage */
+            nom_affichage: string;
         };
         /**
          * DemandeSuppressionCompte
@@ -1523,6 +1693,13 @@ export interface components {
          *     limite est visible.
          */
         MembrePublic: {
+            /**
+             * A Un Avatar
+             * @default false
+             */
+            a_un_avatar: boolean;
+            /** Avatar Version */
+            avatar_version?: string | null;
             /** Courriel */
             courriel: string;
             /**
@@ -2001,6 +2178,13 @@ export interface components {
         UsageEnveloppe: "fonctionnement" | "reserve";
         /** UtilisateurPublic */
         UtilisateurPublic: {
+            /**
+             * A Un Avatar
+             * @default false
+             */
+            a_un_avatar: boolean;
+            /** Avatar Version */
+            avatar_version?: string | null;
             /** Courriel */
             courriel: string;
             /** Est Proprietaire */
@@ -2352,6 +2536,181 @@ export interface operations {
             };
         };
     };
+    renommer_api_auth_moi_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeRenommage"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilisateurPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    envoyer_son_avatar_api_auth_moi_avatar_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_envoyer_son_avatar_api_auth_moi_avatar_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retirer_son_avatar_api_auth_moi_avatar_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    changer_le_courriel_api_auth_moi_courriel_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeChangementCourriel"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilisateurPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    changer_le_mot_de_passe_api_auth_moi_mot_de_passe_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeChangementMotDePasse"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     rejoindre_api_auth_rejoindre_post: {
         parameters: {
             query?: never;
@@ -2373,6 +2732,49 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UtilisateurPublic"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    avatar_dune_personne_api_auth_utilisateurs__utilisateur_id__avatar_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                utilisateur_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/webp": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

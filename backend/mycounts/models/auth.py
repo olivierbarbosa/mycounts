@@ -16,6 +16,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     UniqueConstraint,
     func,
@@ -105,6 +106,40 @@ class Invitation(Base):
     )
     expire_le: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
     utilisee_le: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+
+class Avatar(Base):
+    """Image de profil, une par personne au plus.
+
+    **Table à part, et non une colonne sur `utilisateur`.** Une image pèse mille fois ce
+    que pèse le reste de la ligne : la laisser là ferait traîner cinquante kilo-octets
+    dans chaque lecture de session, à chaque requête, pour un affichage qui n'en a besoin
+    qu'une fois. Le coût serait invisible en développement et bien réel sur un téléphone.
+
+    **En base et non sur le disque**, tranché par Olivier le 22 août 2026 : une seule
+    chose à sauvegarder, et une seule à chiffrer le jour où la base le sera — ce qu'il a
+    demandé, les données étant bancaires. Un fichier posé à côté échapperait à ce
+    chiffrement, et resterait orphelin quand le compte part.
+
+    Le contenu est déjà redimensionné et réencodé à l'écriture : ce qui entre ici est ce
+    qui sortira, sans traitement à la lecture.
+    """
+
+    __tablename__ = "avatar"
+
+    utilisateur_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="CASCADE"), primary_key=True
+    )
+    # `LargeBinary` sans longueur : PostgreSQL rend un `bytea`, dont la taille n'est pas
+    # déclarée. La borne réelle est posée à l'entrée, dans le domaine, où elle peut
+    # produire un message plutôt qu'une erreur de base.
+    contenu: Mapped[bytes] = mapped_column(LargeBinary)
+    type_mime: Mapped[str] = mapped_column(String(40))
+    # Sert l'en-tête `ETag` : sans lui, le navigateur garde l'ancienne image après un
+    # changement, et l'on croit que l'envoi a échoué.
+    modifie_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class SessionWeb(Base):

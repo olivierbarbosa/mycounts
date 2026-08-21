@@ -23,6 +23,7 @@ sauvegarde n'est prise avant l'appel, rien n'est récupérable après.
 from __future__ import annotations
 
 import datetime as dt
+import io
 import uuid
 
 from fastapi.testclient import TestClient
@@ -33,6 +34,7 @@ from mycounts.models.base import Base
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot_budget
 from mycounts.repository.base import Principal
+from PIL import Image as PilImage
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -48,10 +50,15 @@ NOM_FOYER = "Foyer"
 COURRIEL = "a@essai.fr"
 
 
-def remplir_les_douze_tables(
+def remplir_toutes_les_tables(
     client: TestClient, session_bd: Session, principal: Principal
 ) -> None:
     """Pose au moins une ligne dans chaque table rattachée au foyer.
+
+    Nommée par son INTENTION et non par un nombre : la version précédente s'appelait
+    « les douze tables » et le nombre a menti dès la treizième — `avatar`, le 22 août 2026.
+    Un nom qui compte se démode ; le test, lui, énumère `Base.metadata` et n'a pas ce
+    défaut.
 
     Sans ce remplissage, le test passerait sur une base déjà vide et ne prouverait rien :
     « aucune ligne ne subsiste » est vrai d'office quand il n'y en avait aucune.
@@ -113,6 +120,18 @@ def remplir_les_douze_tables(
 
     # La correspondance d'import n'a pas de route dédiée : elle se retient au fil d'un
     # import. On passe par le repository, qui en est l'auteur.
+    # Un avatar minuscule : ce test ne mesure pas l'image, seulement la présence d'une
+    # ligne à faire disparaître.
+    tampon = io.BytesIO()
+    PilImage.new("RGB", (8, 8), (10, 20, 30)).save(tampon, format="PNG")
+    assert (
+        client.put(
+            "/api/auth/moi/avatar",
+            files={"fichier": ("p.png", tampon.getvalue(), "image/png")},
+        ).status_code
+        == 204
+    )
+
     depot_budget.retenir_la_correspondance(
         session_bd,
         principal,
@@ -125,7 +144,7 @@ def remplir_les_douze_tables(
 
 def test_la_suppression_ne_laisse_AUCUNE_ligne(client: TestClient, session_bd: Session) -> None:
     principal = session_ouverte(client, session_bd)
-    remplir_les_douze_tables(client, session_bd, principal)
+    remplir_toutes_les_tables(client, session_bd, principal)
 
     # Toutes pleines AVANT : c'est ce qui rend le « toutes vides après » informatif.
     avant = {
@@ -157,7 +176,7 @@ def test_une_adresse_mal_retapee_ne_supprime_rien(
     précédent passerait tout aussi bien : il ne se trompe jamais d'adresse.
     """
     principal = session_ouverte(client, session_bd)
-    remplir_les_douze_tables(client, session_bd, principal)
+    remplir_toutes_les_tables(client, session_bd, principal)
 
     refus = client.request("DELETE", "/api/auth/moi", json={"courriel": "b@essai.fr"})
     assert refus.status_code == 400, refus.text
