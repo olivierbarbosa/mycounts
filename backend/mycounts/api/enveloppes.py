@@ -82,6 +82,18 @@ def _capacite_epargne(session: SessionBase, principal: PrincipalCourant) -> int:
     return max(0, resume_de_la_periode(session, principal).solde_projete)
 
 
+def _seul_compte(
+    session: SessionBase, principal: PrincipalCourant, type_compte: TypeCompte
+) -> uuid.UUID | None:
+    """L'unique compte de ce type, ou `None` s'il y en a zéro ou plusieurs.
+
+    « Plusieurs » rend `None` volontairement : en choisir un ferait partir l'argent d'un
+    endroit que l'utilisateur n'a pas désigné, et l'écran n'aurait rien dit.
+    """
+    comptes = depot_budget.ids_des_comptes(session, principal, type_compte=type_compte)
+    return comptes[0] if len(comptes) == 1 else None
+
+
 def _compte_epargne_suggere(
     session: SessionBase, principal: PrincipalCourant, enveloppes: Sequence[Enveloppe]
 ) -> uuid.UUID | None:
@@ -394,6 +406,7 @@ def preparation(session: SessionBase, principal: PrincipalCourant) -> Preparatio
             for ligne in proposition.lignes
         ],
         capacite_epargne_centimes=_capacite_epargne(session, principal),
+        compte_courant_suggere_id=_seul_compte(session, principal, TypeCompte.COURANT),
         compte_epargne_suggere_id=_compte_epargne_suggere(session, principal, enveloppes),
         disponible_avant_centimes=int(proposition.disponible_avant),
         disponible_apres_centimes=int(proposition.disponible_apres),

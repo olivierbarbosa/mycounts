@@ -218,3 +218,34 @@
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* Le virement proposé. Bordé et non plein : l'action principale de cet écran reste
+   d'appliquer la répartition ; celle-ci déplace de l'argent pour de vrai et mérite d'être
+   distincte sans être mise en avant. */
+.virer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-xs);
+  min-height: var(--cible-tactile);
+  margin-top: var(--espace-s);
+  padding: 0 var(--espace-l);
+  border: 1px solid var(--couleur-accent-clair);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-texte);
+  font-size: 14px;
+  font-weight: var(--typo-gras-moyen);
+  cursor: pointer;
+}
+
+.virer:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.virementFait {
+  display: block;
+  margin-top: var(--espace-xs);
+  color: var(--couleur-credit);
+  font-size: 13px;
+}

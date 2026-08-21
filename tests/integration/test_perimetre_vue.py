@@ -269,3 +269,32 @@ def test_un_mois_deficitaire_ne_propose_pas_de_placer_une_somme_negative(
     preparation = client.get("/api/enveloppes/preparation").json()
     assert client.get("/api/resume").json()["solde_projete"] < 0, "le décor doit être déficitaire"
     assert preparation["capacite_epargne_centimes"] == 0
+
+
+def test_le_virement_nest_propose_que_si_les_deux_comptes_sont_connus(
+    client: TestClient, session_bd: Session
+) -> None:
+    """« Une action ne se propose pas quand son échec est certain » — ni quand elle
+    déciderait à la place de l'utilisateur.
+
+    Avec DEUX comptes courants, personne ne sait d'où l'argent doit partir. En choisir un
+    ferait sortir la somme d'un endroit que l'utilisateur n'a pas désigné, et l'écran
+    n'aurait rien dit. Mesuré dans les deux sens : un seul candidat est une réponse.
+    """
+    session_ouverte(client, session_bd)
+    client.post("/api/comptes", json={"nom": "Courant", "prive": True, "produit": "compte_courant"})
+    epargne = client.post(
+        "/api/comptes", json={"nom": "LEP", "prive": True, "produit": "lep"}
+    ).json()
+    client.post("/api/enveloppes", json={"nom": "Japon", "cible_centimes": 200_000})
+
+    avec_un_seul = client.get("/api/enveloppes/preparation").json()
+    assert avec_un_seul["compte_courant_suggere_id"] is not None
+    assert avec_un_seul["compte_epargne_suggere_id"] == epargne["id"]
+
+    # Un second compte courant : la source devient indécidable, la suggestion disparaît.
+    client.post("/api/comptes", json={"nom": "Second", "prive": True, "produit": "compte_courant"})
+    avec_deux = client.get("/api/enveloppes/preparation").json()
+    assert avec_deux["compte_courant_suggere_id"] is None
+    # La destination, elle, reste connue : les deux questions sont indépendantes.
+    assert avec_deux["compte_epargne_suggere_id"] == epargne["id"]

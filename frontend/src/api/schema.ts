@@ -1978,6 +1978,8 @@ export interface components {
             attend_des_choix: boolean;
             /** Capacite Epargne Centimes */
             capacite_epargne_centimes: number;
+            /** Compte Courant Suggere Id */
+            compte_courant_suggere_id?: string | null;
             /** Compte Epargne Suggere Id */
             compte_epargne_suggere_id?: string | null;
             /** Disponible Apres Centimes */

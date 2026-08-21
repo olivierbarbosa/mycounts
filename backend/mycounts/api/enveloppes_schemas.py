@@ -166,6 +166,14 @@ class PreparationPublique(BaseModel):
     des enveloppes : celui-ci découpe l'épargne déjà là, celui-là dit ce qui pourrait la
     rejoindre. Les additionner promettrait deux fois le même argent."""
 
+    compte_courant_suggere_id: uuid.UUID | None = None
+    """D'où partirait le virement. `None` dès qu'il y a plusieurs comptes courants.
+
+    Même règle que pour la destination : un seul candidat est une réponse, plusieurs n'en
+    sont pas une. Le bouton ne s'affiche alors pas — proposer une action dont on ne connaît
+    pas la moitié des termes reviendrait à choisir un compte au hasard pour l'utilisateur,
+    et à déplacer son argent d'un endroit qu'il n'a pas désigné."""
+
     compte_epargne_suggere_id: uuid.UUID | None = None
     """Vers quel compte proposer le virement. `None` s'il n'y a aucun compte d'épargne.
 

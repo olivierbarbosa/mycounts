@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { ArrowRightLeft, Check } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import type { ChoixDeLigne, PreparationPublique } from '../api/client'
@@ -40,6 +40,39 @@ type Choix = 'garder' | 'liberer'
  */
 export function FeuillePreparation({ surFermeture, surApplication }: Props) {
   const [proposition, setProposition] = useState<PreparationPublique | null>(null)
+  const [virementEnCours, setVirementEnCours] = useState(false)
+  const [virementFait, setVirementFait] = useState(false)
+
+  /** Déclare le virement du quotidien vers l'épargne. **Rien d'automatique** : c'est un
+   *  geste explicite, et il crée une VRAIE opération sur les deux comptes — une enveloppe
+   *  n'a jamais déplacé d'argent, et ce bouton n'en est pas une exception. */
+  async function virerVersLEpargne() {
+    if (proposition === null) return
+    const source = proposition.compte_courant_suggere_id ?? null
+    const destination = proposition.compte_epargne_suggere_id ?? null
+    if (source === null || destination === null) return
+
+    setVirementEnCours(true)
+    try {
+      await api.creerVirement({
+        compte_source_id: source,
+        compte_destination_id: destination,
+        montant_centimes: proposition.capacite_epargne_centimes,
+        libelle: 'Épargne du mois',
+        // Daté du jour : c'est aujourd'hui qu'on déplace l'argent, et le serveur exige
+        // une date plutôt que d'en inventer une — deux endroits qui la devineraient
+        // finiraient par ne pas deviner pareil.
+        date_operation: new Date().toLocaleDateString('sv-SE'),
+      })
+      setVirementFait(true)
+      // La proposition est relue : l'épargne a grossi, donc le disponible à répartir
+      // aussi. L'afficher inchangé ferait douter de ce qu'on vient de faire.
+      await charger()
+    } finally {
+      setVirementEnCours(false)
+    }
+  }
+
   const [choix, setChoix] = useState<Record<string, Choix>>({})
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
@@ -134,9 +167,30 @@ export function FeuillePreparation({ surFermeture, surApplication }: Props) {
                     signeExplicitePositif={false}
                   />{' '}
                   <span className={styles.precision}>
-                    d’après ce qui restera sur le quotidien en fin de période. Le virement reste
-                    à faire, ici rien ne bouge tout seul.
+                    d’après ce qui restera sur le quotidien en fin de période.
                   </span>
+                  {/* Le bouton n'apparaît que si les DEUX comptes sont connus. Avec
+                      plusieurs comptes courants ou plusieurs livrets, le serveur ne
+                      suggère rien : proposer une action dont on ignore la moitié des
+                      termes reviendrait à déplacer l'argent depuis un endroit que
+                      personne n'a désigné. La saisie manuelle reste là pour ce cas. */}
+                  {(proposition.compte_courant_suggere_id ?? null) !== null &&
+                    (proposition.compte_epargne_suggere_id ?? null) !== null && (
+                      <button
+                        type="button"
+                        className={styles.virer}
+                        disabled={virementEnCours}
+                        onClick={() => void virerVersLEpargne()}
+                      >
+                        <ArrowRightLeft size={16} strokeWidth={2} aria-hidden />
+                        Faire le virement
+                      </button>
+                    )}
+                  {virementFait && (
+                    <span className={styles.virementFait} role="status">
+                      Virement enregistré. L’épargne à répartir a augmenté d’autant.
+                    </span>
+                  )}
                 </p>
               )}
 

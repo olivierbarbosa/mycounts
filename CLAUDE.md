@@ -25,12 +25,11 @@ une bulle du haut, avec glissement de retour au doigt. Onglet Foyer : bascule en
 comptes personnels et comptes joints, liste des membres, invitation, dissolution du
 partage et suppression définitive de son compte.
 
-**Manque** : pilotage des enveloppes dans le temps (`date_cible` n'entre dans aucun
-calcul) et capacité d'épargne mensuelle ; couverture par compte et déclaration de virement
-(lots E2 et E4) ; TOTP obligatoire et codes de secours ; mot de passe oublié ; chiffrement
-des libellés et des noms — les montants restent en clair, sans quoi soldes et plafonds
-quitteraient SQL (tranché le 22 août 2026) ; quitter un foyer ; historique des corrections
-de solde ; logos et icônes PWA ; déploiement VPS.
+**Manque** : couverture des enveloppes par compte, au sens du rapprochement — où
+l'argent EST contre où il devrait être (lot E2) ; TOTP obligatoire et codes de secours ;
+mot de passe oublié ; chiffrement des libellés et des noms — les montants restent en clair,
+sans quoi soldes et plafonds quitteraient SQL (tranché le 22 août 2026) ; quitter un
+foyer ; historique des corrections de solde ; logos et icônes PWA ; déploiement VPS.
 
 **Import PDF : abandonné**, tranché le 22 août 2026. Le CSV de la Caisse d'Épargne suffit,
 et un relevé PDF n'a aucune structure garantie — chaque refonte de maquette casserait
@@ -156,6 +155,15 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 - **Une adresse électronique est validée par `normaliser_courriel()`**, dans le domaine.
   Le schéma d'API l'appelle via `AfterValidator` — pas d'`EmailStr`, qui ferait un second
   auteur de la règle.
+- **Une échéance dit un RYTHME, un objectif sans date dit un plancher.**
+  `contribution_theorique` = reste ÷ mois civils restants, arrondi au supérieur, minimum
+  un mois. Elle est la TROISIÈME source de budget mensuel, après la contribution écrite et
+  le plafond de catégorie : une valeur déduite ne recouvre jamais une valeur choisie.
+- **La capacité d'épargne du mois est le solde PROJETÉ du quotidien**, jamais le réel —
+  placer le réel viderait le compte courant juste avant l'échéance du loyer. Elle vient de
+  `resume_de_la_periode`, le calcul de l'accueil, et ne s'ADDITIONNE jamais au disponible
+  des enveloppes : l'un découpe l'épargne déjà là, l'autre dit ce qui pourrait la
+  rejoindre.
 - **Plafonds et enveloppes suivent la VUE**, comme le reste — `_plafonds_autorises` et
   `Enveloppe.vue` en sont les auteurs. Les deux n'ont pas la même règle de propriété, et
   l'unicité en base la dictait déjà : un plafond PERSONNEL n'appartient qu'à soi, un
