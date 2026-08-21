@@ -283,3 +283,77 @@ def test_le_proprietaire_supprime_son_compte_joint(
     )
     assert suppression.status_code == 204, suppression.text
     assert client.get("/api/comptes", headers={"X-Mycounts-Vue": "foyer"}).json() == []
+
+
+def test_un_compte_qui_ne_porte_QUE_son_ouverture_se_supprime(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le cas d'Olivier : un compte joint créé avec son solde de départ, impossible à
+    supprimer ensuite.
+
+    La règle protège les mois clos, mais un compte qui ne porte que son amorçage n'a jamais
+    servi à clore quoi que ce soit. La refuser rendait irréversible la seule erreur qu'on
+    fait vraiment — se tromper en créant un compte.
+    """
+    session_ouverte(client, session_bd)
+    reponse = client.post(
+        "/api/comptes",
+        json={
+            "nom": "Avec ouverture",
+            "prive": False,
+            "produit": "compte_courant",
+            "solde_ouverture_centimes": 50_000,
+        },
+    )
+    assert reponse.status_code == 201, reponse.text
+
+    suppression = client.request(
+        "DELETE", f"/api/comptes/{reponse.json()['id']}", headers={"X-Mycounts-Vue": "foyer"}
+    )
+    assert suppression.status_code == 204, suppression.text
+
+
+def test_un_compte_qui_porte_une_VRAIE_operation_reste_protege(
+    client: TestClient, session_bd: Session
+) -> None:
+    """L'autre sens, sans lequel la correction précédente ouvrirait la porte à la
+    disparition de mois déjà clos."""
+    session_ouverte(client, session_bd)
+    compte_id = client.post(
+        "/api/comptes", json={"nom": "Avec dépense", "prive": True, "produit": "compte_courant"}
+    ).json()["id"]
+    client.post(
+        "/api/operations",
+        json={
+            "compte_id": compte_id,
+            "libelle": "Un achat",
+            "montant_centimes": -1_000,
+            "date_operation": dt.date.today().isoformat(),
+        },
+    )
+
+    refus = client.request("DELETE", f"/api/comptes/{compte_id}")
+    assert refus.status_code == 409, refus.text
+    assert "Archivez-le" in refus.json()["detail"]
+
+
+def test_lecran_de_gestion_voit_les_DEUX_perimetres(
+    client: TestClient, session_bd: Session
+) -> None:
+    """L'étanchéité porte sur les soldes et les budgets, pas sur l'écran qui sert à créer
+    et supprimer des comptes."""
+    session_ouverte(client, session_bd)
+    client.post(
+        "/api/comptes", json={"nom": "Mon perso", "prive": True, "produit": "compte_courant"}
+    )
+    client.post(
+        "/api/comptes", json={"nom": "Le joint", "prive": False, "produit": "compte_courant"}
+    )
+
+    # Le périmètre courant reste étanche…
+    etanche = [c["nom"] for c in client.get("/api/comptes").json()]
+    assert etanche == ["Mon perso"]
+
+    # …mais l'écran de gestion voit les deux.
+    tous = [c["nom"] for c in client.get("/api/comptes?toutes_vues=true").json()]
+    assert sorted(tous) == ["Le joint", "Mon perso"]

@@ -20,11 +20,21 @@ correction du solde par ajustement ; enveloppes avec leurs réglages et la prép
 mensuelle ; statistiques et constats chiffrés ; import de relevé CSV avec écran de revue.
 Interface Liquid Glass sur palette **bleu ardoise**, mobile d'abord, rail latéral au-delà
 de 1024 px. Barre d'onglets à deux capsules (modèle Apple Music) ; écrans ouverts depuis
-une bulle du haut, avec glissement de retour au doigt.
+une bulle du haut, avec glissement de retour au doigt. Onglet Foyer : bascule entre
+comptes personnels et comptes joints, liste des membres, invitation, suppression
+définitive du foyer par son propriétaire.
 
 **Manque** : couverture des enveloppes par compte et déclaration de virement (lots E2 et
-E4) ; onglet Foyer et comptes joints ; import de relevé au format PDF, non tranché ;
-déploiement VPS.
+E4) ; avatar / image de profil ; « voir qui modifie quoi » (`cree_par_id` existe sur trois
+tables, rien ne l'expose) ; filtrage des plafonds et enveloppes par `vue` (les colonnes et
+la migration existent, aucune requête ne les lit) ; chiffrement de la base ; import de
+relevé au format PDF, non tranché ; déploiement VPS.
+
+**Un utilisateur appartient à UN seul foyer.** `Utilisateur.foyer_id`, non nullable. La vue
+« comptes joints » est un FILTRE sur `Compte.prive`, pas une entité : il n'existe pas
+d'espace partagé à créer, quitter ou supprimer séparément. Limite connue, tranchée le
+21 août 2026 — la lever demanderait une table d'appartenance et la réécriture de tout le
+périmètre.
 
 Le plan d'exécution détaillé vit dans `docs/PLAN.md` — il fixe pour chaque écran ce qu'il
 fait **et ce qu'il ne fait pas**. Cette seconde colonne existe parce que trois écrans ont
@@ -58,7 +68,9 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 - **`bornes_du_mois()` est le mois CIVIL**, pas la période budgétaire — celle-ci vit dans
   `domain/periode.py` et va de paie à paie. Ne jamais utiliser l'un pour l'autre.
 - **Un solde d'ouverture est une opération** (`est_ouverture`), pas une colonne. Il compte
-  dans les soldes, jamais dans les dépenses.
+  dans les soldes, jamais dans les dépenses — **ni dans ce qui empêche de supprimer un
+  compte** : un compte qui ne porte que son amorçage n'a clos aucun mois, et le refuser
+  rendait irréversible la seule erreur qu'on fait vraiment (ERREURS.md #042).
 - **La nature d'une catégorie (dépense / revenu) n'est pas modifiable** : la changer
   inverserait le signe attendu des opérations déjà classées, et donc des mois clos.
 - **Toute l'API vit sous `/api`** — un seul préfixe, aucune liste de chemins à
@@ -72,6 +84,19 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   de données de foyer prend un `Principal` : le périmètre n'est jamais implicite.
 - **Aucune inscription publique.** Premier compte par `scripts/creer_premier_compte.py`,
   les autres par code d'invitation (haché, usage unique, 7 jours).
+- **Un foyer a UN propriétaire** — `Utilisateur.est_proprietaire`, index unique partiel
+  déclaré dans la migration seule (un `WHERE` exigerait un `text()`, que le garde-fou n°7
+  refuse hors du repository — même convention que `Plafond`). C'est celui qui a créé le
+  foyer. Lui seul peut le détruire, parce que le foyer contient les données de TOUS ses
+  membres. Une colonne explicite, jamais « le membre le plus ancien » : un pouvoir déduit
+  d'une date de création est une règle sans auteur.
+- **Supprimer un foyer efface tout, sans retour** — `repository/auth.supprimer_le_foyer`,
+  seul endroit autorisé à tout défaire. Aucune sauvegarde, aucune corbeille. La route exige
+  que le nom du foyer soit retapé à l'identique, casse comprise : la barrière ne vise pas
+  celui qui veut détruire, mais celui qui ne le veut pas et dont le doigt a glissé.
+- **Un état d'attente affiché par défaut est un état d'attente qui ment.** « Rien reçu » et
+  « reçu que c'est vide » sont deux faits distincts : les confondre rend la panne
+  rigoureusement indistinguable du fonctionnement normal (ERREURS.md #041).
 - **Une adresse électronique est validée par `normaliser_courriel()`**, dans le domaine.
   Le schéma d'API l'appelle via `AfterValidator` — pas d'`EmailStr`, qui ferait un second
   auteur de la règle.

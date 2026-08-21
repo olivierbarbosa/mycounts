@@ -1213,3 +1213,58 @@ copiant : une écriture donne un mtime au présent, postérieur à tout `.pyc`. 
 acceptable s'il est suivi d'un `touch`. Et au moindre doute entre ce que dit le source et
 ce que fait le code, purger les `__pycache__` avant de conclure quoi que ce soit — le
 désaccord entre les deux est toujours réel, jamais un mirage.
+
+## #041 — Un client qui appelle une route inexistante, et un écran qui appelle ça « Chargement »
+
+**Ce que je croyais.** Que l'écran Foyer était livré. Le client avait sa fonction
+`membresDuFoyer`, le serveur sa route `GET /foyer/membres`, les types étaient générés,
+`tsc` et `mypy` passaient.
+
+**Ce qu'il s'est passé.** Olivier : « quand elle est vide elle charge en boucle ». La route
+est montée sous le routeur `auth`, donc à `/api/auth/foyer/membres` ; le client demandait
+`/api/foyer/membres`. Chaque ouverture de l'écran prenait un 404.
+
+**Pourquoi rien ne l'a vu.** Deux défauts qui s'annulent en apparence. Le premier : le
+chemin est une CHAÎNE, que `openapi-typescript` ne relie pas à la fonction qui l'utilise —
+les types décrivaient parfaitement une route que personne n'appelait. Le second, et le vrai :
+l'écran écrivait `membres.length === 0 ? 'Chargement…'`. Une liste vide et une liste pas
+encore arrivée y étaient le même état, si bien que **le mode d'échec était rigoureusement
+indistinguable du mode normal**. Un `.catch(() => setMembres([]))` complétait le maquillage
+en transformant l'erreur en état d'attente.
+
+**Ce que ça dit de plus général.** Un état d'attente affiché par défaut est un état
+d'attente qui ment. « Je n'ai rien reçu » et « j'ai reçu qu'il n'y a rien » sont deux
+faits différents ; les représenter par la même valeur garantit que la panne ressemblera au
+fonctionnement. Le tableau vide comme état initial est le piège, pas le `catch`.
+
+**Le contrôle en place maintenant.** `null` tant que la réponse n'est pas là, un état
+d'échec distinct qui propose de réessayer, et `e2e/suppression-foyer.spec.ts` qui exige de
+voir un membre — vérifié par mutation en remettant le mauvais chemin : le test rougit.
+
+## #042 — Une protection qui rendait irréversible la seule erreur qu'on fait vraiment
+
+**Ce que je croyais.** Que refuser la suppression d'un compte portant des opérations
+protégeait les mois clos. La règle est juste et le test e2e l'affirmait en toutes lettres :
+« Le solde d'ouverture EST une opération : le compte n'est donc pas vide. »
+
+**Ce qu'il s'est passé.** Olivier : « je ne peux pas supprimer un espace compte joints même
+en étant admin ». Créer un compte en saisissant son solde de départ écrit une opération
+d'ouverture. Le compte naissait donc protégé, dès la première seconde, avant d'avoir servi
+à quoi que ce soit.
+
+**La cause.** La règle avait été écrite depuis les opérations, pas depuis l'usage. « Ce
+compte porte des opérations » et « ce compte a servi » se confondent partout, sauf
+exactement dans le cas d'un compte créé par erreur — celui où la suppression compte. Un
+amorçage ne clôt aucun mois : il n'y a rien à protéger.
+
+**Ce que ça dit de plus général.** Un test peut verrouiller un bug avec la même force
+qu'une fonctionnalité. Celui-ci énonçait la conséquence — l'ouverture bloque — comme si
+c'était l'intention, et sa présence rendait le défaut d'autant plus difficile à voir qu'il
+avait l'air décidé. Une assertion mérite d'être relue non pas « est-elle vraie ? » mais
+« l'a-t-on voulue ? ».
+
+**Le contrôle en place maintenant.** `compte_a_des_operations` ignore `est_ouverture`, et
+deux tests d'intégration tiennent les deux bords : un compte qui ne porte que son amorçage
+se supprime, un compte qui porte une vraie dépense reste protégé. Vérifiés par deux
+mutations opposées — supprimer la protection fait rougir le second, restaurer l'ancien
+comportement fait rougir le premier.

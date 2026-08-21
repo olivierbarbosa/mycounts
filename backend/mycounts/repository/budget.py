@@ -108,15 +108,26 @@ def modifier_compte(
 
 
 def compte_a_des_operations(session: Session, compte_id: uuid.UUID) -> bool:
-    """Y compris les opérations ANNULÉES.
+    """Y compris les opérations ANNULÉES, mais PAS le solde d'ouverture.
 
-    Une annulée reste une ligne en base — c'est elle qui empêche la matérialisation de
-    recréer l'échéance. Supprimer le compte l'emporterait, et le prélèvement reviendrait
-    au passage suivant du job.
+    Les annulées comptent : une annulée reste une ligne en base, et c'est elle qui empêche
+    la matérialisation de recréer l'échéance. Supprimer le compte l'emporterait, et le
+    prélèvement reviendrait au passage suivant du job.
+
+    L'ouverture ne compte PAS, et c'est une correction du 21 août 2026. Olivier a créé un
+    compte joint avec son solde de départ, puis n'a plus pu le supprimer : la règle
+    protège les mois clos, mais un compte qui ne porte que son amorçage n'a jamais servi à
+    clore quoi que ce soit. Refuser sa suppression rendait irréversible la seule erreur
+    qu'on fait vraiment — se tromper en créant un compte.
+
+    Les lignes d'ouverture partent alors avec le compte, ce qui est exact : un solde de
+    départ ne décrit rien d'autre que ce compte-là.
     """
     return (
         session.execute(
-            select(Operation.id).where(Operation.compte_id == compte_id).limit(1)
+            select(Operation.id)
+            .where(Operation.compte_id == compte_id, Operation.est_ouverture.is_(False))
+            .limit(1)
         ).first()
         is not None
     )

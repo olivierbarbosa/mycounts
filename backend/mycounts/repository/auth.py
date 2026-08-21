@@ -14,6 +14,16 @@ from sqlalchemy import CursorResult, delete, select
 from sqlalchemy.orm import Session
 
 from mycounts.models.auth import Foyer, Invitation, SessionWeb, Utilisateur
+from mycounts.models.budget import (
+    Categorie,
+    Compte,
+    CorrespondanceImport,
+    Enveloppe,
+    MouvementEnveloppe,
+    Operation,
+    Plafond,
+    Recurrence,
+)
 from mycounts.repository.base import Principal
 
 
@@ -31,12 +41,14 @@ def creer_utilisateur(
     courriel: str,
     nom_affichage: str,
     empreinte_mot_de_passe: str,
+    est_proprietaire: bool = False,
 ) -> Utilisateur:
     utilisateur = Utilisateur(
         foyer_id=foyer_id,
         courriel=courriel,
         nom_affichage=nom_affichage,
         empreinte_mot_de_passe=empreinte_mot_de_passe,
+        est_proprietaire=est_proprietaire,
     )
     session.add(utilisateur)
     session.flush()
@@ -167,3 +179,78 @@ def membres_du_foyer(session: Session, principal: Principal) -> list[Utilisateur
             .order_by(Utilisateur.cree_le)
         ).scalars()
     )
+
+
+def foyer_de(session: Session, principal: Principal) -> Foyer:
+    """Le foyer de l'appelant. Il existe forcément : un utilisateur sans foyer n'est pas
+    un état que le schéma autorise."""
+    return session.execute(
+        select(Foyer).where(Foyer.id == principal.foyer_id)
+    ).scalar_one()
+
+
+def est_le_proprietaire(session: Session, principal: Principal) -> bool:
+    """Le foyer appartient-il à l'appelant ?
+
+    Auteur unique du droit d'administrer : la gestion des membres et la destruction du
+    foyer passent toutes deux par ici, et deux implémentations de « est-ce l'admin ? »
+    finiraient par diverger sur exactement le cas qui compte.
+    """
+    return bool(
+        session.execute(
+            select(Utilisateur.est_proprietaire).where(
+                Utilisateur.id == principal.utilisateur_id,
+                Utilisateur.foyer_id == principal.foyer_id,
+            )
+        ).scalar_one_or_none()
+    )
+
+
+def supprimer_le_foyer(session: Session, principal: Principal) -> None:
+    """Efface le foyer et TOUT ce qu'il contient. Sans retour possible.
+
+    Aucune sauvegarde, aucune corbeille, aucun délai de grâce : ce que cette fonction
+    supprime a disparu. L'appelant est seul responsable d'avoir obtenu une confirmation —
+    voir `DELETE /api/auth/foyer`, qui exige que le nom du foyer soit retapé.
+
+    L'ordre suit les dépendances, des feuilles vers la racine. Il n'est pas confié aux
+    `ON DELETE` : la plupart des clés du projet sont en RESTRICT, précisément pour qu'une
+    suppression accidentelle bute au lieu de se propager. Cette fonction est le seul
+    endroit qui a le droit de tout défaire, et elle le fait explicitement.
+
+    Ce qui protège cette liste d'être incomplète est
+    `test_la_suppression_ne_laisse_AUCUNE_ligne`, avec une portée mesurée : une table
+    oubliée ici le fait rougir SI sa clé vers le foyer est en RESTRICT — la suppression
+    bute alors sur la contrainte. Une table en CASCADE oubliée ne le fait PAS rougir,
+    parce que PostgreSQL la nettoie de lui-même ; la ligne explicite est redondante dans
+    ce cas, et son absence sans conséquence. Vérifié dans les deux sens le 21 août 2026 :
+    retirer `Invitation` (CASCADE) laisse le test vert, retirer `Enveloppe` (RESTRICT) le
+    fait échouer.
+    """
+    foyer_id = principal.foyer_id
+
+    utilisateurs = select(Utilisateur.id).where(Utilisateur.foyer_id == foyer_id)
+    comptes = select(Compte.id).where(Compte.foyer_id == foyer_id)
+    categories = select(Categorie.id).where(Categorie.foyer_id == foyer_id)
+    enveloppes = select(Enveloppe.id).where(Enveloppe.foyer_id == foyer_id)
+
+    session.execute(
+        delete(MouvementEnveloppe).where(MouvementEnveloppe.enveloppe_id.in_(enveloppes))
+    )
+    session.execute(delete(Enveloppe).where(Enveloppe.foyer_id == foyer_id))
+    session.execute(delete(Operation).where(Operation.compte_id.in_(comptes)))
+    session.execute(delete(Recurrence).where(Recurrence.compte_id.in_(comptes)))
+    session.execute(delete(Plafond).where(Plafond.utilisateur_id.in_(utilisateurs)))
+    # Un plafond de foyer n'appartient à personne en particulier : le retirer par son
+    # utilisateur en laisserait derrière si un membre l'avait posé puis quitté le foyer.
+    session.execute(delete(Plafond).where(Plafond.categorie_id.in_(categories)))
+    session.execute(
+        delete(CorrespondanceImport).where(CorrespondanceImport.foyer_id == foyer_id)
+    )
+    session.execute(delete(Compte).where(Compte.foyer_id == foyer_id))
+    session.execute(delete(Categorie).where(Categorie.foyer_id == foyer_id))
+    session.execute(delete(Invitation).where(Invitation.foyer_id == foyer_id))
+    session.execute(delete(SessionWeb).where(SessionWeb.utilisateur_id.in_(utilisateurs)))
+    session.execute(delete(Utilisateur).where(Utilisateur.foyer_id == foyer_id))
+    session.execute(delete(Foyer).where(Foyer.id == foyer_id))
+    session.flush()

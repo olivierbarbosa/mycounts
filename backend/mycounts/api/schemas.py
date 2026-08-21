@@ -41,6 +41,15 @@ class UtilisateurPublic(BaseModel):
     courriel: str
     nom_affichage: str
     foyer_id: uuid.UUID
+    foyer_nom: str
+    """Le nom en clair, parce que l'écran doit l'AFFICHER avant de le faire retaper : une
+    confirmation qui demande un nom sans le montrer se termine par un abandon, pas par une
+    réflexion."""
+
+    est_proprietaire: bool
+    """Décidé par le serveur. L'écran s'en sert pour montrer ou cacher la zone de danger,
+    mais l'autorisation réelle est revérifiée à chaque appel — cacher un bouton n'a jamais
+    empêché personne d'appeler la route."""
 
 
 class MembrePublic(BaseModel):
@@ -59,6 +68,10 @@ class MembrePublic(BaseModel):
     """Marqué par le SERVEUR et non déduit à l'écran : le client connaît son nom, pas son
     identifiant, et deux membres peuvent porter le même nom d'affichage."""
 
+    est_proprietaire: bool
+    """Qui administre le foyer. Visible de tous les membres, comme la liste elle-même :
+    savoir à qui s'adresser pour une invitation n'est pas une information sensible."""
+
 
 class InvitationCreee(BaseModel):
     """Le code n'est renvoyé qu'ici, une seule fois.
@@ -69,3 +82,16 @@ class InvitationCreee(BaseModel):
 
     code: str
     expire_le: dt.datetime
+
+
+class DemandeSuppressionFoyer(BaseModel):
+    """Confirmation d'une destruction sans retour.
+
+    Le nom du foyer est redemandé en clair. Ce n'est pas un secret — l'écran l'affiche
+    juste au-dessus du champ — et ce n'est pas censé l'être : la barrière ne protège pas
+    contre quelqu'un qui voudrait détruire le foyer, elle protège contre quelqu'un qui ne
+    le voudrait PAS et dont le doigt a glissé. Un bouton, même rouge, même précédé d'un
+    « êtes-vous sûr ? », se traverse d'un geste réflexe ; retaper un nom ne s'improvise pas.
+    """
+
+    nom_du_foyer: str = Field(min_length=1, max_length=120)

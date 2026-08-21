@@ -135,11 +135,26 @@ export const api = {
 
   /** Qui compose le foyer. Aucune donnée sensible : partager un compte joint ne donne
    *  aucun droit sur l'argent de l'autre. */
-  membresDuFoyer: () => appeler<MembrePublic[]>('/foyer/membres'),
+  membresDuFoyer: () => appeler<MembrePublic[]>('/auth/foyer/membres'),
 
   creerInvitation: () => appeler<InvitationCreee>('/auth/invitations', { method: 'POST' }),
 
+  /** Détruit le foyer et TOUT ce qu'il contient. Sans retour possible.
+   *
+   *  Le nom du foyer est exigé en clair : c'est la preuve que l'on a lu ce qu'on faisait.
+   *  Le serveur revérifie la propriété — masquer le bouton n'autorise rien. */
+  supprimerLeFoyer: (nomDuFoyer: string) =>
+    appeler<void>('/auth/foyer', {
+      method: 'DELETE',
+      body: JSON.stringify({ nom_du_foyer: nomDuFoyer }),
+    }),
+
   comptes: () => appeler<ComptePublic[]>('/comptes'),
+
+  /** Tous les comptes que l'appelant peut voir, les deux périmètres réunis. Pour l'écran
+   *  de GESTION seulement : ne pas y voir un compte joint parce qu'on se trouve en vue
+   *  personnelle le rendait impossible à supprimer sans comprendre pourquoi. */
+  tousLesComptes: () => appeler<ComptePublic[]>('/comptes?toutes_vues=true'),
 
   /** Le corps entier est passé : la signature positionnelle précédente obligeait à
    *  ajouter un paramètre à chaque champ nouveau, et un appelant sur deux l'oubliait. */

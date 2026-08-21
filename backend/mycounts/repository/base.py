@@ -1,11 +1,14 @@
-"""Session de base de données et périmètre de l'appelant."""
+"""Session de base de données et périmètre de l'appelant.
+
+`Vue` est réexportée depuis `domain.perimetre` : elle appartient au domaine, mais tout le
+code qui manipule un `Principal` la cherche naturellement ici.
+"""
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
-from enum import StrEnum
 from functools import lru_cache
 
 from sqlalchemy import create_engine
@@ -13,26 +16,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from mycounts.config import charger_configuration
-
-
-class Vue(StrEnum):
-    """Sur quel argent on travaille.
-
-    Deux mondes ÉTANCHES, décidé par Olivier le 21 août 2026 : on répond à « combien j'ai »
-    ou à « combien on a », jamais aux deux mélangés. Un solde qui additionnerait le compte
-    joint et le livret personnel ferait croire à une aisance qui n'appartient à personne.
-
-    La vue n'est pas un filtre d'affichage : elle fait partie du PÉRIMÈTRE, au même titre
-    que le foyer. C'est pourquoi elle vit dans le `Principal` et non dans un paramètre de
-    route — une fonction qui l'oublierait rendrait des comptes qui ne sont pas les siens,
-    et le seul moyen d'empêcher cet oubli est qu'elle ne puisse pas être omise.
-    """
-
-    PERSONNELLE = "personnelle"
-    """Les comptes privés de la personne connectée."""
-
-    FOYER = "foyer"
-    """Les comptes joints du foyer, ceux que tous les membres voient."""
+from mycounts.domain.perimetre import Vue
 
 
 @dataclass(frozen=True)
@@ -69,3 +53,6 @@ def obtenir_session() -> Iterator[Session]:
         yield session
     finally:
         session.close()
+
+
+__all__ = ["Principal", "Vue", "fabrique_de_sessions", "moteur", "obtenir_session"]

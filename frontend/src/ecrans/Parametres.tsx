@@ -8,7 +8,7 @@ import {
   UserRound,
   Users,
 } from 'lucide-react'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
 import type {
   CategoriePublique,
@@ -84,17 +84,31 @@ export function Parametres({
   }
   const [code, setCode] = useState<string | null>(null)
   const [vue, setVue] = useState(vueCourante())
-  const [membres, setMembres] = useState<readonly MembrePublic[]>([])
+  // `null` tant que la réponse n'est pas là. Une liste vide et une liste pas encore
+  // arrivée sont deux états DIFFÉRENTS : les confondre — ce que faisait la version
+  // précédente — transforme n'importe quel échec d'appel en « Chargement… » éternel.
+  // C'est exactement ce qui s'est produit : le client demandait `/foyer/membres` quand la
+  // route est `/auth/foyer/membres`, et le 404 tournait en boucle à l'écran.
+  const [membres, setMembres] = useState<readonly MembrePublic[] | null>(null)
+  const [echecMembres, setEchecMembres] = useState(false)
+  // La zone de danger part REPLIÉE et n'expose son champ qu'après un geste délibéré.
+  // Un champ de confirmation visible en permanence finit par se remplir par habitude.
+  const [suppressionOuverte, setSuppressionOuverte] = useState(false)
+  const [nomRetape, setNomRetape] = useState('')
+  const [echecSuppression, setEchecSuppression] = useState<string | null>(null)
 
   // Chargés à l'ouverture du panneau et non à celle du sous-menu : la liste est courte,
   // l'appel est unique, et l'attendre au moment d'ouvrir « Foyer » ferait clignoter
   // l'écran juste après un mouvement de page.
-  useEffect(() => {
+  const chargerLesMembres = useCallback(() => {
+    setEchecMembres(false)
     void api
       .membresDuFoyer()
       .then(setMembres)
-      .catch(() => setMembres([]))
+      .catch(() => setEchecMembres(true))
   }, [])
+
+  useEffect(chargerLesMembres, [chargerLesMembres])
 
   /** Change de périmètre et relit TOUT.
    *
@@ -149,6 +163,19 @@ export function Parametres({
 
   async function inviter() {
     setCode((await api.creerInvitation()).code)
+  }
+
+  async function detruireLeFoyer() {
+    setEchecSuppression(null)
+    try {
+      await api.supprimerLeFoyer(nomRetape)
+    } catch {
+      setEchecSuppression('La suppression a échoué. Rien n’a été effacé.')
+      return
+    }
+    // La session est déjà close côté serveur : `surDeconnexion` remet l'application sur
+    // son écran de connexion sans passer par un appel qui échouerait forcément.
+    surDeconnexion()
   }
 
   async function seDeconnecter() {
@@ -221,7 +248,14 @@ export function Parametres({
       contenu: (
         <div className={styles.carte}>
           <h2 className={styles.titreBloc}>Membres</h2>
-          {membres.length === 0 ? (
+          {echecMembres ? (
+            <p className={styles.note} role="alert">
+              La liste des membres n’a pas pu être chargée.{' '}
+              <button type="button" className={styles.lien} onClick={chargerLesMembres}>
+                Réessayer
+              </button>
+            </p>
+          ) : membres === null ? (
             <p className={styles.note}>Chargement…</p>
           ) : (
             <ul className={styles.membres}>
@@ -260,6 +294,74 @@ export function Parametres({
                 sept jours.
               </p>
             </>
+          )}
+
+          {/* Zone de danger, réservée au propriétaire. Le serveur revérifie ce droit :
+              cacher le bouton range l'écran, il n'autorise rien. */}
+          {utilisateur.est_proprietaire && (
+            <div className={styles.danger}>
+              <h2 className={styles.titreDanger}>Supprimer le foyer</h2>
+              <p className={styles.note}>
+                Efface définitivement <strong>{utilisateur.foyer_nom}</strong> : tous les comptes,
+                personnels comme joints, leurs opérations, budgets, enveloppes et récurrences, pour
+                {membres !== null && membres.length > 1
+                  ? ` les ${membres.length} membres.`
+                  : ' vous.'}{' '}
+                Aucune sauvegarde n’est conservée, rien ne peut être restauré.
+              </p>
+
+              {!suppressionOuverte ? (
+                <button
+                  type="button"
+                  className={styles.boutonDanger}
+                  onClick={() => setSuppressionOuverte(true)}
+                >
+                  Supprimer le foyer
+                </button>
+              ) : (
+                <>
+                  <label className={styles.champDanger}>
+                    <span className={styles.etiquetteDanger}>
+                      Tapez <strong>{utilisateur.foyer_nom}</strong> pour confirmer
+                    </span>
+                    <input
+                      className={styles.saisieDanger}
+                      value={nomRetape}
+                      onChange={(evenement) => setNomRetape(evenement.target.value)}
+                      autoComplete="off"
+                      // Ni autofocus ni soumission au clavier : la touche Entrée est le
+                      // réflexe même contre lequel cette confirmation est posée.
+                    />
+                  </label>
+                  {echecSuppression !== null && (
+                    <p className={styles.erreurDanger} role="alert">
+                      {echecSuppression}
+                    </p>
+                  )}
+                  <div className={styles.actionsDanger}>
+                    <button
+                      type="button"
+                      className={styles.bouton}
+                      onClick={() => {
+                        setSuppressionOuverte(false)
+                        setNomRetape('')
+                        setEchecSuppression(null)
+                      }}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.boutonDanger}
+                      disabled={nomRetape.trim() !== utilisateur.foyer_nom}
+                      onClick={() => void detruireLeFoyer()}
+                    >
+                      Tout effacer
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
       ),

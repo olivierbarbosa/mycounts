@@ -39,6 +39,7 @@ from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.enveloppes import Rollover, UsageEnveloppe
 from mycounts.domain.enveloppes import TypeMouvement as TypeMouvementEnveloppe
 from mycounts.domain.import_releve import GenreCorrespondance
+from mycounts.domain.perimetre import Vue
 from mycounts.domain.recurrence import UniteRecurrence
 from mycounts.models.auth import Foyer, Utilisateur
 from mycounts.models.base import Base
@@ -189,14 +190,30 @@ class Plafond(Base):
     __tablename__ = "plafond"
     __table_args__ = (
         CheckConstraint("montant_centimes > 0", name="ck_plafond_montant_positif"),
+        # L'unicité porte sur la VUE en plus du reste : le budget courses du foyer n'est
+        # pas celui d'Olivier, et les deux doivent pouvoir coexister sur la même catégorie.
+        #
+        # Un plafond de foyer appartient au foyer et non à qui l'a posé — deux membres qui
+        # en fixent un sur la même catégorie parlent du même. C'est pourquoi la contrainte
+        # de la vue foyer ignore `utilisateur_id` : elle est déclarée en index partiel dans
+        # la migration, faute de pouvoir exprimer un WHERE ici.
         UniqueConstraint(
-            "utilisateur_id", "categorie_id", name="uq_plafond_par_categorie_et_personne"
+            "utilisateur_id",
+            "categorie_id",
+            "vue",
+            name="uq_plafond_par_categorie_et_personne",
         ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
     utilisateur_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("utilisateur.id", ondelete="CASCADE")
+    )
+    # Sur quel argent ce plafond porte. Les plafonds existants deviennent personnels : ils
+    # ont tous été posés avant que la vue foyer n'existe, et les attribuer au foyer
+    # exposerait à tous les membres des budgets que chacun avait fixés pour lui.
+    vue: Mapped[Vue] = mapped_column(
+        String(16), default=Vue.PERSONNELLE, server_default="personnelle"
     )
     categorie_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categorie.id", ondelete="CASCADE")
@@ -364,7 +381,7 @@ class Enveloppe(Base):
 
     __tablename__ = "enveloppe"
     __table_args__ = (
-        UniqueConstraint("foyer_id", "nom", name="uq_enveloppe_nom_par_foyer"),
+        UniqueConstraint("foyer_id", "nom", "vue", name="uq_enveloppe_nom_par_foyer"),
         CheckConstraint(
             "cible_centimes is null or cible_centimes > 0",
             name="ck_enveloppe_cible_positive",
@@ -424,6 +441,11 @@ class Enveloppe(Base):
     )
 
     archive: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Sur quel argent cette enveloppe porte. Même raison que pour les plafonds : les
+    # enveloppes existantes deviennent personnelles.
+    vue: Mapped[Vue] = mapped_column(
+        String(16), default=Vue.PERSONNELLE, server_default="personnelle"
+    )
     cree_le: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

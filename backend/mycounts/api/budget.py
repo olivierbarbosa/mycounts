@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
 from typing import Final
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -42,6 +43,7 @@ from mycounts.jobs.materialisation import materialiser
 from mycounts.models.budget import Compte
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot
+from mycounts.repository.base import Vue
 
 routeur = APIRouter(tags=["budget"])
 
@@ -61,8 +63,38 @@ def _en_compte(compte: Compte) -> ComptePublic:
 
 
 @routeur.get("/comptes", response_model=list[ComptePublic])
-def lister_comptes(session: SessionBase, principal: PrincipalCourant) -> list[ComptePublic]:
-    return [_en_compte(c) for c in depot.comptes_visibles(session, principal)]
+def lister_comptes(
+    session: SessionBase,
+    principal: PrincipalCourant,
+    toutes_vues: bool = Query(
+        default=False,
+        description=(
+            "Lister aussi les comptes de l'autre périmètre. Réservé à l'écran de GESTION "
+            "des comptes : les écrans de budget doivent rester étanches."
+        ),
+    ),
+) -> list[ComptePublic]:
+    """Les comptes du périmètre courant, ou tous ceux que l'appelant peut voir.
+
+    `toutes_vues` sert à l'écran de gestion, et à lui seul. L'étanchéité des deux mondes
+    porte sur les SOLDES et les budgets — mélanger un compte joint à un total personnel
+    donnerait un chiffre que personne ne peut interpréter. Elle n'a pas de sens dans un
+    écran qui sert à créer, renommer et supprimer : ne pas y voir un compte joint parce
+    qu'on se trouve en vue personnelle rendait ce compte impossible à supprimer sans
+    comprendre pourquoi.
+
+    Ce paramètre n'élargit RIEN : il réunit les deux périmètres que l'appelant a déjà le
+    droit de voir séparément, jamais les comptes privés de quelqu'un d'autre.
+    """
+    if not toutes_vues:
+        return [_en_compte(c) for c in depot.comptes_visibles(session, principal)]
+
+    vus = {
+        compte.id: compte
+        for vue in Vue
+        for compte in depot.comptes_visibles(session, replace(principal, vue=vue))
+    }
+    return [_en_compte(c) for c in sorted(vus.values(), key=lambda c: c.nom)]
 
 
 @routeur.post("/comptes", response_model=ComptePublic, status_code=status.HTTP_201_CREATED)

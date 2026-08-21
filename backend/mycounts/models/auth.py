@@ -49,6 +49,12 @@ class Utilisateur(Base):
         CheckConstraint(
             "paies_par_cycle between 1 and 12", name="ck_utilisateur_paies_par_cycle"
         ),
+        # Un seul propriétaire par foyer, garanti par la base et non par le code appelant :
+        # deux membres capables de tout effacer, c'est le genre d'état qui ne se remarque
+        # qu'au moment où l'un des deux s'en sert. L'index est partiel — il ne porte que
+        # sur les lignes vraies — et vit dans la migration seule, comme celui de `Plafond` :
+        # un `WHERE` ne s'exprime pas ici sans un `text()`, que le garde-fou n°7 refuse à
+        # bon droit hors du repository.
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
@@ -59,6 +65,12 @@ class Utilisateur(Base):
     nom_affichage: Mapped[str] = mapped_column(String(80))
     empreinte_mot_de_passe: Mapped[str] = mapped_column(String(255))
     actif: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # Qui peut détruire le foyer et gérer ses membres. Une colonne explicite plutôt que
+    # « le membre le plus ancien » : déduire un pouvoir d'une date de création en fait une
+    # règle sans auteur, que le premier tri par `cree_le` écrit ailleurs contredirait.
+    est_proprietaire: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
     # Nombre de versements de salaire qui composent UN cycle budgétaire. À 2 (quinzaine),
     # seule une paie sur deux ouvre une période : sans ce réglage, une prime ferait
     # repartir tous les plafonds à zéro en plein mois.

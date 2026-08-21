@@ -27,6 +27,10 @@ def creer_compte(
         courriel=normaliser_courriel(courriel),
         nom_affichage=nom,
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        # Ce helper crée un foyer NEUF : son unique membre en est le propriétaire, comme
+        # le fait `creer_premier_compte.py`. Laisser le défaut produirait des foyers sans
+        # administrateur, un état que la production ne connaît pas.
+        est_proprietaire=True,
     )
     session.commit()
     return foyer.id, utilisateur.id

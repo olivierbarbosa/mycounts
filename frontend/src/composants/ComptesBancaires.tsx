@@ -42,13 +42,26 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
   const [aSupprimer, setASupprimer] = useState<ComptePublic | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
 
+  /* Cet écran charge SA propre liste, les deux périmètres réunis.
+   *
+   * La liste reçue en prop est celle des écrans de budget : elle est étanche, et c'est
+   * voulu — un solde ne mélange jamais le personnel et le joint. Mais ici on gère les
+   * comptes, on ne les additionne pas : ne pas voir un compte joint parce qu'on se trouve
+   * en vue personnelle le rendait impossible à supprimer sans comprendre pourquoi.
+   *
+   * `toutes_vues` n'élargit aucun droit : il réunit deux périmètres que l'appelant peut
+   * déjà consulter séparément. */
+  const [tous, setTous] = useState<readonly ComptePublic[]>([])
+
   const charger = useCallback(async () => {
-    const [produits, montants] = await Promise.all([
+    const [produits, montants, liste] = await Promise.all([
       api.catalogueDesComptes(),
       api.soldesDesComptes(),
+      api.tousLesComptes(),
     ])
     setCatalogue(produits)
     setSoldes(new Map(montants.map((s) => [s.compte_id, s.solde_centimes])))
+    setTous(liste)
   }, [])
 
   useEffect(() => {
@@ -218,7 +231,7 @@ export function ComptesBancaires({ comptes, surChangement }: Props) {
   return (
     <div className={styles.bloc}>
       <ul className={styles.liste}>
-        {comptes.map((compte) => (
+        {tous.map((compte) => (
           <li key={compte.id} className={styles.carte}>
             {enEdition === compte.id ? (
               <form className={styles.formulaire} onSubmit={enregistrer} noValidate>

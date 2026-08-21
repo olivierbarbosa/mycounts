@@ -79,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
             courriel=courriel,
             nom_affichage=arguments.nom_affichage,
             empreinte_mot_de_passe=empreinte,
+            # Celui qui crée le foyer en est propriétaire. Les suivants entrent par
+            # invitation, donc à sa demande, et ne le sont pas.
+            est_proprietaire=True,
         )
         depot_budget.creer_categories_initiales(session, foyer.id)
         session.commit()

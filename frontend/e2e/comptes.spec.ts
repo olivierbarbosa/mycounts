@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { jourLocal } from './dates'
+
 /**
  * Gestion des comptes, une carte par compte.
  *
@@ -110,6 +112,31 @@ test('supprimer un compte qui porte des opérations est refusé, et l’archivag
   await creer(page, nom, 'compte_courant', '500,00')
   await fermer(page)
 
+  /* Une VRAIE dépense sur ce compte.
+   *
+   * Ce test exigeait auparavant que le seul solde d'ouverture suffise à bloquer la
+   * suppression, au motif qu'il est une opération. Il l'est bien — mais un compte qui ne
+   * porte QUE son amorçage n'a jamais servi à clore un mois, et le refuser rendait
+   * irréversible la seule erreur qu'on fait vraiment : se tromper en créant un compte.
+   * Signalé sur un compte joint, corrigé le 21 août 2026. Ce qu'il faut protéger, ce sont
+   * les opérations réelles, et c'est ce que ce test mesure désormais.
+   */
+  const comptes = (await (await page.request.get('/api/comptes')).json()) as {
+    id: string
+    nom: string
+  }[]
+  const cible = comptes.find((compte) => compte.nom === nom)!
+  await page.request.post('/api/operations', {
+    data: {
+      compte_id: cible.id,
+      libelle: `Achat ${nom}`,
+      montant_centimes: -1_200,
+      date_operation: jourLocal(),
+    },
+  })
+  // Le décor passe par l'API, le SUJET par l'écran : ce test porte sur le refus de
+  // suppression, pas sur la saisie — qui a ses propres tests.
+
   await ouvrirComptes(page)
   await carte(page, nom)
     .getByRole('button', { name: `Supprimer ${nom}` })
@@ -119,7 +146,6 @@ test('supprimer un compte qui porte des opérations est refusé, et l’archivag
     .getByRole('button', { name: 'Supprimer', exact: true })
     .click()
 
-  // Le solde d'ouverture EST une opération : le compte n'est donc pas vide.
   await expect(carte(page, nom).getByRole('alert')).toContainText('opérations')
   await expect(carte(page, nom).getByRole('alert'), 'le refus doit dire quoi faire').toContainText(
     'Archivez',

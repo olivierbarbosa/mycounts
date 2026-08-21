@@ -375,3 +375,87 @@
   font-size: 15px;
   font-weight: var(--typo-gras-fort);
 }
+
+/* Un bouton qui a l'apparence d'un lien : « Réessayer » vit DANS une phrase, et lui donner
+   la masse d'un bouton plein en ferait l'action principale de l'écran alors qu'il répare
+   une panne passagère. */
+.lien {
+  border: none;
+  padding: 0;
+  background: none;
+  color: var(--couleur-accent-clair);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Zone de danger. Séparée du reste par un trait et un fond teinté : ce qu'elle contient ne
+   se répare pas, et rien ne doit la faire ressembler aux réglages qui la précèdent. */
+.danger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-m);
+  margin-top: var(--espace-xl);
+  padding-top: var(--espace-xl);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.titreDanger {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 15px;
+  font-weight: var(--typo-gras-fort);
+}
+
+/* Bordé et non plein. Un aplat rouge pleine largeur attire le pouce ; ici on veut
+   exactement l'inverse — que le bouton se voie sans jamais appeler le geste. */
+.boutonDanger {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-l);
+  border: 1px solid var(--couleur-debit);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-debit);
+  font-size: 15px;
+  font-weight: var(--typo-gras-moyen);
+  cursor: pointer;
+}
+
+.boutonDanger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.champDanger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+}
+
+.etiquetteDanger {
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+}
+
+.saisieDanger {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--espace-m);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-moyen);
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-texte);
+  /* 16 px au moins : en dessous, iOS agrandit la page à la mise au point et ne la réduit
+     jamais ensuite. */
+  font-size: 16px;
+}
+
+.erreurDanger {
+  margin: 0;
+  color: var(--couleur-debit);
+  font-size: 13px;
+}
+
+.actionsDanger {
+  display: flex;
+  gap: var(--espace-s);
+}
