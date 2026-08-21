@@ -1403,7 +1403,10 @@ qu'il n'y avait aucun compte joint, il le savait avant de proposer.
 
 **Le contrôle en place maintenant.** Le titre devient « Partage » et la liste cède la place
 à « Vous n'avez encore partagé avec personne » tant qu'on est seul ; « Dissoudre le
-partage » n'apparaît que s'il existe un compte joint. Deux tests e2e, dont un qui mesure la
+partage » n'apparaît que s'il existe un compte joint, et la rubrique « Foyer » elle-même
+disparaît tant qu'aucun n'a été créé — tranché par Olivier : « le bouton foyer ne devrait
+pas s'afficher si aucun foyer n'a été créé ». L'espace commun naît donc de son premier
+compte, et l'on y invite ensuite. Deux tests e2e, dont un qui mesure la
 règle dans les DEUX sens en lisant l'état réel du foyer — une assertion qui ne vaudrait que
 dans un cas passerait aussi pour un code qui affiche la zone toujours, ou jamais.
 

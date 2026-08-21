@@ -594,11 +594,12 @@ export function Parametres({
           {/* Aucun compte joint : l'invitation prend la place des rubriques.
               Les catégories et l'apparence restent atteignables depuis l'autre vue — ce
               sont les mêmes, elles ne dépendent pas du périmètre.
-              « Foyer » reste, lui, et c'est délibéré : il porte l'invitation des membres,
-              la liste de ceux qui sont là et la dissolution. Le masquer aussi rendait
-              impossible d'inviter quelqu'un tant qu'aucun compte joint n'existe — alors
-              que constituer le foyer précède naturellement l'ouverture d'un compte
-              commun. Un écran vidé ne doit pas emporter la porte de sortie. */}
+              « Foyer » disparaît AUSSI, tranché par Olivier le 22 août 2026 : « le bouton
+              foyer ne devrait pas s'afficher si aucun foyer n'a été créé ». L'ordre est
+              donc celui-là — l'espace commun naît de son premier compte, et l'on y invite
+              ensuite. Conséquence assumée : inviter quelqu'un demande d'avoir créé un
+              compte joint d'abord. Ce n'est pas un cul-de-sac : la bascule vers le compte
+              personnel reste là, et avec elle tout le reste des réglages. */}
           {sansCompteJoint ? (
             <div className={styles.invitation}>
               <p className={styles.titreInvitation}>Aucun compte joint</p>
@@ -618,22 +619,7 @@ export function Parametres({
             </div>
           ) : null}
 
-          {sansCompteJoint ? (
-            <ul className={styles.liste}>
-              <li>
-                <button
-                  type="button"
-                  className={styles.entree}
-                  onClick={() => naviguer('foyer')}
-                  tabIndex={page === null ? 0 : -1}
-                >
-                  <Users size={18} strokeWidth={2} aria-hidden className={styles.icone} />
-                  <span className={styles.libelle}>Foyer</span>
-                  <ChevronRight size={18} strokeWidth={2} aria-hidden className={styles.chevron} />
-                </button>
-              </li>
-            </ul>
-          ) : (
+          {sansCompteJoint ? null : (
             <ul className={styles.liste}>
               {entrees.map(({ cle, libelle, detail, Icone }) => (
                 <li key={cle}>

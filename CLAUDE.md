@@ -117,7 +117,9 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
   d'office (`foyer_id` non nullable) : tant qu'on est seul, l'écran dit « Partage » et non
   « Membres », et n'affiche pas une liste d'une personne. Un modèle a le droit d'avoir ses
   noms ; l'écran n'a pas le droit de les emprunter sans se demander ce qu'ils affirment
-  (ERREURS.md #046). **On ne peut pas QUITTER un foyer** — il faudrait un foyer d'accueil,
+  (ERREURS.md #046). La rubrique « Foyer » n'apparaît qu'une fois un compte joint créé :
+  l'espace commun naît de son premier compte, on y invite ensuite. **On ne peut pas QUITTER
+  un foyer** — il faudrait un foyer d'accueil,
   le déplacement des comptes privés et la duplication des catégories, qui appartiennent au
   foyer. Seul « supprimer mon compte » existe.
 - **Une action ne se propose pas quand son échec est certain.** « Dissoudre le partage »
