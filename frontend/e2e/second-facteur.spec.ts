@@ -16,7 +16,9 @@ import { expect, test, type Page } from '@playwright/test'
  * mesuré côté intégration, dans `test_api_second_facteur.py`, contre une base jetable.
  */
 
-const SECRET = 'JBSWY3DPEHPK3PXP'
+// La clé d'exemple de la RFC 6238 (« 12345678901234567890 » en base32) : publique, et
+// jamais celle d'un compte — l'API est simulée, rien n'est enrôlé.
+const CLE_TOTP_SIMULEE = 'JBSWY3DPEHPK3PXP'
 const CODES = Array.from({ length: 10 }, (_, i) => `abcd-${String(1000 + i)}`)
 const QR =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>'
@@ -50,7 +52,7 @@ async function simulerApi(page: Page): Promise<Journal> {
       })
     }
     if (chemin === '/api/auth/moi/second-facteur/preparer') {
-      return json({ secret: SECRET, uri: `otpauth://totp/mycounts?secret=${SECRET}`, qr_svg: QR })
+      return json({ secret: CLE_TOTP_SIMULEE, uri: `otpauth://totp/mycounts?secret=${CLE_TOTP_SIMULEE}`, qr_svg: QR })
     }
     if (chemin === '/api/auth/moi/second-facteur/activer') {
       const { code } = requete.postDataJSON() as { code: string }
@@ -95,7 +97,7 @@ test('l’enrôlement propose de scanner ET de recopier la clé', async ({ page 
 
   await expect(page.getByLabel('Code à scanner')).toBeVisible()
   await expect(page.getByLabel('Code à scanner').locator('svg')).toBeVisible()
-  await expect(page.getByText(SECRET)).toBeVisible()
+  await expect(page.getByText(CLE_TOTP_SIMULEE)).toBeVisible()
 })
 
 test('le bouton d’activation reste inerte tant que le code est incomplet', async ({ page }) => {

@@ -1543,3 +1543,31 @@ voit qu'en listant ce qui a été effectivement intercepté — la trace, pas le
 `/`, donc seul le préfixe d'API du serveur est visé. Et la suite e2e tourne désormais sur
 cette machine : Chromium via le miroir `PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright`
 (le CDN officiel refuse cette adresse IP), et cinq bibliothèques système.
+
+## #051 — Le filtre qui ne laissait passer que le vert
+
+**Ce que je croyais.** Que `make verifier` était vert avant de commiter le lot identité :
+j'avais lu « All checks passed! », « Success: no issues found », « Garde-fou n°1 : aucune
+donnée bancaire détectée. » — et rien d'autre.
+
+**Ce qu'il s'est passé.** La CI a rougi en quatorze secondes, sur le garde-fou n°2 :
+`second-facteur.spec.ts:19`, `const SECRET = '…'`, « secret affecté en dur ». Mon
+`make verifier` local avait ÉCHOUÉ exactement là, et je l'avais annoncé vert dans le
+message de commit.
+
+**La cause.** J'avais lancé `make verifier 2>&1 | grep -E "passed|failed|error|Garde-fou|
+Success|All checks" | tail -14`. Le message d'échec s'écrit « SECRET POTENTIEL DÉTECTÉ » et
+la ligne de `make` dit « Error » avec une majuscule : aucun des deux ne passait le filtre.
+Trois lignes vertes, et l'arrêt de la chaîne après le garde-fou n°2 s'est lu comme une
+sortie abrégée. Le filtre ne pouvait pas rendre la réponse inverse — il n'avait pas de
+motif pour elle.
+
+**Ce que ça dit de plus général.** Un filtre de sortie est une sonde comme une autre, avec
+un domaine de validité : il ne voit que ce qu'on lui a dit de chercher. « Je n'ai vu aucune
+erreur » ne vaut que si l'on a vérifié que l'erreur AURAIT été visible. Même famille que
+#050 le même jour, et que les 268 tests « passés » qui étaient skippés : lire un compteur
+ou un code de retour, jamais une absence.
+
+**Le contrôle en place maintenant.** `make verifier` se lit par son code de retour
+(`; echo exit=$?`) et ses dernières lignes non filtrées ; la constante du test s'appelle
+`CLE_TOTP_SIMULEE` — c'est la clé d'exemple publique de la RFC 6238, et le nom le dit.
