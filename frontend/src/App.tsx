@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import type {
   CategoriePublique,
   ComptePublic,
+  EspacePublic,
   OperationPublique,
   RecurrencePublique,
   UtilisateurPublic,
@@ -12,6 +13,7 @@ import { api } from './api/client'
 import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
 import { Bulle } from './composants/Bulle'
 import { Portrait } from './composants/Portrait'
+import { SelecteurEspace } from './composants/SelecteurEspace'
 import type { Origine } from './composants/EcranDeBulle'
 import { FeuilleOperation } from './composants/FeuilleOperation'
 import { FeuilleRecurrence } from './composants/FeuilleRecurrence'
@@ -22,7 +24,8 @@ import { Budget } from './ecrans/Budget'
 import { Calendrier } from './ecrans/Calendrier'
 import { DetailEpargne } from './ecrans/DetailEpargne'
 import { Connexion } from './ecrans/Connexion'
-import { vueCourante } from './design/vue'
+import { changerEspace, espaceCourant } from './design/espace'
+import { changerDeVue, vueCourante } from './design/vue'
 import { Enveloppes } from './ecrans/Enveloppes'
 import { Epargne } from './ecrans/Epargne'
 import { ImportReleve } from './ecrans/ImportReleve'
@@ -61,6 +64,9 @@ export function App() {
   const [sens, setSens] = useState<'droite' | 'gauche'>('droite')
   const [comptes, setComptes] = useState<readonly ComptePublic[]>([])
   const [categories, setCategories] = useState<readonly CategoriePublique[]>([])
+  const [espaces, setEspaces] = useState<readonly EspacePublic[]>([])
+  const [espaceActif, setEspaceActif] = useState<EspacePublic | null>(null)
+  const [transitionEspace, setTransitionEspace] = useState(false)
   const [saisieOuverte, setSaisieOuverte] = useState(false)
   /* Nature imposée à la feuille de saisie, quand l'écran qui l'ouvre la connaît déjà.
    * L'Épargne s'en sert : « Virer de l'argent » n'a pas à proposer Dépense ni Revenu. */
@@ -96,11 +102,33 @@ export function App() {
    * son nom et sa photo, l'écran a continué d'afficher les anciens jusqu'au rechargement
    * complet de la page — l'action réussissait et paraissait sans effet. Une liste de
    * choses à relire qui en oublie une ne se signale jamais elle-même. */
-  const chargerReferentiels = useCallback(async () => {
-    const [u, c, k] = await Promise.all([api.moi(), api.comptes(), api.categories()])
-    setUtilisateur(u)
-    setComptes(c)
-    setCategories(k)
+  const chargerReferentiels = useCallback(async (espaceVise?: string) => {
+    const disponibles = await api.espaces()
+    const memorise = espaceVise ?? espaceCourant()
+    const cible =
+      disponibles.find((espace) => espace.id === memorise) ??
+      disponibles.find((espace) => espace.type === 'personnel') ??
+      disponibles[0]
+    if (cible === undefined) throw new Error('Aucun espace financier disponible.')
+
+    const precedent = espaceCourant()
+    const vuePrecedente = vueCourante()
+    changerEspace(cible.id)
+    changerDeVue(cible.type === 'personnel' ? 'personnelle' : 'foyer')
+    try {
+      const [u, c, k] = await Promise.all([api.moi(), api.comptes(), api.categories()])
+      // Le libellé et les données changent dans le même rendu React. Avant ces quatre
+      // lignes, l'ancien espace reste affiché ; après, aucun ancien montant ne subsiste.
+      setUtilisateur(u)
+      setComptes(c)
+      setCategories(k)
+      setEspaces(disponibles)
+      setEspaceActif(cible)
+    } catch (erreur) {
+      changerEspace(precedent)
+      changerDeVue(vuePrecedente)
+      throw erreur
+    }
   }, [])
 
   useEffect(() => {
@@ -151,6 +179,20 @@ export function App() {
     )
   }
 
+  if (espaceActif === null) return null
+
+  async function basculerEspace(espace: EspacePublic) {
+    if (espace.id === espaceActif?.id || transitionEspace) return
+    setTransitionEspace(true)
+    try {
+      await chargerReferentiels(espace.id)
+      setOnglet('accueil')
+      setRafraichissement((n) => n + 1)
+    } finally {
+      setTransitionEspace(false)
+    }
+  }
+
   /* L'amorçage ne vaut QUE pour la vue personnelle.
    *
    * En vue foyer, un foyer sans compte joint est une situation normale — la plupart des
@@ -158,7 +200,21 @@ export function App() {
    * premier compte remplaçait toute l'application, paramètres compris, si bien qu'on ne
    * pouvait même plus revenir en arrière : la bascule était un aller sans retour. */
   if (comptes.length === 0 && vueCourante() === 'personnelle') {
-    return <PremierCompte surCreation={apresEcriture} />
+    return (
+      <>
+        <SelecteurEspace
+          espaces={espaces}
+          espaceActif={espaceActif}
+          enTransition={transitionEspace}
+          surChangement={basculerEspace}
+          surNouveau={async (espace) => {
+            setEspaces((actuels) => [...actuels, espace])
+            await basculerEspace(espace)
+          }}
+        />
+        <PremierCompte surCreation={apresEcriture} />
+      </>
+    )
   }
 
   /* Vue foyer sans aucun compte joint : l'invitation prend la place du CONTENU, jamais
@@ -169,6 +225,16 @@ export function App() {
 
   return (
     <>
+      <SelecteurEspace
+        espaces={espaces}
+        espaceActif={espaceActif}
+        enTransition={transitionEspace}
+        surChangement={basculerEspace}
+        surNouveau={async (espace) => {
+          setEspaces((actuels) => [...actuels, espace])
+          await basculerEspace(espace)
+        }}
+      />
       <div
         // La clé force le remontage : sans elle, React réutiliserait le conteneur et
         // l'animation, jouée une seule fois au montage, ne se rejouerait jamais.
@@ -343,6 +409,7 @@ export function App() {
           origine={origineParametres}
           sousMenuInitial={rubriqueParametres}
           utilisateur={utilisateur}
+          espaceActif={espaceActif}
           categories={categories}
           comptes={comptes}
           surChangement={apresEcriture}
@@ -351,6 +418,9 @@ export function App() {
             setOrigineParametres(null)
             setUtilisateur(null)
             setComptes([])
+            setEspaces([])
+            setEspaceActif(null)
+            changerEspace(null)
           }}
         />
       )}

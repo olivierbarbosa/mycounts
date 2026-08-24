@@ -180,7 +180,7 @@ def agenda(
     # elle n'apparaîtrait ni dans l'agenda (qui commence aujourd'hui) ni dans les
     # opérations (pas encore créée). Un trou où de l'argent disparaît des écrans.
     # L'opération est idempotente, donc sans risque sur une lecture répétée.
-    materialiser(session, foyer_id=principal.foyer_id)
+    materialiser(session, espace_id=principal.espace_id)
 
     debut = aujourd_hui()
     fin = debut + dt.timedelta(days=jours)

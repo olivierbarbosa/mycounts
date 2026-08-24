@@ -41,7 +41,7 @@ from mycounts.domain.enveloppes import TypeMouvement as TypeMouvementEnveloppe
 from mycounts.domain.import_releve import GenreCorrespondance
 from mycounts.domain.perimetre import Vue
 from mycounts.domain.recurrence import UniteRecurrence
-from mycounts.models.auth import Foyer, Utilisateur
+from mycounts.models.auth import Espace, Foyer, Utilisateur
 from mycounts.models.base import Base
 
 
@@ -81,6 +81,9 @@ class Compte(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
     foyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("foyer.id", ondelete="RESTRICT"))
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="RESTRICT"), index=True
+    )
     proprietaire_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("utilisateur.id", ondelete="RESTRICT")
     )
@@ -108,6 +111,7 @@ class Compte(Base):
     )
 
     foyer: Mapped[Foyer] = relationship()
+    espace: Mapped[Espace] = relationship()
     proprietaire: Mapped[Utilisateur] = relationship()
 
 
@@ -126,6 +130,9 @@ class Categorie(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
     foyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("foyer.id", ondelete="CASCADE"))
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="CASCADE"), index=True
+    )
     nom: Mapped[str] = mapped_column(String(60))
     nature: Mapped[NatureCategorie] = mapped_column(String(16))
     teinte: Mapped[TeinteCategorie] = mapped_column(String(16))
@@ -151,6 +158,9 @@ class Recurrence(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="CASCADE"), index=True
+    )
     compte_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("compte.id", ondelete="CASCADE"))
     categorie_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("categorie.id", ondelete="RESTRICT"), default=None
@@ -206,6 +216,9 @@ class Plafond(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="CASCADE"), index=True
+    )
     utilisateur_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("utilisateur.id", ondelete="CASCADE")
     )
@@ -272,6 +285,9 @@ class Operation(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="CASCADE"), index=True
+    )
     compte_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("compte.id", ondelete="CASCADE"))
     categorie_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("categorie.id", ondelete="RESTRICT"), default=None
@@ -361,6 +377,9 @@ class CorrespondanceImport(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
     foyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("foyer.id", ondelete="RESTRICT"))
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="RESTRICT"), index=True
+    )
     genre: Mapped[GenreCorrespondance] = mapped_column(String(24))
     valeur: Mapped[str] = mapped_column(String(140))
     categorie_id: Mapped[uuid.UUID] = mapped_column(
@@ -394,6 +413,9 @@ class Enveloppe(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
     foyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("foyer.id", ondelete="RESTRICT"))
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="RESTRICT"), index=True
+    )
     cree_par_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("utilisateur.id", ondelete="RESTRICT")
     )
@@ -470,6 +492,9 @@ class MouvementEnveloppe(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="CASCADE"), index=True
+    )
     enveloppe_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("enveloppe.id", ondelete="CASCADE"), index=True
     )

@@ -43,6 +43,10 @@ def _comptes_autorises(principal: Principal) -> ColumnElement[bool]:
     L'écrire une seconde fois dans une requête voisine est la façon la plus sûre de créer
     une fuite : les deux versions divergeront, et la plus permissive ne préviendra pas.
     """
+    if not principal.mode_legacy:
+        # Dans le modèle V1, l'espace EST le périmètre. Il ne contient plus un second
+        # filtre personnel/joint susceptible de produire des totaux mixtes.
+        return Compte.espace_id == principal.espace_id
     if principal.vue is Vue.FOYER:
         # Les comptes JOINTS, et eux seuls. Y ajouter les comptes privés de l'appelant
         # ferait un total que personne ne pourrait interpréter — ni « ce que nous avons »,
@@ -71,9 +75,13 @@ def creer_compte(
 ) -> Compte:
     compte = Compte(
         foyer_id=principal.foyer_id,
+        espace_id=principal.espace_id,
         proprietaire_id=principal.utilisateur_id,
         nom=nom,
-        prive=prive,
+        # Colonne de transition seulement : dans la V1, c'est l'espace qui dit si
+        # l'argent est personnel ou commun. Une valeur envoyée par le client ne peut pas
+        # créer un sous-périmètre contradictoire dans un foyer.
+        prive=prive if principal.mode_legacy else principal.est_personnel,
         type_compte=type_compte,
         produit=produit,
     )
@@ -223,7 +231,13 @@ def creer_categories_initiales(session: Session, foyer_id: uuid.UUID) -> list[Ca
     servent à aucune opération.
     """
     creees = [
-        Categorie(foyer_id=foyer_id, nom=modele.nom, nature=modele.nature, teinte=modele.teinte)
+        Categorie(
+            foyer_id=foyer_id,
+            espace_id=foyer_id,
+            nom=modele.nom,
+            nature=modele.nature,
+            teinte=modele.teinte,
+        )
         for modele in CATEGORIES_INITIALES
     ]
     session.add_all(creees)
@@ -273,7 +287,13 @@ def supprimer_categorie(session: Session, categorie: Categorie) -> None:
 def categories(
     session: Session, principal: Principal, *, inclure_archivees: bool = False
 ) -> list[Categorie]:
-    conditions: list[ColumnElement[bool]] = [Categorie.foyer_id == principal.foyer_id]
+    conditions: list[ColumnElement[bool]] = [
+        (
+            Categorie.foyer_id == principal.foyer_id
+            if principal.mode_legacy
+            else Categorie.espace_id == principal.espace_id
+        )
+    ]
     if not inclure_archivees:
         conditions.append(Categorie.archivee.is_(False))
     return list(
@@ -288,7 +308,12 @@ def categorie_visible(
 ) -> Categorie | None:
     return session.execute(
         select(Categorie).where(
-            Categorie.id == categorie_id, Categorie.foyer_id == principal.foyer_id
+            Categorie.id == categorie_id,
+            (
+                Categorie.foyer_id == principal.foyer_id
+                if principal.mode_legacy
+                else Categorie.espace_id == principal.espace_id
+            ),
         )
     ).scalar_one_or_none()
 
@@ -301,7 +326,13 @@ def creer_categorie(
     nature: NatureCategorie,
     teinte: TeinteCategorie,
 ) -> Categorie:
-    categorie = Categorie(foyer_id=principal.foyer_id, nom=nom, nature=nature, teinte=teinte)
+    categorie = Categorie(
+        foyer_id=principal.foyer_id,
+        espace_id=principal.espace_id,
+        nom=nom,
+        nature=nature,
+        teinte=teinte,
+    )
     session.add(categorie)
     session.flush()
     return categorie
@@ -323,6 +354,7 @@ def creer_operation(
     cle_import: str | None = None,
 ) -> Operation:
     operation = Operation(
+        espace_id=principal.espace_id,
         compte_id=compte_id,
         categorie_id=categorie_id,
         cree_par_id=principal.utilisateur_id,
@@ -373,6 +405,7 @@ def creer_virement(
     # virement serait recréé à chaque fois.
     moities = [
         Operation(
+            espace_id=principal.espace_id,
             compte_id=compte,
             cree_par_id=principal.utilisateur_id,
             libelle=libelle,
@@ -623,7 +656,7 @@ def cles_deja_importees(session: Session, principal: Principal) -> set[str]:
     lignes = session.execute(
         select(Operation.cle_import)
         .join(Compte, Compte.id == Operation.compte_id)
-        .where(Compte.foyer_id == principal.foyer_id, Operation.cle_import.is_not(None))
+        .where(_comptes_autorises(principal), Operation.cle_import.is_not(None))
     ).scalars()
     return {cle for cle in lignes if cle is not None}
 
@@ -635,7 +668,11 @@ def correspondances_du_foyer(session: Session, principal: Principal) -> list[Cor
     SQLAlchemy, et la route n'a pas à savoir comment ils sont faits.
     """
     lignes = session.execute(
-        select(CorrespondanceImport).where(CorrespondanceImport.foyer_id == principal.foyer_id)
+        select(CorrespondanceImport).where(
+            CorrespondanceImport.foyer_id == principal.foyer_id
+            if principal.mode_legacy
+            else CorrespondanceImport.espace_id == principal.espace_id
+        )
     ).scalars()
     return [
         Correspondance(
@@ -670,7 +707,11 @@ def retenir_la_correspondance(
         return
     existante = session.execute(
         select(CorrespondanceImport).where(
-            CorrespondanceImport.foyer_id == principal.foyer_id,
+            (
+                CorrespondanceImport.foyer_id == principal.foyer_id
+                if principal.mode_legacy
+                else CorrespondanceImport.espace_id == principal.espace_id
+            ),
             CorrespondanceImport.genre == genre,
             CorrespondanceImport.valeur == valeur,
         )
@@ -682,6 +723,7 @@ def retenir_la_correspondance(
     session.add(
         CorrespondanceImport(
             foyer_id=principal.foyer_id,
+            espace_id=principal.espace_id,
             genre=genre,
             valeur=valeur,
             categorie_id=categorie_id,

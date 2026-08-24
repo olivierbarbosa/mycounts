@@ -6,6 +6,7 @@
  * la compilation plutôt que de se découvrir à l'exécution.
  */
 import { EN_TETE_VUE, vueCourante } from '../design/vue'
+import { EN_TETE_ESPACE, espaceCourant } from '../design/espace'
 import { plateforme } from '../plateforme'
 import type { components } from './schema'
 
@@ -15,6 +16,10 @@ export type EtatSecondFacteur = components['schemas']['EtatSecondFacteur']
 export type EnrolementPropose = components['schemas']['EnrolementPropose']
 export type SecondFacteurActive = components['schemas']['SecondFacteurActive']
 export type InvitationCreee = components['schemas']['InvitationCreee']
+export type EspacePublic = components['schemas']['EspacePublic']
+export type MembreEspacePublic = components['schemas']['MembreEspacePublic']
+export type InvitationEspaceCreee = components['schemas']['InvitationEspaceCreee']
+export type RoleEspace = components['schemas']['RoleEspace']
 export type ComptePublic = components['schemas']['ComptePublic']
 export type CategoriePublique = components['schemas']['CategoriePublique']
 export type OperationPublique = components['schemas']['OperationPublique']
@@ -120,7 +125,11 @@ export function lireDetailErreur(detail: unknown): DetailErreur {
  *  peut diverger (ERREURS.md #015). */
 const BASE = '/api'
 
-async function appeler<T>(chemin: string, options: RequestInit = {}): Promise<T> {
+async function appeler<T>(
+  chemin: string,
+  options: RequestInit = {},
+  inclureEspace = true,
+): Promise<T> {
   const jetonNatif = await plateforme.session.lireJetonAcces()
   const reponse = await fetch(`${BASE}${chemin}`, {
     ...options,
@@ -139,6 +148,9 @@ async function appeler<T>(chemin: string, options: RequestInit = {}): Promise<T>
       // recevrait les comptes personnels, jamais ceux du foyer.
       [EN_TETE_VUE]: vueCourante(),
       ...(jetonNatif === null ? {} : { Authorization: `Bearer ${jetonNatif}` }),
+      ...(inclureEspace && espaceCourant() !== null
+        ? { [EN_TETE_ESPACE]: espaceCourant()! }
+        : {}),
       ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     },
@@ -170,6 +182,54 @@ export const api = {
   deconnexion: () => appeler<void>('/auth/deconnexion', { method: 'POST' }),
 
   moi: () => appeler<UtilisateurPublic>('/auth/moi'),
+
+  // Seul appel volontairement sans espace : il sert précisément à réparer un UUID
+  // local devenu obsolète après révocation. Le serveur l'exécute donc dans le personnel,
+  // puis toute lecture financière reprend l'UUID autorisé choisi dans cette liste.
+  espaces: () => appeler<EspacePublic[]>('/espaces', {}, false),
+
+  creerFoyer: (nom: string) =>
+    appeler<EspacePublic>('/espaces', {
+      method: 'POST',
+      body: JSON.stringify({ nom }),
+    }),
+
+  membresEspace: () => appeler<MembreEspacePublic[]>('/espaces/membres'),
+
+  inviterDansEspace: (courriel: string, role: RoleEspace = 'membre') =>
+    appeler<InvitationEspaceCreee>('/espaces/invitations', {
+      method: 'POST',
+      body: JSON.stringify({ courriel, role }),
+    }),
+
+  accepterInvitationEspace: (jeton: string) =>
+    appeler<EspacePublic>('/espaces/invitations/accepter', {
+      method: 'POST',
+      body: JSON.stringify({ jeton }),
+    }),
+
+  changerRoleEspace: (utilisateurId: string, role: RoleEspace) =>
+    appeler<MembreEspacePublic>(`/espaces/membres/${utilisateurId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
+
+  transfererFoyer: (utilisateurId: string) =>
+    appeler<void>('/espaces/propriete', {
+      method: 'POST',
+      body: JSON.stringify({ utilisateur_id: utilisateurId }),
+    }),
+
+  quitterFoyer: () => appeler<void>('/espaces/membres/moi', { method: 'DELETE' }),
+
+  exclureDuFoyer: (utilisateurId: string) =>
+    appeler<void>(`/espaces/membres/${utilisateurId}`, { method: 'DELETE' }),
+
+  supprimerFoyer: (espaceId: string, nom: string) =>
+    appeler<void>(`/espaces/${espaceId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ nom }),
+    }),
 
   /** Qui compose le foyer. Aucune donnée sensible : partager un compte joint ne donne
    *  aucun droit sur l'argent de l'autre. */

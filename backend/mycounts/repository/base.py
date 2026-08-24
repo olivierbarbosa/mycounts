@@ -16,6 +16,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from mycounts.config import charger_configuration
+from mycounts.domain.espaces import RoleEspace, TypeEspace
 from mycounts.domain.perimetre import Vue
 
 
@@ -32,8 +33,34 @@ class Principal:
     """
 
     utilisateur_id: uuid.UUID
-    foyer_id: uuid.UUID
+    espace_id: uuid.UUID = uuid.UUID(int=0)
+    role: RoleEspace = RoleEspace.PROPRIETAIRE
+    type_espace: TypeEspace = TypeEspace.PERSONNEL
+    # Compatibilité temporaire des appels internes et tests antérieurs au lot espaces.
+    # Le code V1 ne doit plus utiliser ce champ pour autoriser une lecture.
+    foyer_id: uuid.UUID = uuid.UUID(int=0)
     vue: Vue = Vue.PERSONNELLE
+    mode_legacy: bool = False
+
+    def __post_init__(self) -> None:
+        if self.espace_id.int == 0 and self.foyer_id.int != 0:
+            object.__setattr__(self, "mode_legacy", True)
+        identifiant = (
+            self.espace_id
+            if self.espace_id.int != 0
+            else (self.foyer_id if self.foyer_id.int != 0 else None)
+        )
+        if identifiant is None:
+            raise ValueError("Un principal doit désigner un espace.")
+        object.__setattr__(self, "espace_id", identifiant)
+        if self.foyer_id.int == 0:
+            object.__setattr__(self, "foyer_id", identifiant)
+        if self.vue is Vue.FOYER and self.type_espace is TypeEspace.PERSONNEL:
+            object.__setattr__(self, "type_espace", TypeEspace.FOYER)
+
+    @property
+    def est_personnel(self) -> bool:
+        return self.type_espace is TypeEspace.PERSONNEL
 
 
 @lru_cache(maxsize=1)

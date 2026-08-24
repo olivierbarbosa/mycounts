@@ -14,11 +14,15 @@ from typing import Any, cast
 from sqlalchemy import CursorResult, delete, or_, select, update
 from sqlalchemy.orm import Session
 
+from mycounts.domain.espaces import RoleEspace, TypeEspace
 from mycounts.models.auth import (
+    Appartenance,
     Avatar,
     CodeDeSecours,
+    Espace,
     Foyer,
     Invitation,
+    InvitationEspace,
     SessionWeb,
     Utilisateur,
 )
@@ -39,6 +43,10 @@ def creer_foyer(session: Session, nom: str) -> Foyer:
     foyer = Foyer(nom=nom)
     session.add(foyer)
     session.flush()
+    # Compatibilité de création pendant la migration : le foyer historique et le nouvel
+    # espace partagent leur UUID. Les nouveaux parcours passent par repository.espaces.
+    session.add(Espace(id=foyer.id, type=TypeEspace.FOYER, nom=nom))
+    session.flush()
     return foyer
 
 
@@ -51,6 +59,11 @@ def creer_utilisateur(
     empreinte_mot_de_passe: str,
     est_proprietaire: bool = False,
 ) -> Utilisateur:
+    espace = session.get(Espace, foyer_id)
+    if espace is not None and TypeEspace(espace.type) is TypeEspace.PERSONNEL:
+        # La table Foyer subsiste comme support de FK durant la migration. Elle ne doit
+        # jamais transformer ce conteneur technique en espace personnel partagé.
+        raise ValueError("Un espace personnel ne peut recevoir aucun autre membre.")
     utilisateur = Utilisateur(
         foyer_id=foyer_id,
         courriel=courriel,
@@ -59,6 +72,17 @@ def creer_utilisateur(
         est_proprietaire=est_proprietaire,
     )
     session.add(utilisateur)
+    session.flush()
+    # Les scripts/tests historiques créent encore l'identité dans un foyer. Leur
+    # appartenance est matérialisée dès maintenant pour que l'en-tête d'espace puisse
+    # autoriser les mêmes données durant la transition.
+    session.add(
+        Appartenance(
+            utilisateur_id=utilisateur.id,
+            espace_id=foyer_id,
+            role=(RoleEspace.PROPRIETAIRE if est_proprietaire else RoleEspace.MEMBRE),
+        )
+    )
     session.flush()
     return utilisateur
 
@@ -258,8 +282,10 @@ def supprimer_le_foyer(session: Session, principal: Principal) -> None:
     session.execute(delete(Compte).where(Compte.foyer_id == foyer_id))
     session.execute(delete(Categorie).where(Categorie.foyer_id == foyer_id))
     session.execute(delete(Invitation).where(Invitation.foyer_id == foyer_id))
+    session.execute(delete(InvitationEspace).where(InvitationEspace.espace_id == foyer_id))
     session.execute(delete(SessionWeb).where(SessionWeb.utilisateur_id.in_(utilisateurs)))
     session.execute(delete(Utilisateur).where(Utilisateur.foyer_id == foyer_id))
+    session.execute(delete(Espace).where(Espace.id == foyer_id))
     session.execute(delete(Foyer).where(Foyer.id == foyer_id))
     session.flush()
 

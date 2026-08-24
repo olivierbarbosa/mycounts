@@ -59,6 +59,7 @@ from mycounts.domain.securite import (
 from mycounts.models.auth import Utilisateur
 from mycounts.repository import auth as depot
 from mycounts.repository import budget as depot_budget
+from mycounts.repository import espaces as depot_espaces
 from mycounts.repository import limitation_auth as depot_limitation
 
 routeur = APIRouter(prefix="/auth", tags=["authentification"])
@@ -381,6 +382,15 @@ def creer_invitation(session: SessionBase, principal: PrincipalCourant) -> Invit
 
     Le code en clair n'est renvoyé qu'ici. Seule son empreinte est stockée.
     """
+    if not principal.mode_legacy:
+        # Ce code historique n'est ni ciblé sur une adresse ni rattaché aux nouveaux
+        # rôles. Surtout, depuis que l'espace personnel est le défaut, le laisser utiliser
+        # `foyer_id` créerait une invitation vers son conteneur de compatibilité. Les
+        # nouveaux clients passent exclusivement par `/espaces/invitations`.
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Utilisez l’invitation ciblée du foyer actif.",
+        )
     code = engendrer_jeton()
     expire_le = expiration_invitation()
     depot.creer_invitation(
@@ -422,6 +432,8 @@ def rejoindre(
         nom_affichage=demande.nom_affichage,
         empreinte_mot_de_passe=hacher_mot_de_passe(demande.mot_de_passe),
     )
+    espace_personnel, _ = depot_espaces.creer_espace_personnel(session, utilisateur)
+    depot_budget.creer_categories_initiales(session, espace_personnel.id)
     depot.marquer_invitation_utilisee(session, invitation=invitation, a_l_instant=instant)
 
     jeton = engendrer_jeton()
@@ -733,7 +745,12 @@ def avatar_dune_personne(
     partagé n'a pas à la garder.
     """
     cible = depot.utilisateur_par_id(session, utilisateur_id)
-    if cible is None or cible.foyer_id != principal.foyer_id:
+    meme_espace = depot_espaces.appartenance_active(
+        session,
+        utilisateur_id=utilisateur_id,
+        espace_id=principal.espace_id,
+    )
+    if cible is None or meme_espace is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aucun avatar.")
 
     avatar = depot.avatar_de(session, utilisateur_id)

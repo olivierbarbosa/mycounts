@@ -55,7 +55,7 @@ export function FeuilleOperation({
     if (operation.cree_par_id == null) return
     let vivant = true
     void api
-      .membresDuFoyer()
+      .membresEspace()
       .then((membres) => {
         if (!vivant) return
         const lui = membres.find((m) => m.id === operation.cree_par_id)

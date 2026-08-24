@@ -34,6 +34,8 @@ def _plafonds_autorises(principal: Principal) -> ColumnElement[bool]:
       contredirait cet index, et le second membre à en poser un recevrait un conflit
       qu'aucun écran ne saurait expliquer.
     """
+    if not principal.mode_legacy:
+        return Plafond.espace_id == principal.espace_id
     if principal.vue is Vue.FOYER:
         return Plafond.vue == Vue.FOYER
     return and_(
@@ -50,7 +52,11 @@ def plafonds_de(session: Session, principal: Principal) -> list[Plafond]:
             .join(Categorie, Categorie.id == Plafond.categorie_id)
             .where(
                 _plafonds_autorises(principal),
-                Categorie.foyer_id == principal.foyer_id,
+                (
+                    Categorie.foyer_id == principal.foyer_id
+                    if principal.mode_legacy
+                    else Categorie.espace_id == principal.espace_id
+                ),
             )
             .order_by(Categorie.nom)
         ).scalars()
@@ -97,6 +103,7 @@ def definir_plafond(
         return existant
 
     plafond = Plafond(
+        espace_id=principal.espace_id,
         utilisateur_id=principal.utilisateur_id,
         # La vue est DÉDUITE du périmètre regardé, jamais demandée : c'est là que
         # l'utilisateur a déjà dit de quel argent il parle. La redemander dans le

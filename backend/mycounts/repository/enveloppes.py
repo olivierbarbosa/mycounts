@@ -31,10 +31,11 @@ def enveloppes_du_foyer(
     # ne montrer que l'argent commun. Une enveloppe découpe une ÉPARGNE, et les deux
     # épargnes sont étanches ; les mélanger donnait un découpage dont la somme dépassait
     # ce qu'il découpe.
-    conditions = [
-        Enveloppe.foyer_id == principal.foyer_id,
-        Enveloppe.vue == principal.vue,
-    ]
+    conditions = (
+        [Enveloppe.foyer_id == principal.foyer_id, Enveloppe.vue == principal.vue]
+        if principal.mode_legacy
+        else [Enveloppe.espace_id == principal.espace_id]
+    )
     if not archivees:
         conditions.append(Enveloppe.archive.is_(False))
     return list(
@@ -54,8 +55,11 @@ def enveloppe_visible(
         select(Enveloppe)
         .where(
             Enveloppe.id == enveloppe_id,
-            Enveloppe.foyer_id == principal.foyer_id,
-            Enveloppe.vue == principal.vue,
+            *(
+                [Enveloppe.foyer_id == principal.foyer_id, Enveloppe.vue == principal.vue]
+                if principal.mode_legacy
+                else [Enveloppe.espace_id == principal.espace_id]
+            ),
         )
         .options(selectinload(Enveloppe.mouvements))
     ).scalar_one_or_none()
@@ -77,6 +81,7 @@ def creer_enveloppe(
 ) -> Enveloppe:
     enveloppe = Enveloppe(
         foyer_id=principal.foyer_id,
+        espace_id=principal.espace_id,
         cree_par_id=principal.utilisateur_id,
         # Déduite du périmètre regardé, jamais demandée : c'est là que l'utilisateur a
         # déjà dit de quelle épargne il parle. La redemander dans le formulaire
@@ -172,6 +177,7 @@ def ajouter_mouvement(
     l'histoire : six mois plus tard, c'est la seule façon de comprendre un écart.
     """
     mouvement = MouvementEnveloppe(
+        espace_id=enveloppe.espace_id,
         enveloppe_id=enveloppe.id,
         type=type,
         montant_centimes=int(montant_centimes),

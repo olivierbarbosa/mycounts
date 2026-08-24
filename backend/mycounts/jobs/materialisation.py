@@ -39,7 +39,11 @@ class Bilan:
 
 
 def materialiser(
-    session: Session, *, a_la_date: dt.date | None = None, foyer_id: uuid.UUID | None = None
+    session: Session,
+    *,
+    a_la_date: dt.date | None = None,
+    foyer_id: uuid.UUID | None = None,
+    espace_id: uuid.UUID | None = None,
 ) -> Bilan:
     """Crée les opérations `a_confirmer` pour toute échéance échue et absente.
 
@@ -51,7 +55,9 @@ def materialiser(
     creees = 0
     deja = 0
 
-    for recurrence in depot.recurrences_actives(session, foyer_id=foyer_id):
+    for recurrence in depot.recurrences_actives(
+        session, foyer_id=foyer_id, espace_id=espace_id
+    ):
         cadence = Cadence(unite=recurrence.unite, intervalle=recurrence.intervalle)
         existantes = depot.dates_deja_materialisees(session, recurrence_id=recurrence.id)
 

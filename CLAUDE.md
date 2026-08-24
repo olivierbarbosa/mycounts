@@ -21,9 +21,10 @@ mensuelle ; statistiques et constats chiffrés ; import de relevé CSV avec écr
 profil personnel — nom, adresse, mot de passe — et **image de profil**.
 Interface Liquid Glass sur palette **bleu ardoise**, mobile d'abord, rail latéral au-delà
 de 1024 px. Barre d'onglets à deux capsules (modèle Apple Music) ; écrans ouverts depuis
-une bulle du haut, avec glissement de retour au doigt. Onglet Foyer : bascule entre
-comptes personnels et comptes joints, liste des membres, invitation, dissolution du
-partage et suppression définitive de son compte.
+une bulle du haut, avec glissement de retour au doigt. Le sélecteur d'espace passe en un
+geste du personnel à chacun des foyers ; le changement de libellé et de données est
+atomique. Les routes historiques de « vue comptes joints » restent compatibles pendant la
+migration, sans définir le nouveau périmètre.
 
 **Manque** : couverture des enveloppes par compte, au sens du rapprochement — où
 l'argent EST contre où il devrait être (lot E2) ; MFA obligatoire dans l'onboarding et
@@ -85,13 +86,16 @@ sans avoir rien appris au préalable.
 aperçu et refus sûr en cas de doute ; Revolut et Caisse d'Épargne seront les deux profils
 certifiés de départ. Le CSV reste le chemin le plus fiable et le seul actuellement livré.
 
-**Limite actuelle : un utilisateur appartient à UN seul foyer.** `Utilisateur.foyer_id`,
-non nullable. La vue
-« comptes joints » est un FILTRE sur `Compte.prive`, pas une entité : il n'existe pas
-d'espace partagé à créer, quitter ou supprimer séparément. La V1 lèvera cette limite avec
-`Espace` et `Appartenance` : le compte devient l'identité stable, puis la personne crée ou
-rejoint plusieurs foyers entièrement isolés. Cela demande une réécriture explicite de tout
-le périmètre ; elle est planifiée dans `docs/V1-ARCHITECTURE.md`.
+**Espaces multiples livrés.** Une identité possède exactement un espace personnel et peut
+créer ou rejoindre plusieurs foyers via `Espace`, `Appartenance` et
+`InvitationEspace`. Le client envoie `X-Mycounts-Espace`; seul un en-tête absent choisit
+le personnel, tandis qu'une valeur invalide ou non autorisée reçoit un 404 neutre. Les
+finances portent `espace_id` et les liens
+compte/catégorie/récurrence/enveloppe sont contraints par des FK composites. Les colonnes
+`Utilisateur.foyer_id`, `Compte.prive` et `Vue` restent temporairement présentes pour la
+compatibilité des anciens scripts/routes, mais aucune requête V1 ne les utilise comme
+autorisation. La migration et les invariants vivent dans
+`backend/migrations/versions/e31a9b6427d0_espaces_et_foyers_multiples.py`.
 
 Le plan d'exécution détaillé vit dans `docs/PLAN.md` — il fixe pour chaque écran ce qu'il
 fait **et ce qu'il ne fait pas**. Cette seconde colonne existe parce que trois écrans ont

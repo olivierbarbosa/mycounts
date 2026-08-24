@@ -26,6 +26,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from mycounts.domain.espaces import RoleEspace, TypeEspace
 from mycounts.models.base import Base
 
 
@@ -43,6 +44,66 @@ class Foyer(Base):
     )
 
     membres: Mapped[list[Utilisateur]] = relationship(back_populates="foyer")
+
+
+class Espace(Base):
+    """Frontière d'isolation des données financières.
+
+    `proprietaire_personnel_id` n'est renseigné que pour un espace personnel. Son
+    unicité garantit qu'une identité ne peut en recevoir qu'un seul, sans confondre ce
+    lien structurel avec le rôle d'une appartenance de foyer.
+    """
+
+    __tablename__ = "espace"
+    __table_args__ = (
+        UniqueConstraint(
+            "proprietaire_personnel_id", name="uq_espace_personnel_par_utilisateur"
+        ),
+        CheckConstraint(
+            "(type = 'personnel' and proprietaire_personnel_id is not null) or "
+            "(type = 'foyer' and proprietaire_personnel_id is null)",
+            name="ck_espace_proprietaire_selon_type",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    type: Mapped[TypeEspace] = mapped_column(String(16))
+    nom: Mapped[str] = mapped_column(String(120))
+    proprietaire_personnel_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="CASCADE"), default=None
+    )
+    actif: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class Appartenance(Base):
+    """Droit explicite d'une identité dans un espace."""
+
+    __tablename__ = "appartenance"
+    __table_args__ = (
+        UniqueConstraint(
+            "utilisateur_id", "espace_id", name="uq_appartenance_utilisateur_espace"
+        ),
+        CheckConstraint(
+            "role in ('proprietaire', 'administrateur', 'membre')",
+            name="ck_appartenance_role",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    utilisateur_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="CASCADE"), index=True
+    )
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[RoleEspace] = mapped_column(String(20))
+    actif: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    rejoint_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class Utilisateur(Base):
@@ -118,6 +179,36 @@ class Invitation(Base):
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
     foyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("foyer.id", ondelete="CASCADE"))
     empreinte_code: Mapped[str] = mapped_column(String(64))
+    creee_par_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="CASCADE")
+    )
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    expire_le: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    utilisee_le: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+
+class InvitationEspace(Base):
+    """Invitation ciblée vers un foyer, utilisable par une identité existante."""
+
+    __tablename__ = "invitation_espace"
+    __table_args__ = (
+        UniqueConstraint("empreinte_jeton", name="uq_invitation_espace_empreinte"),
+        CheckConstraint(
+            "role in ('administrateur', 'membre')", name="ck_invitation_espace_role"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    espace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("espace.id", ondelete="CASCADE"), index=True
+    )
+    courriel_destinataire: Mapped[str] = mapped_column(String(254), index=True)
+    role: Mapped[RoleEspace] = mapped_column(
+        String(20), default=RoleEspace.MEMBRE, server_default="membre"
+    )
+    empreinte_jeton: Mapped[str] = mapped_column(String(64))
     creee_par_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("utilisateur.id", ondelete="CASCADE")
     )

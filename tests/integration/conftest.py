@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 
 TABLES = (
     "tentative_connexion",
+    "invitation_espace",
+    "appartenance",
     "plafond",
     "operation",
     "recurrence",
@@ -22,6 +24,7 @@ TABLES = (
     "session_web",
     "invitation",
     "utilisateur",
+    "espace",
     "foyer",
 )
 

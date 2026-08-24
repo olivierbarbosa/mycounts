@@ -32,6 +32,7 @@ def creer_recurrence(
     fin: dt.date | None = None,
 ) -> Recurrence:
     recurrence = Recurrence(
+        espace_id=principal.espace_id,
         compte_id=compte_id,
         categorie_id=categorie_id,
         cree_par_id=principal.utilisateur_id,
@@ -114,7 +115,10 @@ def desactiver_recurrence(session: Session, recurrence: Recurrence) -> None:
 
 
 def recurrences_actives(
-    session: Session, *, foyer_id: uuid.UUID | None = None
+    session: Session,
+    *,
+    foyer_id: uuid.UUID | None = None,
+    espace_id: uuid.UUID | None = None,
 ) -> Sequence[Recurrence]:
     """Toutes les récurrences actives, éventuellement restreintes à un foyer.
 
@@ -123,7 +127,9 @@ def recurrences_actives(
     tests, qui doivent pouvoir isoler leur jeu de données.
     """
     conditions: list[ColumnElement[bool]] = [Recurrence.active.is_(True)]
-    if foyer_id is not None:
+    if espace_id is not None:
+        conditions.append(Recurrence.espace_id == espace_id)
+    elif foyer_id is not None:
         conditions.append(Compte.foyer_id == foyer_id)
     return list(
         session.execute(
@@ -200,6 +206,7 @@ def materialiser_echeance(
     dit alors « quelqu'un d'autre s'en est chargé », ce qui est le résultat voulu.
     """
     operation = Operation(
+        espace_id=recurrence.espace_id,
         compte_id=recurrence.compte_id,
         categorie_id=recurrence.categorie_id,
         cree_par_id=recurrence.cree_par_id,

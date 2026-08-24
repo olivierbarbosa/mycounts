@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import Cookie, Depends, Header, HTTPException, status
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from mycounts.domain.securite import empreinte_jeton, maintenant
 from mycounts.repository import auth as depot
+from mycounts.repository import espaces as depot_espaces
 from mycounts.repository.base import Principal, Vue, obtenir_session
 
 NOM_COOKIE = "mycounts_session"
@@ -18,12 +20,14 @@ SessionBase = Annotated[Session, Depends(obtenir_session)]
 
 """En-tête par lequel le client annonce le périmètre qu'il regarde."""
 EN_TETE_VUE = "X-Mycounts-Vue"
+EN_TETE_ESPACE = "X-Mycounts-Espace"
 
 
 def principal_courant(
     session: SessionBase,
     mycounts_session: Annotated[str | None, Cookie(alias=NOM_COOKIE)] = None,
     vue_demandee: Annotated[str | None, Header(alias=EN_TETE_VUE)] = None,
+    espace_demande: Annotated[str | None, Header(alias=EN_TETE_ESPACE)] = None,
 ) -> Principal:
     """Utilisateur authentifié, sur le périmètre demandé, ou 401.
 
@@ -31,15 +35,14 @@ def principal_courant(
     session expirée) : distinguer ces cas renseignerait un attaquant sur l'existence
     d'un compte ou la validité d'un jeton volé.
 
-    **La vue arrive par un en-tête, pas par le cookie de session.** Elle n'est pas un
-    secret et ne donne accès à rien de plus : le foyer et l'utilisateur viennent de la
-    session, et la vue ne fait que choisir LEQUEL de leurs deux périmètres regarder. La
-    mettre dans la session obligerait à réécrire un cookie à chaque bascule, donc à
-    invalider et recréer l'authentification pour un changement d'affichage.
+    **L'espace arrive par un en-tête, pas par le cookie de session.** Son UUID n'est pas
+    une autorisation : l'appartenance active est relue en base et verrouillée pour toute
+    la requête. Le garder hors de la session évite de recréer l'authentification à chaque
+    bascule d'affichage.
 
-    Une valeur inconnue ou absente retombe sur la vue PERSONNELLE. Le défaut est un choix
-    de sûreté : au pire, on montre à quelqu'un ses propres comptes. L'inverse ferait fuiter
-    par simple faute de frappe dans un en-tête.
+    Seule l'absence d'en-tête choisit l'espace personnel. Un UUID mal formé, inconnu ou
+    non autorisé reçoit le même 404 neutre : l'en-tête ne devient ni une fuite ni un
+    oracle, et une écriture destinée à un foyer révoqué ne change jamais de périmètre.
     """
     refus = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentification requise."
@@ -54,6 +57,35 @@ def principal_courant(
         raise refus
 
     _, utilisateur = trouve
+
+    identifiant_espace: uuid.UUID | None = None
+    if espace_demande is not None:
+        try:
+            identifiant_espace = uuid.UUID(espace_demande.strip())
+        except ValueError:
+            # Même réponse qu'un UUID inexistant ou appartenant à autrui : aucun oracle,
+            # et surtout aucune écriture destinée à un foyer ne retombe en personnel.
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Espace indisponible.",
+            ) from None
+
+    principal = depot_espaces.principal_pour(
+        session,
+        utilisateur_id=utilisateur.id,
+        espace_id=identifiant_espace,
+    )
+    if principal is not None:
+        return principal
+    if espace_demande is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Espace indisponible.",
+        )
+
+    # Les bases antérieures à la migration n'ont pas encore d'espace personnel. Ce
+    # repli disparaîtra avec les colonnes legacy ; il ne peut viser que le foyer déjà
+    # lié à l'identité authentifiée.
     return Principal(
         utilisateur_id=utilisateur.id,
         foyer_id=utilisateur.foyer_id,

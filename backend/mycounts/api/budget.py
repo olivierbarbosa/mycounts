@@ -547,7 +547,7 @@ def resume_de_la_periode(
     """
     # Même rattrapage que pour l'agenda : une échéance échue non matérialisée serait
     # absente du solde réel comme de la part à confirmer. Idempotent.
-    materialiser(session, foyer_id=principal.foyer_id)
+    materialiser(session, espace_id=principal.espace_id)
     utilisateur = depot_auth.utilisateur_par_id(session, principal.utilisateur_id)
     paies_par_cycle = utilisateur.paies_par_cycle if utilisateur else 1
     # Le résumé de l'accueil ne porte que sur les comptes COURANTS. Mélanger un livret

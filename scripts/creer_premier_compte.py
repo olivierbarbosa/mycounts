@@ -23,6 +23,7 @@ from mycounts.domain.securite import (
 )
 from mycounts.repository import auth as depot
 from mycounts.repository import budget as depot_budget
+from mycounts.repository import espaces as depot_espaces
 from mycounts.repository.base import fabrique_de_sessions
 
 
@@ -84,6 +85,8 @@ def main(argv: list[str] | None = None) -> int:
             est_proprietaire=True,
         )
         depot_budget.creer_categories_initiales(session, foyer.id)
+        espace_personnel, _ = depot_espaces.creer_espace_personnel(session, utilisateur)
+        depot_budget.creer_categories_initiales(session, espace_personnel.id)
         session.commit()
     finally:
         session.close()

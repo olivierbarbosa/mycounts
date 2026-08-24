@@ -19,6 +19,7 @@ from mycounts.api.auth import routeur as routeur_auth
 from mycounts.api.budget import routeur as routeur_budget
 from mycounts.api.dependances import SessionBase
 from mycounts.api.enveloppes import routeur as routeur_enveloppes
+from mycounts.api.espaces import routeur as routeur_espaces
 from mycounts.api.import_releve import routeur as routeur_import
 from mycounts.api.plafonds import routeur as routeur_plafonds
 from mycounts.api.statistiques import routeur as routeur_statistiques
@@ -84,6 +85,7 @@ app.include_router(routeur_plafonds, prefix=PREFIXE_API)
 app.include_router(routeur_enveloppes, prefix=PREFIXE_API)
 app.include_router(routeur_statistiques, prefix=PREFIXE_API)
 app.include_router(routeur_import, prefix=PREFIXE_API)
+app.include_router(routeur_espaces, prefix=PREFIXE_API)
 
 
 @app.get("/health")

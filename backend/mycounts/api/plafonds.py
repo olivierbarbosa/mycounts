@@ -25,7 +25,7 @@ routeur = APIRouter(prefix="/plafonds", tags=["plafonds"])
 def _etats(session: SessionBase, principal: PrincipalCourant) -> list[PlafondPublic]:
     # Même rattrapage qu'ailleurs : une échéance échue non matérialisée manquerait à la
     # consommation du plafond. Idempotent.
-    materialiser(session, foyer_id=principal.foyer_id)
+    materialiser(session, espace_id=principal.espace_id)
 
     utilisateur = depot_auth.utilisateur_par_id(session, principal.utilisateur_id)
     periode = periode_courante(

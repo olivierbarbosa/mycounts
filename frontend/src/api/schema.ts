@@ -806,6 +806,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/espaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Espaces */
+        get: operations["lister_espaces_api_espaces_get"];
+        put?: never;
+        /** Creer Un Foyer */
+        post: operations["creer_un_foyer_api_espaces_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/espaces/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Inviter */
+        post: operations["inviter_api_espaces_invitations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/espaces/invitations/accepter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accepter */
+        post: operations["accepter_api_espaces_invitations_accepter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/espaces/membres": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Les Membres */
+        get: operations["lister_les_membres_api_espaces_membres_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/espaces/membres/moi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Quitter */
+        delete: operations["quitter_api_espaces_membres_moi_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/espaces/membres/{utilisateur_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Exclure */
+        delete: operations["exclure_api_espaces_membres__utilisateur_id__delete"];
+        options?: never;
+        head?: never;
+        /** Modifier Le Role */
+        patch: operations["modifier_le_role_api_espaces_membres__utilisateur_id__patch"];
+        trace?: never;
+    };
+    "/api/espaces/propriete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transferer */
+        post: operations["transferer_api_espaces_propriete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/espaces/{espace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Supprimer */
+        delete: operations["supprimer_api_espaces__espace_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/import/analyse": {
         parameters: {
             query?: never;
@@ -1113,7 +1251,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
+        /**
+         * Health
+         * @description Confirme que l'API peut réellement joindre PostgreSQL.
+         *
+         *     Un processus HTTP vivant devant une base coupée n'est pas sain : Traefik et Docker
+         *     doivent cesser de lui envoyer du trafic au lieu d'attendre la première route métier
+         *     en erreur 500.
+         */
         get: operations["health_health_get"];
         put?: never;
         post?: never;
@@ -1262,6 +1407,11 @@ export interface components {
             /** Sujet */
             sujet: string;
         };
+        /** DemandeAcceptationInvitation */
+        DemandeAcceptationInvitation: {
+            /** Jeton */
+            jeton: string;
+        };
         /**
          * DemandeActivationSecondFacteur
          * @description Le premier code, celui qui prouve que l'application est bien configurée.
@@ -1366,6 +1516,11 @@ export interface components {
             /** Mot De Passe */
             mot_de_passe: string;
         };
+        /** DemandeCreationEspace */
+        DemandeCreationEspace: {
+            /** Nom */
+            nom: string;
+        };
         /** DemandeEnveloppe */
         DemandeEnveloppe: {
             /**
@@ -1397,6 +1552,13 @@ export interface components {
             type_allocation_initiale: components["schemas"]["TypeMouvement"];
             /** @default fonctionnement */
             usage: components["schemas"]["UsageEnveloppe"];
+        };
+        /** DemandeInvitationEspace */
+        DemandeInvitationEspace: {
+            /** Courriel */
+            courriel: string;
+            /** @default membre */
+            role: components["schemas"]["RoleEspace"];
         };
         /** DemandeMouvement */
         DemandeMouvement: {
@@ -1509,6 +1671,10 @@ export interface components {
             /** Nom Affichage */
             nom_affichage: string;
         };
+        /** DemandeRole */
+        DemandeRole: {
+            role: components["schemas"]["RoleEspace"];
+        };
         /**
          * DemandeSuppressionCompte
          * @description Confirmation d'une destruction sans retour.
@@ -1527,6 +1693,19 @@ export interface components {
         DemandeSuppressionCompte: {
             /** Courriel */
             courriel: string;
+        };
+        /** DemandeSuppressionEspace */
+        DemandeSuppressionEspace: {
+            /** Nom */
+            nom: string;
+        };
+        /** DemandeTransfertPropriete */
+        DemandeTransfertPropriete: {
+            /**
+             * Utilisateur Id
+             * Format: uuid
+             */
+            utilisateur_id: string;
         };
         /**
          * DemandeValidationImport
@@ -1684,6 +1863,18 @@ export interface components {
             /** Verse Sur La Periode Centimes */
             verse_sur_la_periode_centimes: number;
         };
+        /** EspacePublic */
+        EspacePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nom */
+            nom: string;
+            role: components["schemas"]["RoleEspace"];
+            type: components["schemas"]["TypeEspace"];
+        };
         /**
          * EtatOperation
          * @description Cycle de vie d'une opération.
@@ -1720,6 +1911,16 @@ export interface components {
              * Format: date-time
              */
             expire_le: string;
+        };
+        /** InvitationEspaceCreee */
+        InvitationEspaceCreee: {
+            /**
+             * Expire Le
+             * Format: date-time
+             */
+            expire_le: string;
+            /** Jeton */
+            jeton: string;
         };
         /**
          * LigneAValider
@@ -1798,6 +1999,26 @@ export interface components {
             /** Recommande Centimes */
             recommande_centimes: number;
         };
+        /** MembreEspacePublic */
+        MembreEspacePublic: {
+            /** Courriel */
+            courriel: string;
+            /** Est Vous */
+            est_vous: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nom Affichage */
+            nom_affichage: string;
+            /**
+             * Rejoint Le
+             * Format: date-time
+             */
+            rejoint_le: string;
+            role: components["schemas"]["RoleEspace"];
+        };
         /**
          * MembrePublic
          * @description Un membre du foyer, tel que les autres membres peuvent le voir.
@@ -1861,9 +2082,10 @@ export interface components {
          * ModificationEnveloppe
          * @description Champs absents = inchangés.
          *
-         *     Conséquence assumée : on ne peut pas RETIRER une cible ici, seulement la changer.
-         *     Retirer une cible fait cesser toute recommandation mensuelle — c'est un geste rare et
-         *     lourd de sens, il aura sa propre route plutôt qu'un `null` ambigu.
+         *     `null` retire une catégorie ou un compte préféré : ces deux liens sont facultatifs et
+         *     le formulaire propose explicitement « aucun ». Une cible, elle, ne peut pas être
+         *     retirée ici : cela ferait cesser toute recommandation mensuelle et mérite un parcours
+         *     explicite plutôt qu'un champ vidé par mégarde.
          */
         ModificationEnveloppe: {
             /** Archive */
@@ -2213,6 +2435,11 @@ export interface components {
             total: number;
         };
         /**
+         * RoleEspace
+         * @enum {string}
+         */
+        RoleEspace: "proprietaire" | "administrateur" | "membre";
+        /**
          * Rollover
          * @description Ce que devient le solde d'une enveloppe au passage à la période suivante.
          *
@@ -2288,6 +2515,11 @@ export interface components {
          * @enum {string}
          */
         TypeCompte: "courant" | "epargne";
+        /**
+         * TypeEspace
+         * @enum {string}
+         */
+        TypeEspace: "personnel" | "foyer";
         /**
          * TypeMouvement
          * @description Nature d'un mouvement d'enveloppe. Décide du sens, jamais le montant.
@@ -2380,6 +2612,7 @@ export interface operations {
             };
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2413,6 +2646,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2479,6 +2713,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2510,6 +2745,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2543,6 +2779,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2574,6 +2811,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2607,6 +2845,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2640,6 +2879,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2675,6 +2915,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2712,6 +2953,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2747,6 +2989,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2778,6 +3021,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2815,6 +3059,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2850,6 +3095,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2883,6 +3129,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2918,6 +3165,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -2955,6 +3203,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3021,6 +3270,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 utilisateur_id: string;
@@ -3064,6 +3314,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3097,6 +3348,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3134,6 +3386,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 categorie_id: string;
@@ -3167,6 +3420,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 categorie_id: string;
@@ -3209,6 +3463,7 @@ export interface operations {
             };
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3242,6 +3497,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3279,6 +3535,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3315,6 +3572,7 @@ export interface operations {
             };
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3348,6 +3606,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 compte_id: string;
@@ -3381,6 +3640,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 compte_id: string;
@@ -3420,6 +3680,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 compte_id: string;
@@ -3459,6 +3720,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3492,6 +3754,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3529,6 +3792,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3562,6 +3826,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3599,6 +3864,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 enveloppe_id: string;
@@ -3632,6 +3898,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 enveloppe_id: string;
@@ -3671,6 +3938,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 enveloppe_id: string;
@@ -3706,6 +3974,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 enveloppe_id: string;
@@ -3745,6 +4014,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3778,6 +4048,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 compte_id: string;
@@ -3808,6 +4079,368 @@ export interface operations {
             };
         };
     };
+    lister_espaces_api_espaces_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EspacePublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creer_un_foyer_api_espaces_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeCreationEspace"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EspacePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inviter_api_espaces_invitations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeInvitationEspace"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationEspaceCreee"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accepter_api_espaces_invitations_accepter_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeAcceptationInvitation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EspacePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lister_les_membres_api_espaces_membres_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MembreEspacePublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quitter_api_espaces_membres_moi_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exclure_api_espaces_membres__utilisateur_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path: {
+                utilisateur_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    modifier_le_role_api_espaces_membres__utilisateur_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path: {
+                utilisateur_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeRole"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MembreEspacePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transferer_api_espaces_propriete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeTransfertPropriete"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supprimer_api_espaces__espace_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path: {
+                espace_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeSuppressionEspace"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     analyser_un_releve_api_import_analyse_post: {
         parameters: {
             query?: {
@@ -3815,6 +4448,7 @@ export interface operations {
             };
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3852,6 +4486,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3894,6 +4529,7 @@ export interface operations {
             };
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3927,6 +4563,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3964,6 +4601,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3997,6 +4635,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 operation_id: string;
@@ -4030,6 +4669,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 operation_id: string;
@@ -4069,6 +4709,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 operation_id: string;
@@ -4104,6 +4745,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -4137,6 +4779,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -4174,6 +4817,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 plafond_id: string;
@@ -4207,6 +4851,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -4240,6 +4885,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -4277,6 +4923,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 recurrence_id: string;
@@ -4310,6 +4957,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 recurrence_id: string;
@@ -4349,6 +4997,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -4382,6 +5031,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -4415,6 +5065,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {

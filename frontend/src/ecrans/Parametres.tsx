@@ -5,7 +5,6 @@ import {
   LogOut,
   Palette,
   Smartphone,
-  Plus,
   Tags,
   UserRound,
   Users,
@@ -15,7 +14,9 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import type {
   CategoriePublique,
   ComptePublic,
-  MembrePublic,
+  EspacePublic,
+  MembreEspacePublic,
+  RoleEspace,
   UtilisateurPublic,
 } from '../api/client'
 import { ErreurApi, api } from '../api/client'
@@ -28,11 +29,11 @@ import { ReglageTheme } from '../composants/ReglageTheme'
 import { ReglageTransparence } from '../composants/ReglageTransparence'
 import { ApplicationAppareil } from '../composants/ApplicationAppareil'
 import { Categories } from './Categories'
-import { type Vue, changerDeVue, vueCourante } from '../design/vue'
 import styles from './Parametres.module.css'
 
 type Props = {
   readonly utilisateur: UtilisateurPublic
+  readonly espaceActif: EspacePublic
   readonly categories: readonly CategoriePublique[]
   readonly comptes: readonly ComptePublic[]
   readonly surChangement: () => Promise<void>
@@ -58,6 +59,7 @@ type Cle = 'compte' | 'comptes' | 'categories' | 'apparence' | 'application' | '
  */
 export function Parametres({
   utilisateur,
+  espaceActif,
   categories,
   comptes,
   surChangement,
@@ -93,13 +95,16 @@ export function Parametres({
     setPose(true)
   }
   const [code, setCode] = useState<string | null>(null)
-  const [vue, setVue] = useState(vueCourante())
+  const [courrielInvitation, setCourrielInvitation] = useState('')
+  const [roleInvitation, setRoleInvitation] = useState<RoleEspace>('membre')
+  const [erreurFoyer, setErreurFoyer] = useState<string | null>(null)
+  const [nomFoyerRetape, setNomFoyerRetape] = useState('')
   // `null` tant que la réponse n'est pas là. Une liste vide et une liste pas encore
   // arrivée sont deux états DIFFÉRENTS : les confondre — ce que faisait la version
   // précédente — transforme n'importe quel échec d'appel en « Chargement… » éternel.
   // C'est exactement ce qui s'est produit : le client demandait `/foyer/membres` quand la
   // route est `/auth/foyer/membres`, et le 404 tournait en boucle à l'écran.
-  const [membres, setMembres] = useState<readonly MembrePublic[] | null>(null)
+  const [membres, setMembres] = useState<readonly MembreEspacePublic[] | null>(null)
   const [echecMembres, setEchecMembres] = useState(false)
   /* Deux actions distinctes, jamais confondues, et c'est tout l'objet du lot du 21 août
      2026 : arrêter de partager et disparaître sont deux intentions différentes. Les
@@ -108,8 +113,6 @@ export function Parametres({
      un état partagé rouvrirait la porte à la confusion par le code. */
   // La zone de danger part REPLIÉE et n'expose son champ qu'après un geste délibéré.
   // Un champ de confirmation visible en permanence finit par se remplir par habitude.
-  const [dissolutionOuverte, setDissolutionOuverte] = useState(false)
-  const [echecDissolution, setEchecDissolution] = useState<string | null>(null)
   const [suppressionOuverte, setSuppressionOuverte] = useState(false)
   const [courrielRetape, setCourrielRetape] = useState('')
   const [echecSuppression, setEchecSuppression] = useState<string | null>(null)
@@ -118,43 +121,17 @@ export function Parametres({
   // l'appel est unique, et l'attendre au moment d'ouvrir « Foyer » ferait clignoter
   // l'écran juste après un mouvement de page.
   const chargerLesMembres = useCallback(() => {
-    setEchecMembres(false)
+    if (espaceActif.type !== 'foyer') return
     void api
-      .membresDuFoyer()
-      .then(setMembres)
+      .membresEspace()
+      .then((nouveaux) => {
+        setEchecMembres(false)
+        setMembres(nouveaux)
+      })
       .catch(() => setEchecMembres(true))
-  }, [])
+  }, [espaceActif.type])
 
   useEffect(chargerLesMembres, [chargerLesMembres])
-
-  /** Change de périmètre et relit TOUT.
-   *
-   *  Le rechargement n'est pas un raccourci : soldes, budgets, catégories, enveloppes et
-   *  statistiques dépendent tous de la vue, et n'en rafraîchir qu'une partie laisserait à
-   *  l'écran des chiffres appartenant à l'autre monde — le pire des états, puisqu'il a
-   *  l'air juste. */
-  async function basculerVers(nouvelle: Vue) {
-    if (nouvelle === vue) return
-    // L'en-tête part AVANT le rechargement : c'est lui qui décide du périmètre servi.
-    changerDeVue(nouvelle)
-    /* Puis on ATTEND les données du nouveau monde avant de dire qu'on y est.
-     *
-     * Mettre `vue` à jour tout de suite faisait afficher, le temps d'un aller-retour,
-     * les comptes de l'ancienne vue sous les libellés de la nouvelle — « Comptes du
-     * foyer 2 » alors que ces deux comptes sont personnels. Bref, mais faux : c'est la
-     * version fugace du défaut qu'Olivier a signalé le 21 août 2026, et un chiffre faux
-     * ne devient pas acceptable parce qu'il ne dure pas. */
-    try {
-      await surChangement()
-    } finally {
-      /* `finally` et non la suite du `try` : `changerDeVue` a DÉJÀ posé le nouvel en-tête,
-         et le client l'envoie depuis. Ne pas poser `vue` quand le rechargement échoue
-         laisserait l'écran annoncer un monde pendant que les requêtes en interrogent un
-         autre — deux sources pour un même fait, divergentes, et rien pour le signaler.
-         Mieux vaut afficher la vue demandée et laisser chaque écran dire son erreur. */
-      setVue(nouvelle)
-    }
-  }
 
   const avatar = useRef<HTMLSpanElement>(null)
   // Éclosion depuis la bulle, repli vers elle, et glissement de retour au doigt : la même
@@ -196,26 +173,26 @@ export function Parametres({
   }, [origine])
 
   async function inviter() {
-    setCode((await api.creerInvitation()).code)
+    setErreurFoyer(null)
+    try {
+      const invitation = await api.inviterDansEspace(courrielInvitation, roleInvitation)
+      setCode(invitation.jeton)
+      setCourrielInvitation('')
+    } catch (cause) {
+      setErreurFoyer(cause instanceof ErreurApi ? cause.message : 'Invitation impossible.')
+    }
   }
 
-  /** Arrête le partage. Ne déconnecte pas — c'est tout l'intérêt. */
-  async function dissoudreLePartage() {
-    setEchecDissolution(null)
+  async function actionFoyer(action: () => Promise<void>, rechargerMembres = true) {
+    setErreurFoyer(null)
     try {
-      await api.dissoudreLePartage()
+      await action()
     } catch (cause) {
-      // Le message du serveur est repris tel quel : il NOMME les comptes qui bloquent.
-      // Le remplacer par « la dissolution a échoué » obligerait à chercher lesquels.
-      setEchecDissolution(
-        cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.',
-      )
+      setErreurFoyer(cause instanceof ErreurApi ? cause.message : 'Action impossible.')
       return
     }
-    setDissolutionOuverte(false)
-    // Les comptes joints ont disparu : tout écran qui les totalisait ment jusqu'au
-    // rechargement.
-    surChangement()
+    await surChangement()
+    if (rechargerMembres) chargerLesMembres()
   }
 
   async function supprimerMonCompte() {
@@ -238,27 +215,15 @@ export function Parametres({
     surDeconnexion()
   }
 
-  /* Les rubriques suivent la VUE : chaque monde ne montre que ce qui le concerne.
-   *
-   * Ce qui est propre à une vue :
-   * — « Mon compte » porte l'identité et sa suppression : personnel, par définition ;
-   * — « Foyer » porte les membres, l'invitation et la dissolution du partage : joint.
-   *
-   * Ce qui reste dans les DEUX, et pourquoi — parce que masquer une rubrique laisse
-   * croire qu'elle a un équivalent dans l'autre vue :
-   * — les catégories sont partagées en base (`Categorie.foyer_id`, sans notion de vue) :
-   *   il n'existe pas de catégories personnelles à opposer à des catégories jointes, et
-   *   les dédoubler à l'écran afficherait une distinction qui n'existe pas ;
-   * — l'apparence est une préférence d'affichage, elle ne regarde aucun argent. */
-  // `comptes` est la liste du périmètre COURANT, servie par `App` : en vue foyer elle
-  // ne contient que les comptes joints. Pas besoin de la recompter ici.
-  const sansCompteJoint = vue === 'foyer' && comptes.length === 0
+  // Les rubriques suivent l'espace actif fourni par App. Le sélecteur global est l'unique
+  // auteur de la bascule ; une seconde vue binaire ici ne saurait représenter 2+ foyers.
+  const estFoyer = espaceActif.type === 'foyer'
   // Personne d'autre dans le foyer. `null` tant que la liste est en vol : une liste pas
   // encore arrivée n'est pas une liste vide, et la confondre ferait clignoter le titre.
   const seulDansLeFoyer = membres !== null && membres.length === 1
 
   const entrees: { cle: Cle; libelle: string; detail: string; Icone: typeof UserRound }[] = [
-    ...(vue === 'personnelle'
+    ...(!estFoyer
       ? [
           {
             cle: 'compte' as const,
@@ -273,14 +238,14 @@ export function Parametres({
       // « Comptes du foyer » et non « Comptes joints » : la capsule de bascule porte
       // déjà ce dernier nom, et deux boutons homonymes sur le même écran se confondent —
       // au clavier et au lecteur d'écran, rien ne les distingue.
-      libelle: vue === 'foyer' ? 'Comptes du foyer' : 'Comptes bancaires',
+      libelle: estFoyer ? 'Comptes du foyer' : 'Comptes bancaires',
       detail: `${comptes.length}`,
       Icone: Landmark,
     },
     { cle: 'categories', libelle: 'Catégories', detail: `${categories.length}`, Icone: Tags },
     { cle: 'apparence', libelle: 'Apparence', detail: '', Icone: Palette },
     { cle: 'application', libelle: 'Application', detail: '', Icone: Smartphone },
-    ...(vue === 'foyer'
+    ...(estFoyer
       ? [{ cle: 'foyer' as const, libelle: 'Foyer', detail: '', Icone: Users }]
       : []),
   ]
@@ -301,11 +266,8 @@ export function Parametres({
             <h2 className={styles.titreDanger}>Supprimer mon compte</h2>
             <p className={styles.note}>
               Efface définitivement votre compte, vos comptes personnels et leurs opérations,
-              budgets et récurrences.{' '}
-              {membres !== null && membres.length > 1
-                ? 'Les comptes joints et les autres membres du foyer restent en place.'
-                : `Vous êtes seul dans ${utilisateur.foyer_nom} : le foyer part avec vous, comptes joints compris.`}{' '}
-              Aucune sauvegarde n’est conservée, rien ne peut être restauré.
+              budgets et récurrences. Transférez auparavant la propriété de chaque foyer dont
+              vous êtes propriétaire. Aucune sauvegarde n’est conservée.
             </p>
 
             {!suppressionOuverte ? (
@@ -406,11 +368,6 @@ export function Parametres({
       titre: 'Foyer',
       contenu: (
         <div className={styles.carte}>
-          {/* « Membres » suppose un groupe. Or tout compte reçoit un foyer d'office —
-              `Utilisateur.foyer_id` est non nullable — si bien qu'une personne seule était
-              annoncée « membre » d'un foyer qu'elle n'a jamais rejoint, avec une liste
-              d'une ligne : elle-même. Un fait de schéma présenté comme un fait social.
-              Olivier : « pourquoi il me dit membre d'un foyer alors que non » (#046). */}
           <h2 className={styles.titreBloc}>{seulDansLeFoyer ? 'Partage' : 'Membres'}</h2>
           {echecMembres ? (
             <p className={styles.note} role="alert">
@@ -433,8 +390,7 @@ export function Parametres({
                   <Portrait
                     utilisateurId={membre.id}
                     nom={membre.nom_affichage}
-                    aUnAvatar={membre.a_un_avatar}
-                    version={membre.avatar_version ?? undefined}
+                    aUnAvatar={false}
                     className={styles.avatarMembre}
                   />
                   <span className={styles.corpsMembre}>
@@ -443,7 +399,50 @@ export function Parametres({
                       {membre.est_vous && <span className={styles.vous}>vous</span>}
                     </span>
                     <span className={styles.courrielMembre}>{membre.courriel}</span>
+                    <span className={styles.courrielMembre}>{membre.role}</span>
                   </span>
+                  {espaceActif.role !== 'membre' && membre.role !== 'proprietaire' && (
+                    <select
+                      aria-label={`Rôle de ${membre.nom_affichage}`}
+                      className={styles.saisieDanger}
+                      value={membre.role}
+                      onChange={(evenement) =>
+                        void actionFoyer(async () => {
+                          await api.changerRoleEspace(
+                            membre.id,
+                            evenement.target.value as RoleEspace,
+                          )
+                        })
+                      }
+                    >
+                      <option value="administrateur">Administrateur</option>
+                      <option value="membre">Membre</option>
+                    </select>
+                  )}
+                  {espaceActif.role === 'proprietaire' && !membre.est_vous && (
+                    <button
+                      type="button"
+                      className={styles.bouton}
+                      onClick={() =>
+                        void actionFoyer(() => api.transfererFoyer(membre.id))
+                      }
+                    >
+                      Transférer
+                    </button>
+                  )}
+                  {espaceActif.role !== 'membre' &&
+                    membre.role !== 'proprietaire' &&
+                    !membre.est_vous && (
+                      <button
+                        type="button"
+                        className={styles.boutonDanger}
+                        onClick={() =>
+                          void actionFoyer(() => api.exclureDuFoyer(membre.id))
+                        }
+                      >
+                        Retirer
+                      </button>
+                    )}
                 </li>
               ))}
             </ul>
@@ -455,80 +454,96 @@ export function Parametres({
               : 'Les membres partagent les comptes joints. Chacun garde ses comptes personnels pour lui — personne d’autre ne les voit, ni leurs opérations.'}
           </p>
 
-          <button type="button" className={styles.bouton} onClick={inviter}>
-            Inviter un membre
-          </button>
+          {espaceActif.role !== 'membre' && (
+            <>
+              <label className={styles.champDanger}>
+                <span className={styles.etiquetteDanger}>Adresse à inviter</span>
+                <input
+                  className={styles.saisieDanger}
+                  type="email"
+                  value={courrielInvitation}
+                  autoComplete="email"
+                  onChange={(evenement) => setCourrielInvitation(evenement.target.value)}
+                />
+              </label>
+              <label className={styles.champDanger}>
+                <span className={styles.etiquetteDanger}>Rôle proposé</span>
+                <select
+                  className={styles.saisieDanger}
+                  value={roleInvitation}
+                  onChange={(evenement) =>
+                    setRoleInvitation(evenement.target.value as RoleEspace)
+                  }
+                >
+                  <option value="membre">Membre</option>
+                  <option value="administrateur">Administrateur</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                className={styles.bouton}
+                disabled={courrielInvitation.trim() === ''}
+                onClick={() => void inviter()}
+              >
+                Inviter cette personne
+              </button>
+            </>
+          )}
           {code !== null && (
             <>
               <p className={styles.code} data-test="code-invitation">
                 {code}
               </p>
               <p className={styles.note}>
-                Transmettez ce code à la personne. Il vaut pour une seule inscription et expire dans
-                sept jours.
+                Le mail sera envoyé par le service d’identité. Pour la bêta privée, ce code
+                ciblé peut être transmis à l’adresse invitée ; aucune autre adresse ne peut
+                l’utiliser.
               </p>
             </>
           )}
+          {erreurFoyer !== null && (
+            <p className={styles.erreurDanger} role="alert">
+              {erreurFoyer}
+            </p>
+          )}
 
-          {/* Zone de danger, réservée au propriétaire. Le serveur revérifie ce droit :
-              cacher le bouton range l'écran, il n'autorise rien.
+          {espaceActif.role !== 'proprietaire' && (
+            <button
+              type="button"
+              className={styles.boutonDanger}
+              onClick={() => void actionFoyer(() => api.quitterFoyer(), false)}
+            >
+              Quitter ce foyer
+            </button>
+          )}
 
-              Elle ne détruit QUE le partage. « Supprimer mon compte » vit sur l'écran
-              « Mon compte », parce que c'est de son compte qu'il s'agit — les mettre
-              côte à côte les ferait confondre, ce qui est exactement le défaut corrigé. */}
-          {utilisateur.est_proprietaire && !sansCompteJoint && (
+          {espaceActif.role === 'proprietaire' && (
             <div className={styles.danger}>
-              <h2 className={styles.titreDanger}>Dissoudre le partage</h2>
-              <p className={styles.note}>
-                Supprime les comptes joints de <strong>{utilisateur.foyer_nom}</strong> et leurs
-                opérations. Votre compte, vos comptes personnels et ceux des autres membres ne sont
-                pas touchés, et vous restez connecté. Un compte joint qui porte de vraies opérations
-                bloque la dissolution : videz-le ou archivez-le d’abord.
-              </p>
-
-              {echecDissolution !== null && (
-                <p className={styles.erreurDanger} role="alert">
-                  {echecDissolution}
-                </p>
-              )}
-
-              {!dissolutionOuverte ? (
-                <button
-                  type="button"
-                  className={styles.boutonDanger}
-                  onClick={() => {
-                    setEchecDissolution(null)
-                    setDissolutionOuverte(true)
-                  }}
-                >
-                  Dissoudre le partage
-                </button>
-              ) : (
-                <div className={styles.actionsDanger}>
-                  <button
-                    type="button"
-                    className={styles.bouton}
-                    onClick={() => {
-                      setDissolutionOuverte(false)
-                      setEchecDissolution(null)
-                    }}
-                  >
-                    Annuler
-                  </button>
-                  {/* Pas de saisie à recopier ici : le serveur refuse déjà d'emporter un
-                      compte qui porte de vraies opérations. Ce bouton ne peut donc
-                      détruire que des comptes vides ou à peine amorcés — la même gravité
-                      que supprimer un compte seul, qui demande la même simple
-                      confirmation. Une barrière disproportionnée s'apprend par cœur. */}
-                  <button
-                    type="button"
-                    className={styles.boutonDanger}
-                    onClick={() => void dissoudreLePartage()}
-                  >
-                    Supprimer les comptes joints
-                  </button>
-                </div>
-              )}
+              <h2 className={styles.titreDanger}>Supprimer le foyer</h2>
+              <label className={styles.champDanger}>
+                <span className={styles.etiquetteDanger}>
+                  Tapez <strong>{espaceActif.nom}</strong> pour confirmer
+                </span>
+                <input
+                  className={styles.saisieDanger}
+                  value={nomFoyerRetape}
+                  autoComplete="off"
+                  onChange={(evenement) => setNomFoyerRetape(evenement.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className={styles.boutonDanger}
+                disabled={nomFoyerRetape.trim() !== espaceActif.nom}
+                onClick={() =>
+                  void actionFoyer(
+                    () => api.supprimerFoyer(espaceActif.id, nomFoyerRetape),
+                    false,
+                  )
+                }
+              >
+                Supprimer définitivement
+              </button>
             </div>
           )}
         </div>
@@ -576,93 +591,28 @@ export function Parametres({
             <p className={styles.courriel}>{utilisateur.courriel}</p>
           </div>
 
-          {/* La bascule de périmètre, AVANT la liste des réglages : ce n'est pas un
-              réglage parmi d'autres mais le contexte dans lequel tout le reste se lit.
-              Un plafond, un solde, une statistique ne veulent pas dire la même chose selon
-              qu'on regarde son argent ou celui du foyer. */}
-          <div className={styles.bascule} role="group" aria-label="Périmètre">
-            <button
-              type="button"
-              className={styles.perimetre}
-              aria-pressed={vue === 'personnelle'}
-              onClick={() => void basculerVers('personnelle')}
-              tabIndex={page === null ? 0 : -1}
-            >
-              <UserRound size={16} strokeWidth={2} aria-hidden />
-              Compte personnel
-            </button>
-            <button
-              type="button"
-              className={styles.perimetre}
-              aria-pressed={vue === 'foyer'}
-              onClick={() => void basculerVers('foyer')}
-              tabIndex={page === null ? 0 : -1}
-            >
-              <Users size={16} strokeWidth={2} aria-hidden />
-              Comptes joints
-            </button>
-          </div>
-          <p className={styles.noteBascule}>
-            {vue === 'foyer'
-              ? 'Vous voyez les comptes joints du foyer. Vos comptes personnels n’y figurent pas.'
-              : 'Vous voyez vos comptes personnels. Les comptes joints n’y figurent pas.'}
-          </p>
-
-          {/* Aucun compte joint : l'invitation prend la place des rubriques.
-              Les catégories et l'apparence restent atteignables depuis l'autre vue — ce
-              sont les mêmes, elles ne dépendent pas du périmètre.
-              « Foyer » disparaît AUSSI, tranché par Olivier le 22 août 2026 : « le bouton
-              foyer ne devrait pas s'afficher si aucun foyer n'a été créé ». L'ordre est
-              donc celui-là — l'espace commun naît de son premier compte, et l'on y invite
-              ensuite. Conséquence assumée : inviter quelqu'un demande d'avoir créé un
-              compte joint d'abord. Ce n'est pas un cul-de-sac : la bascule vers le compte
-              personnel reste là, et avec elle tout le reste des réglages. */}
-          {sansCompteJoint ? (
-            <div className={styles.invitation}>
-              <p className={styles.titreInvitation}>Aucun compte joint</p>
-              <p className={styles.note}>
-                Un compte joint est visible de tous les membres du foyer, et sert à ce que
-                vous payez ensemble. Créez-en un pour ouvrir cet espace.
-              </p>
-              <button
-                type="button"
-                className={styles.bouton}
-                onClick={() => naviguer('comptes')}
-                tabIndex={page === null ? 0 : -1}
-              >
-                <Plus size={18} strokeWidth={2} aria-hidden />
-                Créer un compte joint
-              </button>
-            </div>
-          ) : null}
-
-          {sansCompteJoint ? null : (
-            <ul className={styles.liste}>
-              {entrees.map(({ cle, libelle, detail, Icone }) => (
-                <li key={cle}>
-                  <button
-                    type="button"
-                    className={styles.entree}
-                    onClick={() => naviguer(cle)}
-                    // Le sous-menu n'est atteignable que depuis la racine : masquer la
-                    // racine à l'assistance vocale ne suffit pas à empêcher le clavier d'y
-                    // revenir, il faut aussi retirer ses boutons du parcours.
-                    tabIndex={page === null ? 0 : -1}
-                  >
-                    <Icone size={18} strokeWidth={2} aria-hidden className={styles.icone} />
-                    <span className={styles.libelle}>{libelle}</span>
-                    {detail !== '' && <span className={styles.detail}>{detail}</span>}
-                    <ChevronRight
-                      size={18}
-                      strokeWidth={2}
-                      aria-hidden
-                      className={styles.chevron}
-                    />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className={styles.liste}>
+            {entrees.map(({ cle, libelle, detail, Icone }) => (
+              <li key={cle}>
+                <button
+                  type="button"
+                  className={styles.entree}
+                  onClick={() => naviguer(cle)}
+                  tabIndex={page === null ? 0 : -1}
+                >
+                  <Icone size={18} strokeWidth={2} aria-hidden className={styles.icone} />
+                  <span className={styles.libelle}>{libelle}</span>
+                  {detail !== '' && <span className={styles.detail}>{detail}</span>}
+                  <ChevronRight
+                    size={18}
+                    strokeWidth={2}
+                    aria-hidden
+                    className={styles.chevron}
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
 
           <button
             type="button"

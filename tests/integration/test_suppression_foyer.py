@@ -28,12 +28,14 @@ import uuid
 
 import pyotp
 from fastapi.testclient import TestClient
+from mycounts.domain.espaces import RoleEspace, TypeEspace
 from mycounts.domain.import_releve import GenreCorrespondance
 from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
 from mycounts.models.auth import Foyer
 from mycounts.models.base import Base
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot_budget
+from mycounts.repository import espaces as depot_espaces
 from mycounts.repository.base import Principal
 from PIL import Image as PilImage
 from sqlalchemy import func, select
@@ -131,6 +133,20 @@ def remplir_toutes_les_tables(
     )
     assert mouvement.status_code == 201, mouvement.text
     assert client.post("/api/auth/invitations").status_code == 201
+    depot_espaces.creer_invitation(
+        session_bd,
+        Principal(
+            utilisateur_id=principal.utilisateur_id,
+            espace_id=principal.foyer_id,
+            foyer_id=principal.foyer_id,
+            role=RoleEspace.PROPRIETAIRE,
+            type_espace=TypeEspace.FOYER,
+        ),
+        courriel="cible@essai.fr",
+        role=RoleEspace.MEMBRE,
+        empreinte_jeton="f" * 64,
+        expire_le=dt.datetime.now(dt.UTC) + dt.timedelta(days=1),
+    )
 
     # La correspondance d'import n'a pas de route dédiée : elle se retient au fil d'un
     # import. On passe par le repository, qui en est l'auteur.
