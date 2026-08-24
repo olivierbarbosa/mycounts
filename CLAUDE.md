@@ -42,6 +42,16 @@ cookie de session est `samesite=lax` et le projet n'a AUCUNE configuration CORS.
 envoie `/api` et `/health` vers l'API, le reste vers nginx. Un sous-domaine `api.` — que
 les enregistrements DNS laissaient croire — casserait l'authentification.
 
+Le déploiement est **tiré, pas poussé** : un timer systemd compare toutes les
+5 minutes `origin/main` et `origin/dev` aux deux arbres de travail du VPS
+(`~/mycounts` et `~/mycounts-dev`) et ne reconstruit que si la révision a bougé.
+Rien d'extérieur n'obtient de droit sur la machine. `infra/deployer-auto.sh` retient
+le commit qui a échoué et ne le rejoue pas en boucle ; `infra/deployer.sh` prend le
+verrou lui-même, de sorte qu'une exécution manuelle et le timer ne peuvent pas se
+croiser — faute constatée sur luminapp le 17 août 2026, deux `alembic upgrade head`
+concurrents sur la même base. La base est sauvegardée avant toute migration, et une
+sauvegarde de moins de 512 octets arrête le déploiement.
+
 Deux pièges payés au premier déploiement : `httpx` était déclaré en dépendance de
 DÉVELOPPEMENT alors que `categorisation_ia.py` l'importe au chargement du module, si
 bien que l'API ne démarrait pas — invisible en local comme en CI, qui installent tous
