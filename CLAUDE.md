@@ -140,6 +140,11 @@ ses bibliothèques système. Sans lui, la suite est rouge en 10 ms par test — 
 - **Les dates civiles sont en Europe/Paris** — `backend/mycounts/domain/calendrier.py`.
   En SQL, toujours `AT TIME ZONE 'Europe/Paris'`, jamais `::date` nu : le cast nu dépend
   du fuseau de session du serveur (mesuré, voir `tests/integration/test_socle_base.py`).
+  **Les tests aussi** : `calendrier.aujourd_hui()` côté Python, `e2e/dates.ts` côté
+  Playwright (`timeZone: 'Europe/Paris'`) — jamais `date.today()` ni la zone de la
+  machine. Le VPS et les runners GitHub sont en UTC : entre 22 h et minuit, leur
+  « demain » est déjà l'aujourd'hui du serveur, et une échéance « à venir » se retrouvait
+  matérialisée (CI rouge le 24 août 2026 à 22 h 20 UTC, sur un test vert deux heures plus tôt).
 - **`bornes_du_mois()` est le mois CIVIL**, pas la période budgétaire — celle-ci vit dans
   `domain/periode.py` et va de paie à paie. Ne jamais utiliser l'un pour l'autre.
 - **Un solde d'ouverture est une opération** (`est_ouverture`), pas une colonne. Il compte

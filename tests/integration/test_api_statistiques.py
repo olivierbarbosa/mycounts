@@ -8,14 +8,13 @@ achat. Le typage l'a rattrapé ; ce test l'empêche de revenir.
 
 from __future__ import annotations
 
-import datetime as dt
-
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from sqlalchemy.orm import Session
 
 from tests.integration.test_api_budget import session_ouverte
 
-AUJOURD_HUI = dt.date.today()
+AUJOURD_HUI = aujourd_hui()
 
 
 def creer_compte(client: TestClient, nom: str, produit: str = "compte_courant") -> str:

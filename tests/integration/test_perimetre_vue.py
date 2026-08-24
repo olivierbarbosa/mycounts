@@ -14,9 +14,8 @@ seul plafond foyer par catégorie, tous membres confondus.
 
 from __future__ import annotations
 
-import datetime as dt
-
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
 from mycounts.repository import auth as depot_auth
 from sqlalchemy.orm import Session
@@ -264,7 +263,7 @@ def test_un_mois_deficitaire_ne_propose_pas_de_placer_une_somme_negative(
             "compte_id": compte["id"],
             "libelle": "Découvert",
             "montant_centimes": -40_000,
-            "date_operation": dt.date.today().isoformat(),
+            "date_operation": aujourd_hui().isoformat(),
         },
     )
 

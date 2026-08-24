@@ -7,14 +7,13 @@ n'existe pas — le compte dit où l'argent EST, l'enveloppe à quoi il est PROM
 
 from __future__ import annotations
 
-import datetime as dt
-
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from sqlalchemy.orm import Session
 
 from tests.integration.test_api_budget import session_ouverte
 
-AUJOURD_HUI = dt.date.today()
+AUJOURD_HUI = aujourd_hui()
 
 
 def creer_compte(client: TestClient, nom: str, produit: str, ouverture: int = 0) -> str:

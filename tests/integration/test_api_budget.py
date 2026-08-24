@@ -6,6 +6,7 @@ import datetime as dt
 
 import pyotp
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot
 from mycounts.repository.base import Principal
@@ -13,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from tests.integration.test_api_auth import MOT_DE_PASSE, connecter, creer_compte
 
-AUJOURD_HUI = dt.date.today()
+AUJOURD_HUI = aujourd_hui()
 _CODES_SECOURS_PAR_COURRIEL: dict[str, list[str]] = {}
 
 

@@ -27,6 +27,7 @@ import io
 import uuid
 
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.espaces import RoleEspace, TypeEspace
 from mycounts.domain.import_releve import GenreCorrespondance
 from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
@@ -99,7 +100,7 @@ def remplir_toutes_les_tables(
             "compte_id": compte["id"],
             "libelle": "Un achat",
             "montant_centimes": -2_500,
-            "date_operation": dt.date.today().isoformat(),
+            "date_operation": aujourd_hui().isoformat(),
             "categorie_id": categorie["id"],
         },
     )
@@ -109,7 +110,7 @@ def remplir_toutes_les_tables(
             "compte_id": compte["id"],
             "libelle": "Abonnement",
             "montant_centimes": -1_000,
-            "ancre": dt.date.today().isoformat(),
+            "ancre": aujourd_hui().isoformat(),
             "unite": "mois",
             "categorie_id": categorie["id"],
         },

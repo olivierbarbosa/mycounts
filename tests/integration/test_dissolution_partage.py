@@ -13,9 +13,8 @@ membres, avec leurs comptes personnels intacts.
 
 from __future__ import annotations
 
-import datetime as dt
-
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
 from mycounts.models.auth import Foyer
 from mycounts.repository import auth as depot_auth
@@ -106,7 +105,7 @@ def test_un_compte_joint_qui_porte_de_vraies_operations_bloque(
             "compte_id": joint["id"],
             "libelle": "Une dépense",
             "montant_centimes": -2_500,
-            "date_operation": dt.date.today().isoformat(),
+            "date_operation": aujourd_hui().isoformat(),
         },
         headers={"X-Mycounts-Vue": "foyer"},
     )

@@ -5,12 +5,13 @@ from __future__ import annotations
 import datetime as dt
 
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from mycounts.repository.base import Principal
 from sqlalchemy.orm import Session
 
 from tests.integration.test_api_budget import creer_compte_api, session_ouverte
 
-AUJOURD_HUI = dt.date.today()
+AUJOURD_HUI = aujourd_hui()
 
 
 def creer_categorie(client: TestClient, nom: str = "Courses") -> str:
@@ -222,7 +223,7 @@ def test_une_echeance_future_alimente_a_venir_et_declenche_lalerte(
             "compte_id": compte,
             "libelle": "Achat",
             "montant_centimes": -6_000,
-            "date_operation": dt.date.today().isoformat(),
+            "date_operation": aujourd_hui().isoformat(),
             "categorie_id": categorie,
         },
     )
@@ -240,7 +241,7 @@ def test_une_echeance_future_alimente_a_venir_et_declenche_lalerte(
             "compte_id": compte,
             "libelle": "Abonnement",
             "montant_centimes": -5_000,
-            "ancre": (dt.date.today() + dt.timedelta(days=1)).isoformat(),
+            "ancre": (aujourd_hui() + dt.timedelta(days=1)).isoformat(),
             "unite": "mois",
             "categorie_id": categorie,
         },

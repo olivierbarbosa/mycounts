@@ -7,9 +7,8 @@ changerait de montant après coup.
 
 from __future__ import annotations
 
-import datetime as dt
-
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.comptes import CATALOGUE, TypeCompte
 from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
 from mycounts.repository import auth as depot_auth
@@ -112,7 +111,7 @@ def test_supprimer_un_compte_qui_porte_des_operations_est_refuse(
             "compte_id": compte["id"],
             "libelle": "Courses",
             "montant_centimes": -1_000,
-            "date_operation": dt.date.today().isoformat(),
+            "date_operation": aujourd_hui().isoformat(),
         },
     )
 
@@ -170,7 +169,7 @@ def test_ajuster_le_solde_enregistre_lecart_sans_creer_de_depense(
             "compte_id": compte["id"],
             "libelle": "Courses",
             "montant_centimes": -3_000,
-            "date_operation": dt.date.today().isoformat(),
+            "date_operation": aujourd_hui().isoformat(),
         },
     )
     depenses_avant = int(client.get("/api/resume").json()["depenses_de_periode"])
@@ -329,7 +328,7 @@ def test_un_compte_qui_porte_une_VRAIE_operation_reste_protege(
             "compte_id": compte_id,
             "libelle": "Un achat",
             "montant_centimes": -1_000,
-            "date_operation": dt.date.today().isoformat(),
+            "date_operation": aujourd_hui().isoformat(),
         },
     )
 

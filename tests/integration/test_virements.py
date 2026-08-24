@@ -12,6 +12,7 @@ import datetime as dt
 
 from fastapi.testclient import TestClient
 from mycounts.domain.agregats import Agregat, calculer
+from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.comptes import TypeCompte
 from mycounts.repository import budget as depot
 from mycounts.repository.base import Principal
@@ -19,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from tests.integration.test_api_budget import session_ouverte
 
-AUJOURD_HUI = dt.date.today()
+AUJOURD_HUI = aujourd_hui()
 FIN_FENETRE = AUJOURD_HUI + dt.timedelta(days=30)
 
 

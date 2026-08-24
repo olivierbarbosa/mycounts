@@ -5,13 +5,14 @@ from __future__ import annotations
 import datetime as dt
 
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from mycounts.jobs.materialisation import materialiser
 from mycounts.repository.base import Principal
 from sqlalchemy.orm import Session
 
 from tests.integration.test_api_budget import creer_compte_api, session_ouverte
 
-AUJOURD_HUI = dt.date.today()
+AUJOURD_HUI = aujourd_hui()
 
 
 def creer_recurrence_api(client: TestClient, compte_id: str, ancre: dt.date, **kw: object) -> dict:  # type: ignore[type-arg]

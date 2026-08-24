@@ -10,13 +10,14 @@ from __future__ import annotations
 import datetime as dt
 
 from fastapi.testclient import TestClient
+from mycounts.domain.calendrier import aujourd_hui
 from mycounts.jobs.materialisation import materialiser
 from sqlalchemy.orm import Session
 
 from tests.integration.test_api_agenda import creer_recurrence_api
 from tests.integration.test_api_budget import creer_compte_api, session_ouverte
 
-AUJOURD_HUI = dt.date.today()
+AUJOURD_HUI = aujourd_hui()
 
 
 def saisir(client: TestClient, compte_id: str, libelle: str, centimes: int) -> dict:  # type: ignore[type-arg]
