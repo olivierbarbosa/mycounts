@@ -16,6 +16,10 @@ WORKDIR /app
 # et se réutilise donc à chaque déploiement qui ne touche que le code.
 COPY pyproject.toml alembic.ini ./
 COPY backend ./backend
+# Outillage d'exploitation : création du premier compte, export OpenAPI. Aucune
+# inscription publique n'existe dans l'application — sans ces scripts, une
+# production fraîche n'a aucun moyen d'ouvrir son premier accès.
+COPY scripts ./scripts
 
 RUN pip install --no-cache-dir -e . \
     && useradd --system --uid 10001 mycounts \
