@@ -42,6 +42,19 @@ for PILE in prod dev; do
     DISTANT=$(git -C "$ARBRE" rev-parse "origin/$BRANCHE")
     [[ "$LOCAL" == "$DISTANT" ]] && continue    # rien de neuf : silence
 
+    # Cet arbre peut aussi servir ponctuellement à une intervention locale. Un ancien
+    # comportement appelait alors `deployer.sh`, qui remettait brutalement l'arbre sur
+    # origin/$BRANCHE et effaçait les commits non poussés. Le déploiement automatique ne
+    # possède pas ce droit : il n'avance que par fast-forward depuis un arbre propre.
+    if [[ -n "$(git -C "$ARBRE" status --porcelain)" ]]; then
+        dire "[$PILE] arbre suivi modifié localement — déploiement différé"
+        continue
+    fi
+    if ! git -C "$ARBRE" merge-base --is-ancestor "$LOCAL" "$DISTANT"; then
+        dire "[$PILE] branche locale en avance ou divergente — déploiement différé"
+        continue
+    fi
+
     # Ce commit a déjà échoué : on ne le rejoue pas en boucle. On attend qu'un
     # nouveau commit arrive, c'est-à-dire qu'un humain ait corrigé quelque chose.
     if [[ -f "$ECHEC" ]] && [[ "$(cat "$ECHEC")" == "$DISTANT" ]]; then

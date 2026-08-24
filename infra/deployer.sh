@@ -71,7 +71,12 @@ fi
 etape "Mise à jour du code ($BRANCHE)"
 AVANT=$(git -C "$REPO" rev-parse --short HEAD)
 git -C "$REPO" fetch origin "$BRANCHE" --quiet || echec "récupération de origin/$BRANCHE"
-git -C "$REPO" reset --hard "origin/$BRANCHE" --quiet
+[[ -z "$(git -C "$REPO" status --porcelain)" ]] \
+    || echec "l'arbre contient des modifications suivies locales ; refus de les écraser"
+git -C "$REPO" merge-base --is-ancestor HEAD "origin/$BRANCHE" \
+    || echec "la branche locale est en avance ou divergente ; pousser ou réconcilier d'abord"
+git -C "$REPO" merge --ff-only "origin/$BRANCHE" --quiet \
+    || echec "mise à jour non fast-forward"
 APRES=$(git -C "$REPO" rev-parse --short HEAD)
 if [[ "$AVANT" == "$APRES" ]]; then
     echo "  déjà sur $APRES — on reconstruit quand même"
