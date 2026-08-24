@@ -29,7 +29,25 @@ partage et suppression définitive de son compte.
 l'argent EST contre où il devrait être (lot E2) ; TOTP obligatoire et codes de secours ;
 mot de passe oublié ; chiffrement des libellés et des noms — les montants restent en clair,
 sans quoi soldes et plafonds quitteraient SQL (tranché le 22 août 2026) ; quitter un
-foyer ; historique des corrections de solde ; logos et icônes PWA ; déploiement VPS.
+foyer ; historique des corrections de solde ; logos et icônes PWA.
+
+**Déploiement**, livré le 24 août 2026 : `infra/docker-compose.vps.yml`, un seul fichier
+pour la production et la préproduction, qui ne diffèrent que par leur fichier
+d'environnement — deux descriptions séparées divergeraient exactement là où dev et prod
+doivent se ressembler. `mycounts.app` en production, `dev.mycounts.app` en
+préproduction, derrière le Traefik déjà en place sur le VPS.
+
+**Le front et l'API partagent le même nom d'hôte, et ce n'est pas négociable** : le
+cookie de session est `samesite=lax` et le projet n'a AUCUNE configuration CORS. Traefik
+envoie `/api` et `/health` vers l'API, le reste vers nginx. Un sous-domaine `api.` — que
+les enregistrements DNS laissaient croire — casserait l'authentification.
+
+Deux pièges payés au premier déploiement : `httpx` était déclaré en dépendance de
+DÉVELOPPEMENT alors que `categorisation_ia.py` l'importe au chargement du module, si
+bien que l'API ne démarrait pas — invisible en local comme en CI, qui installent tous
+deux `.[dev]`. Et `app.py` localise `alembic.ini` par `Path(__file__).parents[3]` : il
+lui faut l'arborescence source, donc l'image installe en éditable. Déplacer ce fichier
+casserait le démarrage sans qu'aucun test ne le voie.
 
 **Simplifier l'écran des enveloppes**, demandé le 22 août 2026 : il doit s'adresser à
 quelqu'un qui a du mal à épargner, pas à quelqu'un qui connaît déjà le vocabulaire.

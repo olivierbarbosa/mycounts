@@ -1,0 +1,31 @@
+# Contexte de construction : tout part au démon Docker, donc tout ce qui n'est pas
+# nécessaire à l'image ralentit chaque build et grossit les couches.
+
+.git
+.github
+.venv
+venv
+**/node_modules
+**/dist
+**/__pycache__
+**/*.py[cod]
+.mypy_cache
+.pytest_cache
+.ruff_cache
+*.egg-info
+
+# Secrets : ils ne doivent jamais entrer dans une image, même sans être copiés
+# explicitement — une image se pousse, se partage et s'inspecte couche par couche.
+.env
+.env.*
+infra/.env.*
+
+# Tests et rapports : l'image de production n'en a aucun usage.
+tests
+playwright-report
+test-results
+
+# Documentation de travail : volumineuse et sans effet à l'exécution.
+BOUCLE.md
+ERREURS.md
+docs

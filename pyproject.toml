@@ -26,6 +26,11 @@ dependencies = [
     # Le QR d'enrôlement, rendu en SVG côté serveur. Pas d'image : un SVG reste net à
     # toute taille et ne dépend pas de Pillow pour cet usage.
     "qrcode>=8.0",
+    # Client HTTP de `categorisation_ia.py`, importé au CHARGEMENT du module : sans lui
+    # l'API ne démarre pas du tout, même quand la clé OpenRouter est absente. Il était
+    # déclaré en dépendance de développement, ce qui ne se voyait ni en local ni en CI —
+    # les deux installent `.[dev]`. Seule une installation de production le révélait.
+    "httpx>=0.28",
 ]
 
 [project.optional-dependencies]
@@ -33,7 +38,6 @@ dev = [
     "pytest>=8.3",
     "mypy>=1.13",
     "ruff>=0.8",
-    "httpx>=0.28",
     # Stubs de typage : `qrcode` n'en fournit pas, et mypy est en mode strict.
     "types-qrcode>=8.0",
 ]

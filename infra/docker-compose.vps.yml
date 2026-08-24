@@ -1,0 +1,104 @@
+# Déploiement VPS — un seul fichier pour la production ET la préproduction.
+#
+# Les deux piles sont strictement identiques et ne diffèrent que par leur fichier
+# d'environnement. Maintenir deux descriptions séparées ferait diverger dev et prod
+# exactement là où on a besoin qu'ils soient semblables : sur le chemin de déploiement.
+#
+#   docker compose -f infra/docker-compose.vps.yml --env-file infra/.env.prod up -d --build
+#   docker compose -f infra/docker-compose.vps.yml --env-file infra/.env.dev  up -d --build
+#
+# LE FRONT ET L'API PARTAGENT LA MÊME ORIGINE, et ce n'est pas un détail de confort :
+# le cookie de session est « samesite=lax » et le projet n'a AUCUNE configuration CORS
+# (voir vite.config.ts et api/auth.py). Servir l'API depuis api.mycounts.app casserait
+# l'authentification. Traefik envoie donc /api et /health vers l'API, et tout le reste
+# vers le front, sous le même nom d'hôte.
+
+name: ${MYCOUNTS_PILE:?MYCOUNTS_PILE requis (mycounts-prod ou mycounts-dev)}
+
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  # Aucun port publié : la base n'est joignable que depuis le réseau « interne »
+  # de cette pile. Le compose de développement, lui, expose 5434 — c'est acceptable
+  # sur un poste, jamais sur une machine ouverte sur internet.
+  db:
+    image: postgres:16-alpine
+    container_name: ${MYCOUNTS_PILE}_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mycounts
+      POSTGRES_PASSWORD: ${MYCOUNTS_DB_MOT_DE_PASSE:?mot de passe de base requis}
+      POSTGRES_DB: mycounts
+    volumes:
+      - donnees_db:/var/lib/postgresql/data
+    networks:
+      - interne
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mycounts -d mycounts"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ── API FastAPI ───────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    container_name: ${MYCOUNTS_PILE}_api
+    restart: unless-stopped
+    environment:
+      MYCOUNTS_DATABASE_URL: postgresql+psycopg://mycounts:${MYCOUNTS_DB_MOT_DE_PASSE}@db:5432/mycounts
+      # Décide notamment du drapeau « secure » sur le cookie de session : toute valeur
+      # autre que « developpement » impose HTTPS. Ne jamais mettre « developpement » ici.
+      MYCOUNTS_ENVIRONNEMENT: ${MYCOUNTS_ENVIRONNEMENT:?environnement requis}
+      MYCOUNTS_CLE_OPENROUTER: ${MYCOUNTS_CLE_OPENROUTER:-}
+      MYCOUNTS_MODELE_IA: ${MYCOUNTS_MODELE_IA:-mistralai/mistral-nemo}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - interne
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      # Priorité explicite : sans elle on dépendrait de la longueur de la règle, un
+      # détail d'implémentation de Traefik. Ici l'intention est écrite.
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.rule=Host(`${MYCOUNTS_DOMAINE}`) && (PathPrefix(`/api`) || PathPrefix(`/health`))"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.priority=100"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.entrypoints=websecure"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.tls=true"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.tls.certresolver=myresolver"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.middlewares=compress@file"
+      - "traefik.http.services.mycounts-${MYCOUNTS_SUFFIXE}-api.loadbalancer.server.port=8000"
+
+  # ── Front React servi en statique ─────────────────────────────────────────
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+    container_name: ${MYCOUNTS_PILE}_web
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-web.rule=Host(`${MYCOUNTS_DOMAINE}`)"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-web.priority=1"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-web.entrypoints=websecure"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-web.tls=true"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-web.tls.certresolver=myresolver"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-web.middlewares=compress@file"
+      - "traefik.http.services.mycounts-${MYCOUNTS_SUFFIXE}-web.loadbalancer.server.port=80"
+
+networks:
+  interne:
+    driver: bridge
+  web:
+    external: true      # Réseau partagé avec Traefik, créé par la pile luminapp
+
+volumes:
+  donnees_db:

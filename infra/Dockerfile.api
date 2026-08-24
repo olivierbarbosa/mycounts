@@ -1,0 +1,37 @@
+# Image de production de l'API.
+#
+# Installation ÉDITABLE, et ce n'est pas un raccourci de développement : au démarrage,
+# `app.py` localise alembic.ini par `Path(__file__).parents[3]` pour vérifier que la
+# base est à jour. Une installation classique place le paquet dans site-packages, où ce
+# chemin ne mène nulle part — l'API refuse alors de démarrer. L'image embarque donc
+# l'arborescence source, qui reste l'unique copie du code.
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Les métadonnées d'abord : cette couche ne change qu'en cas de nouvelle dépendance,
+# et se réutilise donc à chaque déploiement qui ne touche que le code.
+COPY pyproject.toml alembic.ini ./
+COPY backend ./backend
+
+RUN pip install --no-cache-dir -e . \
+    && useradd --system --uid 10001 mycounts \
+    && chown -R mycounts:mycounts /app
+
+COPY infra/demarrer-api.sh /usr/local/bin/demarrer-api
+RUN chmod +x /usr/local/bin/demarrer-api
+
+# Aucun privilège root : l'API ne écrit rien sur le disque, elle n'en a pas besoin.
+USER mycounts
+
+EXPOSE 8000
+
+# La sonde interroge la vraie route de santé, pas un port ouvert : un uvicorn démarré
+# mais incapable de joindre PostgreSQL doit être vu comme malade, pas comme prêt.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=4 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)"
+
+CMD ["demarrer-api"]
