@@ -104,7 +104,9 @@ def modifier_enveloppe(
     *,
     nom: str | None = None,
     categorie_id: uuid.UUID | None = None,
+    categorie_fournie: bool = False,
     compte_prefere_id: uuid.UUID | None = None,
+    compte_prefere_fourni: bool = False,
     cible_centimes: int | None = None,
     date_cible: dt.date | None = None,
     archive: bool | None = None,
@@ -121,9 +123,9 @@ def modifier_enveloppe(
     """
     if nom is not None:
         enveloppe.nom = nom
-    if categorie_id is not None:
+    if categorie_fournie:
         enveloppe.categorie_id = categorie_id
-    if compte_prefere_id is not None:
+    if compte_prefere_fourni:
         enveloppe.compte_prefere_id = compte_prefere_id
     if cible_centimes is not None:
         enveloppe.cible_centimes = cible_centimes

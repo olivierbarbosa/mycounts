@@ -81,12 +81,37 @@ export class ErreurApi extends Error {
   // effaçable par le seul retrait des types, ce que la configuration TypeScript de Vite
   // (`erasableSyntaxOnly`) interdit.
   readonly statut: number
+  readonly motif?: string
 
-  constructor(statut: number, message: string) {
+  constructor(statut: number, message: string, motif?: string) {
     super(message)
     this.statut = statut
+    this.motif = motif
     this.name = 'ErreurApi'
   }
+}
+
+type DetailErreur = {
+  readonly message: string
+  readonly motif?: string
+}
+
+/** FastAPI rend soit une phrase, soit un objet machine-lisible pour les parcours à
+ *  plusieurs étapes comme le MFA. Centraliser la lecture évite qu'un objet `detail`
+ *  finisse rendu directement par React. */
+export function lireDetailErreur(detail: unknown): DetailErreur {
+  if (typeof detail === 'string') return { message: detail }
+  if (typeof detail === 'object' && detail !== null) {
+    const candidat = detail as { message?: unknown; motif?: unknown }
+    return {
+      message:
+        typeof candidat.message === 'string'
+          ? candidat.message
+          : 'Le serveur a refusé la demande.',
+      ...(typeof candidat.motif === 'string' ? { motif: candidat.motif } : {}),
+    }
+  }
+  return { message: 'Le serveur a refusé la demande.' }
 }
 
 /** Toute l'API vit sous /api, sur la même origine que le front. Un seul préfixe : le
@@ -116,9 +141,9 @@ async function appeler<T>(chemin: string, options: RequestInit = {}): Promise<T>
   if (!reponse.ok) {
     const detail = await reponse
       .json()
-      .then((corps: { detail?: string }) => corps.detail)
-      .catch(() => undefined)
-    throw new ErreurApi(reponse.status, detail ?? 'Le serveur a refusé la demande.')
+      .then((corps: { detail?: unknown }) => lireDetailErreur(corps.detail))
+      .catch(() => lireDetailErreur(undefined))
+    throw new ErreurApi(reponse.status, detail.message, detail.motif)
   }
 
   if (reponse.status === 204) return undefined as T
@@ -126,10 +151,14 @@ async function appeler<T>(chemin: string, options: RequestInit = {}): Promise<T>
 }
 
 export const api = {
-  connexion: (courriel: string, motDePasse: string) =>
+  connexion: (courriel: string, motDePasse: string, code?: string) =>
     appeler<UtilisateurPublic>('/auth/connexion', {
       method: 'POST',
-      body: JSON.stringify({ courriel, mot_de_passe: motDePasse }),
+      body: JSON.stringify({
+        courriel,
+        mot_de_passe: motDePasse,
+        ...(code === undefined ? {} : { code }),
+      }),
     }),
 
   deconnexion: () => appeler<void>('/auth/deconnexion', { method: 'POST' }),

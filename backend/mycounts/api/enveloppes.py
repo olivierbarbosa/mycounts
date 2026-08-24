@@ -247,18 +247,30 @@ def modifier(
     session: SessionBase,
     principal: PrincipalCourant,
 ) -> RepartitionPublique:
+    categorie_fournie = "categorie_id" in demande.model_fields_set
+    compte_prefere_fourni = "compte_prefere_id" in demande.model_fields_set
     enveloppe = depot.enveloppe_visible(session, principal, enveloppe_id)
     if enveloppe is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Enveloppe introuvable."
         )
+    if demande.categorie_id is not None and (
+        depot_budget.categorie_visible(session, principal, demande.categorie_id) is None
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+    if demande.compte_prefere_id is not None and (
+        depot_budget.compte_visible(session, principal, demande.compte_prefere_id) is None
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
 
     depot.modifier_enveloppe(
         session,
         enveloppe,
         nom=demande.nom,
         categorie_id=demande.categorie_id,
+        categorie_fournie=categorie_fournie,
         compte_prefere_id=demande.compte_prefere_id,
+        compte_prefere_fourni=compte_prefere_fourni,
         cible_centimes=demande.cible_centimes,
         date_cible=demande.date_cible,
         archive=demande.archive,

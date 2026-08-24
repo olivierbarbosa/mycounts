@@ -239,6 +239,39 @@ def test_modifier_un_prelevement(client: TestClient, session_bd: Session) -> Non
     assert reponse.json()["intervalle"] == 3
 
 
+def test_retirer_categorie_et_fin_dun_prelevement(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Un `null` explicite efface ; omettre le champ conserve sa valeur."""
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    categorie = client.post(
+        "/api/categories",
+        json={"nom": "Abonnements", "nature": "depense", "teinte": "cyan"},
+    ).json()
+    recurrence = creer_recurrence_api(
+        client,
+        compte_id,
+        AUJOURD_HUI,
+        categorie_id=categorie["id"],
+        fin=(AUJOURD_HUI + dt.timedelta(days=90)).isoformat(),
+    )
+
+    inchangee = client.patch(
+        f"/api/recurrences/{recurrence['id']}", json={"libelle": "Toujours là"}
+    ).json()
+    assert inchangee["categorie_id"] == categorie["id"]
+    assert inchangee["fin"] is not None
+
+    retiree = client.patch(
+        f"/api/recurrences/{recurrence['id']}",
+        json={"categorie_id": None, "fin": None},
+    )
+    assert retiree.status_code == 200, retiree.text
+    assert retiree.json()["categorie_id"] is None
+    assert retiree.json()["fin"] is None
+
+
 def test_modifier_ne_reecrit_pas_lhistorique(client: TestClient, session_bd: Session) -> None:
     """Un abonnement dont le tarif augmente n'a pas coûté davantage les mois précédents.
 

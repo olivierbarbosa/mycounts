@@ -424,6 +424,7 @@ def modifier_operation(
     montant_centimes: Cents | None = None,
     date_operation: dt.date | None = None,
     categorie_id: uuid.UUID | None = None,
+    categorie_fournie: bool = False,
 ) -> Operation:
     """Corrige une opération.
 
@@ -437,7 +438,7 @@ def modifier_operation(
         operation.montant_centimes = montant_centimes
     if date_operation is not None:
         operation.date_operation = date_operation
-    if categorie_id is not None:
+    if categorie_fournie:
         operation.categorie_id = categorie_id
     session.flush()
     return operation

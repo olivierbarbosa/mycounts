@@ -11,7 +11,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, delete, select
+from sqlalchemy import CursorResult, delete, or_, select, update
 from sqlalchemy.orm import Session
 
 from mycounts.models.auth import (
@@ -491,7 +491,34 @@ def preparer_lenrolement(session: Session, utilisateur: Utilisateur, *, secret: 
     """
     utilisateur.secret_totp = secret
     utilisateur.totp_actif = False
+    utilisateur.dernier_compteur_totp = None
     session.flush()
+
+
+def consommer_compteur_totp(
+    session: Session, utilisateur_id: uuid.UUID, *, compteur: int
+) -> bool:
+    """Consomme un compteur TOTP une seule fois, même sous deux requêtes concurrentes.
+
+    Le `UPDATE ... WHERE ancien < nouveau` porte l'arbitrage dans PostgreSQL. Une lecture
+    suivie d'une écriture laisserait deux transactions lire la même ancienne valeur puis
+    accepter toutes les deux le même code.
+    """
+    resultat = cast(
+        "CursorResult[Any]",
+        session.execute(
+            update(Utilisateur)
+            .where(
+                Utilisateur.id == utilisateur_id,
+                or_(
+                    Utilisateur.dernier_compteur_totp.is_(None),
+                    Utilisateur.dernier_compteur_totp < compteur,
+                ),
+            )
+            .values(dernier_compteur_totp=compteur)
+        ),
+    )
+    return resultat.rowcount == 1
 
 
 def activer_le_second_facteur(
@@ -519,6 +546,7 @@ def desactiver_le_second_facteur(session: Session, utilisateur: Utilisateur) -> 
     encore installée sur le bon téléphone."""
     utilisateur.secret_totp = None
     utilisateur.totp_actif = False
+    utilisateur.dernier_compteur_totp = None
     session.execute(
         delete(CodeDeSecours).where(CodeDeSecours.utilisateur_id == utilisateur.id)
     )

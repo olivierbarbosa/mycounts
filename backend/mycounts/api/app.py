@@ -10,16 +10,22 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from sqlalchemy import inspect
+from sqlalchemy.exc import SQLAlchemyError
 
 from mycounts.api.agenda import routeur as routeur_agenda
 from mycounts.api.auth import routeur as routeur_auth
 from mycounts.api.budget import routeur as routeur_budget
+from mycounts.api.dependances import SessionBase
 from mycounts.api.enveloppes import routeur as routeur_enveloppes
 from mycounts.api.import_releve import routeur as routeur_import
 from mycounts.api.plafonds import routeur as routeur_plafonds
 from mycounts.api.statistiques import routeur as routeur_statistiques
+from mycounts.domain import limitation_auth
+from mycounts.domain.securite import maintenant
+from mycounts.repository import limitation_auth as depot_limitation
+from mycounts.repository import sante as depot_sante
 
 _journal = logging.getLogger("mycounts")
 
@@ -81,5 +87,25 @@ app.include_router(routeur_import, prefix=PREFIXE_API)
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health(session: SessionBase) -> dict[str, str]:
+    """Confirme que l'API peut réellement joindre PostgreSQL.
+
+    Un processus HTTP vivant devant une base coupée n'est pas sain : Traefik et Docker
+    doivent cesser de lui envoyer du trafic au lieu d'attendre la première route métier
+    en erreur 500.
+    """
+    try:
+        depot_sante.verifier_base(session)
+        depot_limitation.purger_avant(
+            session,
+            avant=limitation_auth.debut_de_fenetre(maintenant()),
+        )
+        session.commit()
+    except SQLAlchemyError:
+        session.rollback()
+        _journal.exception("Sonde de santé PostgreSQL en échec")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Base de données indisponible.",
+        ) from None
     return {"statut": "ok"}

@@ -5,8 +5,10 @@ Aucune inscription publique : on entre par un code d'invitation, ou pas du tout.
 
 from __future__ import annotations
 
+import datetime as dt
 import io
 import uuid
+from dataclasses import dataclass
 from typing import Annotated
 
 import qrcode
@@ -31,11 +33,13 @@ from mycounts.api.schemas import (
     UtilisateurPublic,
 )
 from mycounts.config import charger_configuration
+from mycounts.domain import limitation_auth
 from mycounts.domain.avatars import TYPE_MIME as TYPE_MIME_AVATAR
 from mycounts.domain.avatars import ImageRefusee, normaliser
+from mycounts.domain.limitation_auth import Portee
 from mycounts.domain.second_facteur import (
     code_de_secours_correspond,
-    code_valide,
+    compteur_du_code_valide,
     engendrer_codes_de_secours,
     engendrer_secret,
     hacher_code_de_secours,
@@ -55,6 +59,7 @@ from mycounts.domain.securite import (
 from mycounts.models.auth import Utilisateur
 from mycounts.repository import auth as depot
 from mycounts.repository import budget as depot_budget
+from mycounts.repository import limitation_auth as depot_limitation
 
 routeur = APIRouter(prefix="/auth", tags=["authentification"])
 
@@ -63,6 +68,111 @@ routeur = APIRouter(prefix="/auth", tags=["authentification"])
 # répondrait en 1 ms et une adresse connue en 60 ms, ce qui révèle quelles adresses ont
 # un compte. La valeur est calculée une fois au démarrage.
 _EMPREINTE_LEURRE = hacher_mot_de_passe("mot de passe leurre, sans usage reel")
+@dataclass(frozen=True)
+class _SeauLimitation:
+    empreinte: str
+    portee: Portee
+
+
+def _seaux_de_connexion(requete: Request, courriel: str) -> tuple[_SeauLimitation, ...]:
+    configuration = charger_configuration()
+    cle = configuration.cle_hmac_effective
+    origine_brute = requete.client.host if requete.client is not None else "origine-inconnue"
+    origine = limitation_auth.origine_normalisee(origine_brute)
+    return (
+        _SeauLimitation(
+            empreinte=limitation_auth.empreinte_hmac(
+                f"{courriel}\0{origine}", cle=cle
+            ),
+            portee=Portee.COUPLE,
+        ),
+        _SeauLimitation(
+            empreinte=limitation_auth.empreinte_hmac(origine, cle=cle),
+            portee=Portee.ORIGINE,
+        ),
+    )
+
+
+def _seau_action_sensible(
+    requete: Request,
+    utilisateur_id: uuid.UUID,
+    *,
+    action: str,
+) -> tuple[_SeauLimitation, ...]:
+    """Isole le compteur d'une action de ceux de la connexion et des autres actions."""
+    configuration = charger_configuration()
+    origine_brute = requete.client.host if requete.client is not None else "origine-inconnue"
+    origine = limitation_auth.origine_normalisee(origine_brute)
+    return (
+        _SeauLimitation(
+            empreinte=limitation_auth.empreinte_hmac(
+                f"{utilisateur_id}\0{origine}\0{action}",
+                cle=configuration.cle_hmac_effective,
+            ),
+            portee=Portee.ACTION,
+        ),
+    )
+
+
+def _oublier_les_seaux(
+    session: SessionBase, seaux: tuple[_SeauLimitation, ...]
+) -> None:
+    for seau in seaux:
+        depot_limitation.oublier(
+            session,
+            empreinte=seau.empreinte,
+            portee=seau.portee,
+        )
+
+
+def _refuser_si_limite_atteinte(
+    session: SessionBase,
+    seaux: tuple[_SeauLimitation, ...],
+    *,
+    instant: dt.datetime,
+) -> None:
+    debut = limitation_auth.debut_de_fenetre(instant)
+    for seau in seaux:
+        echecs = depot_limitation.nombre_echecs(
+            session,
+            empreinte=seau.empreinte,
+            portee=seau.portee,
+            fenetre_debut=debut,
+        )
+        if echecs >= limitation_auth.maximum_echecs(seau.portee):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Trop de tentatives. Réessayez plus tard.",
+                headers={"Retry-After": str(limitation_auth.secondes_avant_reessai(instant))},
+            )
+
+
+def _compter_un_echec(
+    session: SessionBase,
+    seaux: tuple[_SeauLimitation, ...],
+    *,
+    instant: dt.datetime,
+) -> None:
+    debut = limitation_auth.debut_de_fenetre(instant)
+    limite_depassee = False
+    for seau in seaux:
+        nouveau_total = depot_limitation.compter_un_echec(
+            session,
+            empreinte=seau.empreinte,
+            portee=seau.portee,
+            fenetre_debut=debut,
+        )
+        if nouveau_total > limitation_auth.maximum_echecs(seau.portee):
+            limite_depassee = True
+    depot_limitation.purger_avant(session, avant=debut)
+    # Le 401 qui suit ne doit pas annuler le compteur.
+    session.commit()
+    if limite_depassee:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Trop de tentatives. Réessayez plus tard.",
+            headers={"Retry-After": str(limitation_auth.secondes_avant_reessai(instant))},
+        )
 
 
 def _pose_le_cookie(reponse: Response, jeton: str) -> None:
@@ -128,7 +238,10 @@ def _vue_publique(utilisateur: Utilisateur, *, version_avatar: str | None) -> Ut
 
 @routeur.post("/connexion", response_model=UtilisateurPublic)
 def connexion(
-    demande: DemandeConnexion, reponse: Response, session: SessionBase
+    demande: DemandeConnexion,
+    requete: Request,
+    reponse: Response,
+    session: SessionBase,
 ) -> UtilisateurPublic:
     """Ouvre une session.
 
@@ -139,6 +252,10 @@ def connexion(
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Identifiants incorrects."
     )
 
+    instant = maintenant()
+    seaux = _seaux_de_connexion(requete, demande.courriel)
+    _refuser_si_limite_atteinte(session, seaux, instant=instant)
+
     # `demande.courriel` est déjà validé ET normalisé par le schéma, qui délègue au
     # domaine. Re-normaliser ici donnerait l'impression d'un second auteur de la règle.
     utilisateur = depot.utilisateur_par_courriel(session, demande.courriel)
@@ -146,10 +263,17 @@ def connexion(
     mot_de_passe_correct = verifier_mot_de_passe(empreinte, demande.mot_de_passe)
 
     if utilisateur is None or not mot_de_passe_correct:
+        _compter_un_echec(session, seaux, instant=instant)
         raise refus
 
     if utilisateur.totp_actif and utilisateur.secret_totp is not None:
-        _exiger_le_second_facteur(session, utilisateur, demande.code)
+        try:
+            _exiger_le_second_facteur(session, utilisateur, demande.code)
+        except HTTPException as erreur:
+            detail = erreur.detail
+            if isinstance(detail, dict) and detail.get("motif") == "second_facteur_invalide":
+                _compter_un_echec(session, seaux, instant=instant)
+            raise
 
     jeton = engendrer_jeton()
     depot.enregistrer_session_web(
@@ -157,6 +281,9 @@ def connexion(
         utilisateur_id=utilisateur.id,
         empreinte=empreinte_jeton(jeton),
         expire_le=expiration_session(),
+    )
+    _oublier_les_seaux(
+        session, tuple(seau for seau in seaux if seau.portee is Portee.COUPLE)
     )
     session.commit()
     _pose_le_cookie(reponse, jeton)
@@ -192,8 +319,21 @@ def _exiger_le_second_facteur(
         )
 
     assert utilisateur.secret_totp is not None
-    if code_valide(utilisateur.secret_totp, code):
-        return
+    compteur = compteur_du_code_valide(utilisateur.secret_totp, code)
+    if compteur is not None:
+        if depot.consommer_compteur_totp(session, utilisateur.id, compteur=compteur):
+            # Comme un code de secours, un TOTP accepté est consommé même si la création
+            # de session échoue ensuite. Sinon une panne après cette ligne le rendrait
+            # rejouable pendant le reste de sa fenêtre.
+            session.commit()
+            return
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "motif": "second_facteur_invalide",
+                "message": "Ce code n’est pas valable.",
+            },
+        )
 
     for candidat in depot.codes_de_secours_valides(session, utilisateur.id):
         if code_de_secours_correspond(candidat.empreinte, code):
@@ -208,13 +348,22 @@ def _exiger_le_second_facteur(
 
 
 @routeur.post("/deconnexion", status_code=status.HTTP_204_NO_CONTENT)
-def deconnexion(reponse: Response, session: SessionBase, principal: PrincipalCourant) -> None:
+def deconnexion(
+    requete: Request,
+    reponse: Response,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> None:
     """Ferme la session courante côté serveur ET côté navigateur.
 
     Effacer le seul cookie ne suffirait pas : le jeton resterait valable pour quiconque
     l'aurait intercepté.
     """
-    del principal  # l'authentification est exigée, mais l'identité n'est pas utilisée ici
+    del principal  # la dépendance exige une session active avant d'autoriser sa révocation
+    jeton = requete.cookies.get(NOM_COOKIE)
+    if jeton is not None:
+        depot.supprimer_session_web(session, empreinte=empreinte_jeton(jeton))
+        session.commit()
     reponse.delete_cookie(NOM_COOKIE, path="/")
 
 
@@ -472,6 +621,7 @@ def preparer_le_second_facteur(
 @routeur.post("/moi/second-facteur/activer", response_model=SecondFacteurActive)
 def activer_le_second_facteur(
     demande: DemandeActivationSecondFacteur,
+    requete: Request,
     session: SessionBase,
     principal: PrincipalCourant,
 ) -> SecondFacteurActive:
@@ -482,15 +632,28 @@ def activer_le_second_facteur(
     le serveur croirait l'enrôlement fait, et aucun code ne fonctionnerait plus.
     """
     utilisateur = _utilisateur_courant(session, principal)
+    instant = maintenant()
+    seaux = _seau_action_sensible(
+        requete, utilisateur.id, action="activation-second-facteur"
+    )
+    _refuser_si_limite_atteinte(session, seaux, instant=instant)
     if utilisateur.secret_totp is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Commencez par préparer l’enrôlement.",
         )
-    if not code_valide(utilisateur.secret_totp, demande.code):
+    compteur = compteur_du_code_valide(utilisateur.secret_totp, demande.code)
+    if compteur is None:
+        _compter_un_echec(session, seaux, instant=instant)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ce code ne correspond pas. Vérifiez l’heure de votre téléphone.",
+        )
+    if not depot.consommer_compteur_totp(session, utilisateur.id, compteur=compteur):
+        _compter_un_echec(session, seaux, instant=instant)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ce code vient déjà d’être utilisé. Attendez le suivant.",
         )
 
     codes = engendrer_codes_de_secours()
@@ -499,6 +662,7 @@ def activer_le_second_facteur(
         utilisateur,
         empreintes_de_secours=[hacher_code_de_secours(c) for c in codes],
     )
+    _oublier_les_seaux(session, seaux)
     session.commit()
     return SecondFacteurActive(codes_de_secours=codes)
 
@@ -506,6 +670,7 @@ def activer_le_second_facteur(
 @routeur.delete("/moi/second-facteur", status_code=status.HTTP_204_NO_CONTENT)
 def desactiver_le_second_facteur(
     demande: DemandeActivationSecondFacteur,
+    requete: Request,
     session: SessionBase,
     principal: PrincipalCourant,
 ) -> None:
@@ -520,9 +685,19 @@ def desactiver_le_second_facteur(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Le second facteur n’est pas actif."
         )
-    _exiger_le_second_facteur(session, utilisateur, demande.code)
+    instant = maintenant()
+    seaux = _seau_action_sensible(
+        requete, utilisateur.id, action="desactivation-second-facteur"
+    )
+    _refuser_si_limite_atteinte(session, seaux, instant=instant)
+    try:
+        _exiger_le_second_facteur(session, utilisateur, demande.code)
+    except HTTPException:
+        _compter_un_echec(session, seaux, instant=instant)
+        raise
 
     depot.desactiver_le_second_facteur(session, utilisateur)
+    _oublier_les_seaux(session, seaux)
     session.commit()
 
 

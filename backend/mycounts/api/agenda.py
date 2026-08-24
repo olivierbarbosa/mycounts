@@ -90,6 +90,8 @@ def modifier_recurrence(
     Les opérations déjà matérialisées ne changent pas : un abonnement dont le tarif
     augmente n'a pas coûté davantage les mois précédents.
     """
+    categorie_fournie = "categorie_id" in demande.model_fields_set
+    fin_fournie = "fin" in demande.model_fields_set
     recurrence = depot.recurrence_visible(session, principal, recurrence_id)
     if recurrence is None:
         raise HTTPException(
@@ -106,7 +108,7 @@ def modifier_recurrence(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
 
     nouvelle_ancre = demande.ancre or recurrence.ancre
-    nouvelle_fin = demande.fin or recurrence.fin
+    nouvelle_fin = demande.fin if fin_fournie else recurrence.fin
     if nouvelle_fin is not None and nouvelle_fin < nouvelle_ancre:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -124,7 +126,9 @@ def modifier_recurrence(
         unite=demande.unite,
         intervalle=demande.intervalle,
         categorie_id=demande.categorie_id,
+        categorie_fournie=categorie_fournie,
         fin=demande.fin,
+        fin_fournie=fin_fournie,
     )
     session.commit()
     return RecurrencePublique.model_validate(recurrence, from_attributes=True)

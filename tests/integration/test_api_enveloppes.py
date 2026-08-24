@@ -251,6 +251,62 @@ def test_les_reglages_survivent_a_un_aller_retour(
     assert relue["contribution_mensuelle_centimes"] == 10_000
 
 
+def test_retirer_la_categorie_dune_enveloppe(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le choix vide du formulaire envoie `null` et doit réellement délier la catégorie."""
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    categorie = client.post(
+        "/api/categories",
+        json={"nom": "Voyages", "nature": "depense", "teinte": "cyan"},
+    ).json()
+    creee = creer_enveloppe(client, "Vacances", categorie_id=categorie["id"])
+    identifiant = enveloppe_nommee(creee, "Vacances")["id"]
+
+    retiree = client.patch(
+        f"/api/enveloppes/{identifiant}", json={"categorie_id": None}
+    )
+    assert retiree.status_code == 200, retiree.text
+    assert enveloppe_nommee(retiree.json(), "Vacances")["categorie_id"] is None
+
+
+def test_modifier_refuse_une_categorie_ou_un_compte_invisible(
+    client: TestClient, session_bd: Session
+) -> None:
+    import uuid
+
+    session_ouverte(client, session_bd)
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(client, "Vacances")
+    identifiant = enveloppe_nommee(creee, "Vacances")["id"]
+
+    categorie = client.patch(
+        f"/api/enveloppes/{identifiant}", json={"categorie_id": str(uuid.uuid4())}
+    )
+    compte = client.patch(
+        f"/api/enveloppes/{identifiant}", json={"compte_prefere_id": str(uuid.uuid4())}
+    )
+
+    assert categorie.status_code == 404
+    assert compte.status_code == 404
+
+
+def test_retirer_le_compte_prefere_dune_enveloppe(
+    client: TestClient, session_bd: Session
+) -> None:
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte(client, "Livret", "livret_a", 500_000)
+    creee = creer_enveloppe(client, "Vacances", compte_prefere_id=compte_id)
+    identifiant = enveloppe_nommee(creee, "Vacances")["id"]
+
+    retiree = client.patch(
+        f"/api/enveloppes/{identifiant}", json={"compte_prefere_id": None}
+    )
+    assert retiree.status_code == 200, retiree.text
+    assert enveloppe_nommee(retiree.json(), "Vacances")["compte_prefere_id"] is None
+
+
 def test_un_rollover_inconnu_est_refuse(client: TestClient, session_bd: Session) -> None:
     """La colonne est du texte en base : sans validation, n'importe quelle chaîne y
     entrerait et ne se révélerait qu'au moment de préparer le mois."""

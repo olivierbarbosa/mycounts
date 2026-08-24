@@ -53,6 +53,39 @@ def test_modifier_une_operation(client: TestClient, session_bd: Session) -> None
     assert reponse.json()["montant_centimes"] == -5290
 
 
+def test_retirer_la_categorie_dune_operation(client: TestClient, session_bd: Session) -> None:
+    """`null` signifie retirer ; un champ absent signifie conserver.
+
+    Le formulaire envoie réellement `categorie_id: null`. Le repository traitait
+    auparavant cette valeur comme un champ absent et annonçait un succès sans rien faire.
+    """
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    categorie = client.post(
+        "/api/categories",
+        json={"nom": "Courses", "nature": "depense", "teinte": "vert"},
+    ).json()
+    operation = client.post(
+        "/api/operations",
+        json={
+            "compte_id": compte_id,
+            "libelle": "Marché",
+            "montant_centimes": -4590,
+            "date_operation": AUJOURD_HUI.isoformat(),
+            "categorie_id": categorie["id"],
+        },
+    ).json()
+
+    inchangee = client.patch(f"/api/operations/{operation['id']}", json={}).json()
+    assert inchangee["categorie_id"] == categorie["id"]
+
+    retiree = client.patch(
+        f"/api/operations/{operation['id']}", json={"categorie_id": None}
+    )
+    assert retiree.status_code == 200, retiree.text
+    assert retiree.json()["categorie_id"] is None
+
+
 def test_la_modification_met_a_jour_les_soldes(client: TestClient, session_bd: Session) -> None:
     session_ouverte(client, session_bd)
     compte_id = creer_compte_api(client)

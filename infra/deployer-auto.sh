@@ -48,6 +48,28 @@ for PILE in prod dev; do
         continue
     fi
 
+    # Le commit exact doit avoir passé le job GitHub Actions `verifier`. Un statut en
+    # cours n'est PAS un échec : le prochain tick le relira. Une API GitHub indisponible
+    # bloque le déploiement par sûreté, sans condamner le commit.
+    if ! ETAT_CI=$(gh api "/repos/olivierbarbosa/mycounts/commits/$DISTANT/check-runs" \
+        --jq '[.check_runs[] | select(.name == "verifier")] as $r | if ($r | length) == 0 or any($r[]; .status != "completed") then "attente" elif any($r[]; .conclusion == "success") then "succes" else "echec" end' \
+        2>/dev/null); then
+        dire "[$PILE] statut CI inaccessible — déploiement différé"
+        continue
+    fi
+    case "$ETAT_CI" in
+        succes) ;;
+        attente)
+            dire "[$PILE] CI encore en cours pour ${DISTANT:0:7} — déploiement différé"
+            continue
+            ;;
+        *)
+            dire "[$PILE] CI en échec pour ${DISTANT:0:7} — commit refusé"
+            echo "$DISTANT" > "$ECHEC"
+            continue
+            ;;
+    esac
+
     dire "[$PILE] ──────── ${LOCAL:0:7} → ${DISTANT:0:7}"
     if "$ARBRE/infra/deployer.sh" "$PILE" >> "$JOURNAL" 2>&1; then
         dire "[$PILE] ✓ déployé ${DISTANT:0:7}"

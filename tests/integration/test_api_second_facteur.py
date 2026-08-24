@@ -12,9 +12,13 @@ est mesuré.
 
 from __future__ import annotations
 
+import datetime as dt
+
 import pyotp
 from fastapi.testclient import TestClient
 from mycounts.domain.second_facteur import NOMBRE_DE_CODES_DE_SECOURS
+from mycounts.models.auth import TentativeConnexion
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from tests.integration.test_api_auth import MOT_DE_PASSE, connecter
@@ -23,17 +27,23 @@ from tests.integration.test_api_budget import session_ouverte
 COURRIEL = "a@essai.fr"
 
 
-def enroler(client: TestClient) -> tuple[str, list[str]]:
+def code_suivant(secret: str) -> str:
+    """Code de la période suivante, accepté par la fenêtre sans attendre trente secondes."""
+    return str(pyotp.TOTP(secret).at(dt.datetime.now(dt.UTC) + dt.timedelta(seconds=30)))
+
+
+def enroler(client: TestClient) -> tuple[str, list[str], str]:
     """Parcours complet d'enrôlement. Rend le secret et les codes de secours."""
     propose = client.post("/api/auth/moi/second-facteur/preparer")
     assert propose.status_code == 200, propose.text
     secret = propose.json()["secret"]
 
+    code_activation = pyotp.TOTP(secret).now()
     active = client.post(
-        "/api/auth/moi/second-facteur/activer", json={"code": pyotp.TOTP(secret).now()}
+        "/api/auth/moi/second-facteur/activer", json={"code": code_activation}
     )
     assert active.status_code == 200, active.text
-    return secret, active.json()["codes_de_secours"]
+    return secret, active.json()["codes_de_secours"], code_activation
 
 
 def test_activer_exige_un_premier_code_valide(client: TestClient, session_bd: Session) -> None:
@@ -52,6 +62,24 @@ def test_activer_exige_un_premier_code_valide(client: TestClient, session_bd: Se
     # Et le second facteur n'est PAS actif : un enrôlement raté ne verrouille rien.
     assert client.get("/api/auth/moi/second-facteur").json()["actif"] is False
     assert connecter(TestClient(client.app), COURRIEL).status_code == 200
+
+
+def test_deviner_le_code_dactivation_est_limite(
+    client: TestClient, session_bd: Session
+) -> None:
+    session_ouverte(client, session_bd)
+    client.post("/api/auth/moi/second-facteur/preparer")
+
+    for _ in range(10):
+        refus = client.post(
+            "/api/auth/moi/second-facteur/activer", json={"code": "000000"}
+        )
+        assert refus.status_code == 400
+
+    limite = client.post(
+        "/api/auth/moi/second-facteur/activer", json={"code": "000000"}
+    )
+    assert limite.status_code == 429
 
 
 def test_preparer_deux_fois_engendre_un_secret_neuf(
@@ -76,7 +104,7 @@ def test_une_fois_actif_le_code_est_exige_a_la_connexion(
     motif est machine-lisible pour cette raison.
     """
     session_ouverte(client, session_bd)
-    secret, _ = enroler(client)
+    secret, _, code_activation = enroler(client)
 
     neuf = TestClient(client.app)
     sans_code = neuf.post(
@@ -92,15 +120,36 @@ def test_une_fois_actif_le_code_est_exige_a_la_connexion(
     assert faux.status_code == 401
     assert faux.json()["detail"]["motif"] == "second_facteur_invalide"
 
+    rejeu = neuf.post(
+        "/api/auth/connexion",
+        json={
+            "courriel": COURRIEL,
+            "mot_de_passe": MOT_DE_PASSE,
+            "code": code_activation,
+        },
+    )
+    assert rejeu.status_code == 401, "le code consommé pendant l’activation ne se rejoue pas"
+
+    suivant = code_suivant(secret)
     bon = neuf.post(
         "/api/auth/connexion",
         json={
             "courriel": COURRIEL,
             "mot_de_passe": MOT_DE_PASSE,
-            "code": pyotp.TOTP(secret).now(),
+            "code": suivant,
         },
     )
     assert bon.status_code == 200, bon.text
+
+    encore = TestClient(client.app).post(
+        "/api/auth/connexion",
+        json={
+            "courriel": COURRIEL,
+            "mot_de_passe": MOT_DE_PASSE,
+            "code": suivant,
+        },
+    )
+    assert encore.status_code == 401, "un même TOTP ne doit ouvrir qu’une session"
 
 
 def test_un_mot_de_passe_faux_reste_indiscernable_meme_avec_le_second_facteur(
@@ -121,6 +170,30 @@ def test_un_mot_de_passe_faux_reste_indiscernable_meme_avec_le_second_facteur(
     )
 
 
+def test_demander_le_code_ne_compte_pas_comme_un_echec_mais_un_code_faux_oui(
+    client: TestClient, session_bd: Session
+) -> None:
+    session_ouverte(client, session_bd)
+    enroler(client)
+    neuf = TestClient(client.app)
+
+    requis = neuf.post(
+        "/api/auth/connexion", json={"courriel": COURRIEL, "mot_de_passe": MOT_DE_PASSE}
+    )
+    assert requis.json()["detail"]["motif"] == "second_facteur_requis"
+    session_bd.expire_all()
+    assert session_bd.execute(select(TentativeConnexion)).scalars().all() == []
+
+    invalide = neuf.post(
+        "/api/auth/connexion",
+        json={"courriel": COURRIEL, "mot_de_passe": MOT_DE_PASSE, "code": "000000"},
+    )
+    assert invalide.json()["detail"]["motif"] == "second_facteur_invalide"
+    session_bd.expire_all()
+    compteurs = session_bd.execute(select(TentativeConnexion.echecs)).scalars().all()
+    assert compteurs == [1, 1]
+
+
 def test_un_code_de_secours_ouvre_la_session_et_ne_sert_QUUNE_fois(
     client: TestClient, session_bd: Session
 ) -> None:
@@ -131,7 +204,7 @@ def test_un_code_de_secours_ouvre_la_session_et_ne_sert_QUUNE_fois(
     indéfiniment.
     """
     session_ouverte(client, session_bd)
-    _, codes = enroler(client)
+    _, codes, _ = enroler(client)
     assert len(codes) == NOMBRE_DE_CODES_DE_SECOURS
 
     premier = TestClient(client.app)
@@ -161,7 +234,7 @@ def test_un_code_de_secours_se_tape_comme_on_peut(
     téléphone — et pour un motif qui n'a rien à voir avec la sécurité.
     """
     session_ouverte(client, session_bd)
-    _, codes = enroler(client)
+    _, codes, _ = enroler(client)
     maladroit = codes[0].lower().replace("-", " ")
 
     neuf = TestClient(client.app)
@@ -179,7 +252,7 @@ def test_desactiver_exige_un_code_en_cours(client: TestClient, session_bd: Sessi
     preuve de possession annulerait la protection depuis l'endroit même qu'elle protège.
     """
     session_ouverte(client, session_bd)
-    secret, _ = enroler(client)
+    secret, _, _ = enroler(client)
 
     refus = client.request(
         "DELETE", "/api/auth/moi/second-facteur", json={"code": "000000"}
@@ -188,7 +261,7 @@ def test_desactiver_exige_un_code_en_cours(client: TestClient, session_bd: Sessi
     assert client.get("/api/auth/moi/second-facteur").json()["actif"] is True
 
     retrait = client.request(
-        "DELETE", "/api/auth/moi/second-facteur", json={"code": pyotp.TOTP(secret).now()}
+        "DELETE", "/api/auth/moi/second-facteur", json={"code": code_suivant(secret)}
     )
     assert retrait.status_code == 204, retrait.text
     assert client.get("/api/auth/moi/second-facteur").json()["actif"] is False

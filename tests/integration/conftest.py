@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 TABLES = (
+    "tentative_connexion",
     "plafond",
     "operation",
     "recurrence",

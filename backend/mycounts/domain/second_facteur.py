@@ -13,6 +13,7 @@ non le second facteur appartient à l'API, et l'écriture au repository.
 
 from __future__ import annotations
 
+import datetime as dt
 import hmac
 import secrets
 from typing import Final
@@ -54,17 +55,27 @@ def uri_denrolement(secret: str, courriel: str) -> str:
     return str(pyotp.TOTP(secret).provisioning_uri(name=courriel, issuer_name=NOM_EMETTEUR))
 
 
-def code_valide(secret: str, code: str) -> bool:
-    """Le code correspond-il au secret, à une période près ?
+def compteur_du_code_valide(
+    secret: str, code: str, *, instant: dt.datetime | None = None
+) -> int | None:
+    """Rend le compteur RFC 6238 correspondant, ou `None` si le code est faux.
 
     `pyotp` compare en temps constant. Une comparaison naïve fuirait, par la durée, le
     nombre de chiffres corrects — assez pour retrouver un code six chiffres en six cents
-    essais au lieu d'un million.
+    essais au lieu d'un million. Rendre le compteur permet à l'appelant de consommer le
+    code atomiquement et d'en interdire le rejeu.
     """
     nettoye = code.strip().replace(" ", "")
     if not nettoye.isdigit():
-        return False
-    return bool(pyotp.TOTP(secret).verify(nettoye, valid_window=FENETRE))
+        return None
+
+    maintenant = instant or dt.datetime.now(dt.UTC)
+    totp = pyotp.TOTP(secret)
+    for decalage in range(-FENETRE, FENETRE + 1):
+        candidat = maintenant + dt.timedelta(seconds=decalage * totp.interval)
+        if totp.verify(nettoye, for_time=candidat, valid_window=0):
+            return int(totp.timecode(candidat))
+    return None
 
 
 def engendrer_codes_de_secours() -> list[str]:

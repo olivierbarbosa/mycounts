@@ -479,6 +479,7 @@ def modifier_operation(
     principal: PrincipalCourant,
 ) -> OperationPublique:
     """Corrige une opération déjà saisie."""
+    categorie_fournie = "categorie_id" in demande.model_fields_set
     operation = depot.operation_visible(session, principal, operation_id)
     if operation is None or operation.annulee:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Opération introuvable.")
@@ -510,6 +511,7 @@ def modifier_operation(
         else None,
         date_operation=demande.date_operation,
         categorie_id=demande.categorie_id,
+        categorie_fournie=categorie_fournie,
     )
     session.commit()
     return OperationPublique.model_validate(operation, from_attributes=True)

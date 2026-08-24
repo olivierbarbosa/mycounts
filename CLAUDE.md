@@ -26,8 +26,9 @@ comptes personnels et comptes joints, liste des membres, invitation, dissolution
 partage et suppression définitive de son compte.
 
 **Manque** : couverture des enveloppes par compte, au sens du rapprochement — où
-l'argent EST contre où il devrait être (lot E2) ; TOTP obligatoire et codes de secours ;
-mot de passe oublié ; chiffrement des libellés et des noms — les montants restent en clair,
+l'argent EST contre où il devrait être (lot E2) ; MFA obligatoire dans l'onboarding et
+appareils de confiance — le TOTP, ses codes de secours et l'anti-rejeu sont livrés ; mot
+de passe oublié ; chiffrement des libellés et des noms — les montants restent en clair,
 sans quoi soldes et plafonds quitteraient SQL (tranché le 22 août 2026) ; quitter un
 foyer ; historique des corrections de solde ; logos et icônes PWA.
 
@@ -39,8 +40,15 @@ préproduction, derrière le Traefik déjà en place sur le VPS.
 
 **Le front et l'API partagent le même nom d'hôte, et ce n'est pas négociable** : le
 cookie de session est `samesite=lax` et le projet n'a AUCUNE configuration CORS. Traefik
-envoie `/api` et `/health` vers l'API, le reste vers nginx. Un sous-domaine `api.` — que
-les enregistrements DNS laissaient croire — casserait l'authentification.
+envoie `/api` vers l'API et le reste vers nginx. `/health` reste interne à Docker :
+l'exposer permettrait de consommer le pool PostgreSQL depuis Internet. Un sous-domaine
+`api.` — que les enregistrements DNS laissaient croire — casserait l'authentification.
+
+**Le seul proxy fiable est `luminapp_traefik`.** `infra/demarrer-api.sh` résout son IP au
+démarrage et la passe à `--forwarded-allow-ips`; la valeur `*` est interdite, car elle
+permettrait à un client de choisir lui-même l'origine utilisée par l'anti-bruteforce.
+`MYCOUNTS_CLE_HMAC_AUTH` doit contenir au moins 32 caractères aléatoires dans les deux
+fichiers d'environnement du VPS avant le premier déploiement de ce lot.
 
 Le déploiement est **tiré, pas poussé** : un timer systemd compare toutes les
 5 minutes `origin/main` et `origin/dev` aux deux arbres de travail du VPS
@@ -50,7 +58,9 @@ le commit qui a échoué et ne le rejoue pas en boucle ; `infra/deployer.sh` pre
 verrou lui-même, de sorte qu'une exécution manuelle et le timer ne peuvent pas se
 croiser — faute constatée sur luminapp le 17 août 2026, deux `alembic upgrade head`
 concurrents sur la même base. La base est sauvegardée avant toute migration, et une
-sauvegarde de moins de 512 octets arrête le déploiement.
+sauvegarde de moins de 512 octets arrête le déploiement. Le timer ne déploie un commit
+qu'après le succès du job GitHub Actions `verifier` sur ce SHA exact ; `main` et `dev`
+passent tous deux cette CI.
 
 Deux pièges payés au premier déploiement : `httpx` était déclaré en dépendance de
 DÉVELOPPEMENT alors que `categorisation_ia.py` l'importe au chargement du module, si
@@ -65,15 +75,17 @@ quelqu'un qui a du mal à épargner, pas à quelqu'un qui connaît déjà le voc
 vie. Chaque réglage doit dire ce qu'il change POUR L'UTILISATEUR, et l'écran doit se lire
 sans avoir rien appris au préalable.
 
-**Import PDF : abandonné**, tranché le 22 août 2026. Le CSV de la Caisse d'Épargne suffit,
-et un relevé PDF n'a aucune structure garantie — chaque refonte de maquette casserait
-l'extraction.
+**Import PDF : pas encore livré.** La V1 doit accepter les PDF officiels des banques avec
+aperçu et refus sûr en cas de doute ; Revolut et Caisse d'Épargne seront les deux profils
+certifiés de départ. Le CSV reste le chemin le plus fiable et le seul actuellement livré.
 
-**Un utilisateur appartient à UN seul foyer.** `Utilisateur.foyer_id`, non nullable. La vue
+**Limite actuelle : un utilisateur appartient à UN seul foyer.** `Utilisateur.foyer_id`,
+non nullable. La vue
 « comptes joints » est un FILTRE sur `Compte.prive`, pas une entité : il n'existe pas
-d'espace partagé à créer, quitter ou supprimer séparément. Limite connue, tranchée le
-21 août 2026 — la lever demanderait une table d'appartenance et la réécriture de tout le
-périmètre.
+d'espace partagé à créer, quitter ou supprimer séparément. La V1 lèvera cette limite avec
+`Espace` et `Appartenance` : le compte devient l'identité stable, puis la personne crée ou
+rejoint plusieurs foyers entièrement isolés. Cela demande une réécriture explicite de tout
+le périmètre ; elle est planifiée dans `docs/V1-ARCHITECTURE.md`.
 
 Le plan d'exécution détaillé vit dans `docs/PLAN.md` — il fixe pour chaque écran ce qu'il
 fait **et ce qu'il ne fait pas**. Cette seconde colonne existe parce que trois écrans ont

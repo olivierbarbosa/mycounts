@@ -5,11 +5,11 @@ disparaître sont deux intentions distinctes, et les confondre faisait perdre so
 qui voulait seulement la première (ERREURS.md #044). La dissolution du partage a son
 propre fichier ; ici on efface une personne.
 
-Le test central reste `la suppression ne laisse AUCUNE ligne` : il remplit les douze tables,
-supprime, puis parcourt `Base.metadata` pour exiger que chacune soit vide. C'est la seule
-forme qui résiste au temps — une liste de tables écrite à la main dans le test répéterait
-celle du repository, et les deux se tromperaient ensemble le jour où une treizième
-apparaîtra.
+Le test central reste `la suppression ne laisse AUCUNE ligne personnelle` : il remplit les
+tables rattachées au compte, supprime, puis parcourt `Base.metadata` pour exiger que
+chacune soit vide. Les compteurs anti-bruteforce globaux sont testés séparément : ils ne
+portent aucune clé vers une personne ou un foyer, et la suppression d'un compte ne doit
+pas lever la protection de toute une origine réseau.
 
 Portée de cette garantie, mesurée et non supposée : elle attrape les tables dont la clé
 vers le foyer est en RESTRICT, où l'oubli fait buter la suppression. Elle n'attrape PAS
@@ -49,6 +49,19 @@ NOM_FOYER = "Foyer"
 
 # L'adresse de `session_ouverte`, et donc celle qu'il faudra retaper.
 COURRIEL = "a@essai.fr"
+
+# Cette table de sécurité est globale, pseudonymisée par HMAC et sans lien vers un compte. Ce
+# n'est pas une donnée du foyer à détruire ; ses bornes et son absence de clair sont
+# vérifiées dans `test_api_auth.py`.
+TABLES_OPERATIONNELLES_GLOBALES = {"tentative_connexion"}
+
+
+def tables_personnelles() -> list:  # type: ignore[type-arg]
+    return [
+        table
+        for table in Base.metadata.sorted_tables
+        if table.name not in TABLES_OPERATIONNELLES_GLOBALES
+    ]
 
 
 def remplir_toutes_les_tables(
@@ -160,7 +173,7 @@ def test_la_suppression_ne_laisse_AUCUNE_ligne(client: TestClient, session_bd: S
     # Toutes pleines AVANT : c'est ce qui rend le « toutes vides après » informatif.
     avant = {
         table.name: session_bd.execute(select(func.count()).select_from(table)).scalar_one()
-        for table in Base.metadata.sorted_tables
+        for table in tables_personnelles()
     }
     vides_avant = [nom for nom, n in avant.items() if n == 0]
     assert not vides_avant, f"le remplissage a manqué ces tables : {vides_avant}"
@@ -172,7 +185,7 @@ def test_la_suppression_ne_laisse_AUCUNE_ligne(client: TestClient, session_bd: S
     session_bd.expire_all()
     apres = {
         table.name: session_bd.execute(select(func.count()).select_from(table)).scalar_one()
-        for table in Base.metadata.sorted_tables
+        for table in tables_personnelles()
     }
     restantes = {nom: n for nom, n in apres.items() if n != 0}
     assert not restantes, f"des lignes ont survécu à la suppression : {restantes}"

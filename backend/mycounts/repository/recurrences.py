@@ -78,7 +78,9 @@ def modifier_recurrence(
     unite: UniteRecurrence | None = None,
     intervalle: int | None = None,
     categorie_id: uuid.UUID | None = None,
+    categorie_fournie: bool = False,
     fin: dt.date | None = None,
+    fin_fournie: bool = False,
 ) -> Recurrence:
     """Modifie un prélèvement. Les opérations DÉJÀ matérialisées ne bougent pas.
 
@@ -96,9 +98,9 @@ def modifier_recurrence(
         recurrence.unite = unite
     if intervalle is not None:
         recurrence.intervalle = intervalle
-    if categorie_id is not None:
+    if categorie_fournie:
         recurrence.categorie_id = categorie_id
-    if fin is not None:
+    if fin_fournie:
         recurrence.fin = fin
     session.flush()
     return recurrence

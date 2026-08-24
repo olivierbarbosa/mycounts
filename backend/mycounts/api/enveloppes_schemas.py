@@ -40,9 +40,10 @@ class DemandeEnveloppe(BaseModel):
 class ModificationEnveloppe(BaseModel):
     """Champs absents = inchangés.
 
-    Conséquence assumée : on ne peut pas RETIRER une cible ici, seulement la changer.
-    Retirer une cible fait cesser toute recommandation mensuelle — c'est un geste rare et
-    lourd de sens, il aura sa propre route plutôt qu'un `null` ambigu.
+    `null` retire une catégorie ou un compte préféré : ces deux liens sont facultatifs et
+    le formulaire propose explicitement « aucun ». Une cible, elle, ne peut pas être
+    retirée ici : cela ferait cesser toute recommandation mensuelle et mérite un parcours
+    explicite plutôt qu'un champ vidé par mégarde.
     """
 
     nom: str | None = Field(default=None, min_length=1, max_length=80)

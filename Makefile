@@ -3,7 +3,7 @@
 
 PY := .venv/bin/python
 
-.PHONY: aide installer lint types garde-fous tests tests-integration tests-e2e verifier migrer db-haut db-bas front-installer front-lint front-tests demo demo-arret
+.PHONY: aide installer lint types garde-fous tests tests-integration tests-e2e verifier migrer db-haut db-bas front-installer front-lint front-tests front-build demo demo-arret
 
 aide:
 	@echo "make installer          Crée le venv et installe les dépendances"
@@ -61,6 +61,7 @@ front-installer:
 	cd frontend && npx playwright install chromium
 
 front-lint:
+	cd frontend && npm run lint
 	@# `-p` sur CHAQUE projet, et non `tsc --noEmit` nu. Le tsconfig.json racine est un
 	@# fichier de références (`"files": []`) : sans `-p`, tsc n'a aucun fichier à compiler,
 	@# annonce « No errors found » et sort en 0 quoi qu'il arrive. Ce contrôle a été vert
@@ -73,6 +74,12 @@ front-lint:
 # de bout en bout : ce qui se voit se vérifie dans un navigateur.
 front-tests:
 	cd frontend && npx vitest run
+
+# Le build de production est un contrôle distinct du typage : Vite peut échouer sur un
+# import, un asset ou une configuration que `tsc` accepte. La CI doit mesurer ce qui sera
+# réellement copié dans l'image nginx.
+front-build:
+	cd frontend && npm run build
 
 # Le compte de démonstration est créé par le globalSetup de Playwright, pas ici : la
 # suite doit être lançable seule, sans dépendre d'une étape make exécutée avant.

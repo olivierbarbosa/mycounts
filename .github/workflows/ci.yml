@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 jobs:
@@ -74,6 +74,9 @@ jobs:
 
       - name: Tests unitaires du frontend
         run: make front-tests
+
+      - name: Build du frontend de production
+        run: make front-build
 
       # Mise en page sur 390 / 820 / 1280 px dans un vrai navigateur. Playwright démarre
       # lui-même uvicorn et Vite : aucun processus n'est lancé à la main.

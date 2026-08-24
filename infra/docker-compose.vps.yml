@@ -51,6 +51,10 @@ services:
       # Décide notamment du drapeau « secure » sur le cookie de session : toute valeur
       # autre que « developpement » impose HTTPS. Ne jamais mettre « developpement » ici.
       MYCOUNTS_ENVIRONNEMENT: ${MYCOUNTS_ENVIRONNEMENT:?environnement requis}
+      MYCOUNTS_CLE_HMAC_AUTH: ${MYCOUNTS_CLE_HMAC_AUTH:?clé HMAC d'authentification requise}
+      # Seul ce conteneur a le droit de définir X-Forwarded-For. Le point d'entrée résout
+      # son IP au démarrage et la passe explicitement à Uvicorn.
+      MYCOUNTS_PROXY_FIABLE_HOTE: ${MYCOUNTS_PROXY_FIABLE_HOTE:-luminapp_traefik}
       MYCOUNTS_CLE_OPENROUTER: ${MYCOUNTS_CLE_OPENROUTER:-}
       MYCOUNTS_MODELE_IA: ${MYCOUNTS_MODELE_IA:-mistralai/mistral-nemo}
     depends_on:
@@ -64,7 +68,7 @@ services:
       - "traefik.docker.network=web"
       # Priorité explicite : sans elle on dépendrait de la longueur de la règle, un
       # détail d'implémentation de Traefik. Ici l'intention est écrite.
-      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.rule=Host(`${MYCOUNTS_DOMAINE}`) && (PathPrefix(`/api`) || PathPrefix(`/health`))"
+      - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.rule=Host(`${MYCOUNTS_DOMAINE}`) && PathPrefix(`/api`)"
       - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.priority=100"
       - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.entrypoints=websecure"
       - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.tls=true"

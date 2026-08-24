@@ -11,10 +11,12 @@ import datetime as dt
 import uuid
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
@@ -86,6 +88,10 @@ class Utilisateur(Base):
     totp_actif: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false"
     )
+    # Compteur RFC 6238 du dernier code accepté. Un code TOTP est valable pendant une
+    # fenêtre : sans mémoriser sa position, l'intercepter une fois permet de le rejouer
+    # autant de fois que voulu pendant cette fenêtre.
+    dernier_compteur_totp: Mapped[int | None] = mapped_column(BigInteger, default=None)
     # Nombre de versements de salaire qui composent UN cycle budgétaire. À 2 (quinzaine),
     # seule une paie sur deux ouvre une période : sans ce réglage, une prime ferait
     # repartir tous les plafonds à zéro en plein mois.
@@ -202,3 +208,28 @@ class SessionWeb(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     expire_le: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+
+
+class TentativeConnexion(Base):
+    """Compteur pseudonymisé d'échecs dans une fenêtre fixe.
+
+    Aucun lien vers `Utilisateur` : une adresse inconnue doit produire exactement le même
+    seau qu'une adresse connue, sans transformer cette table en liste des comptes.
+    """
+
+    __tablename__ = "tentative_connexion"
+    __table_args__ = (
+        CheckConstraint("echecs > 0", name="ck_tentative_connexion_echecs_positifs"),
+        CheckConstraint(
+            "portee in ('identifiant', 'couple', 'origine', 'action')",
+            name="ck_tentative_connexion_portee",
+        ),
+        Index("ix_tentative_connexion_fenetre", "fenetre_debut"),
+    )
+
+    empreinte: Mapped[str] = mapped_column(String(64), primary_key=True)
+    portee: Mapped[str] = mapped_column(String(16), primary_key=True)
+    fenetre_debut: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), primary_key=True
+    )
+    echecs: Mapped[int] = mapped_column(Integer, default=1)
