@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { lireDetailErreur } from '../client'
+import { api, lireDetailErreur } from '../client'
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe('lireDetailErreur', () => {
   it('conserve les erreurs ordinaires sans inventer de motif', () => {
@@ -25,5 +27,28 @@ describe('lireDetailErreur', () => {
     expect(lireDetailErreur({ detail_inattendu: true }).message).toBe(
       'Le serveur a refusé la demande.',
     )
+  })
+})
+
+describe('transport web', () => {
+  it('envoie le cookie httpOnly sans inventer de jeton côté JavaScript', async () => {
+    const requete = vi.fn(async (_entree: RequestInfo | URL, _options?: RequestInit) =>
+      new Response(
+        JSON.stringify({
+          id: 'utilisateur',
+          courriel: 'personne@example.test',
+          nom_affichage: 'Personne',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    vi.stubGlobal('fetch', requete)
+
+    await api.moi()
+
+    expect(requete).toHaveBeenCalledOnce()
+    const options = requete.mock.calls[0][1]
+    expect(options?.credentials).toBe('include')
+    expect(new Headers(options?.headers).has('Authorization')).toBe(false)
   })
 })

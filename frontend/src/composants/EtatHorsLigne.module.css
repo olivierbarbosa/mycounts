@@ -1,0 +1,60 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding:
+    calc(var(--espace-xl) + env(safe-area-inset-top, 0px))
+    var(--espace-xl)
+    calc(var(--espace-xl) + env(safe-area-inset-bottom, 0px));
+}
+
+.carte {
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espace-l);
+  padding: var(--espace-xl);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-grand);
+  background: var(--couleur-surface);
+  text-align: center;
+}
+
+.icone {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 50%;
+  background: var(--couleur-surface-haute);
+  color: var(--couleur-accent-clair);
+}
+
+.titre {
+  margin: 0;
+  font-size: 24px;
+  font-weight: var(--typo-gras-fort);
+}
+
+.texte {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.bouton {
+  min-height: var(--cible-tactile);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-s);
+  padding: 0 var(--espace-xl);
+  border: none;
+  border-radius: var(--rayon-pilule);
+  background: var(--couleur-degrade-accent);
+  color: var(--couleur-accent-contraste);
+  font-weight: var(--typo-gras-fort);
+}

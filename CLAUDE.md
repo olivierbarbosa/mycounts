@@ -30,7 +30,13 @@ l'argent EST contre où il devrait être (lot E2) ; MFA obligatoire dans l'onboa
 appareils de confiance — le TOTP, ses codes de secours et l'anti-rejeu sont livrés ; mot
 de passe oublié ; chiffrement des libellés et des noms — les montants restent en clair,
 sans quoi soldes et plafonds quitteraient SQL (tranché le 22 août 2026) ; quitter un
-foyer ; historique des corrections de solde ; logos et icônes PWA.
+foyer ; historique des corrections de solde.
+
+**PWA livrée** : manifest et icônes standard/maskable ; installation guidée dans les
+paramètres ; métadonnées iOS et zones sûres ; mise à jour consentie ; shell hors ligne sans
+aucune réponse API financière en cache. La frontière de plateforme et la configuration
+Capacitor préparent iOS/Android ; le transport natif reste volontairement inactif tant que
+le trousseau et les jetons courts serveur ne sont pas livrés.
 
 **Déploiement**, livré le 24 août 2026 : `infra/docker-compose.vps.yml`, un seul fichier
 pour la production et la préproduction, qui ne diffèrent que par leur fichier

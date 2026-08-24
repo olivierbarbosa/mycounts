@@ -1,32 +1,42 @@
-# React + TypeScript + Vite
+# Interface MyCounts
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Application React mobile d'abord, livrée sur le web sous forme de PWA installable.
 
-Currently, two official plugins are available:
+## Développement
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
+npm test
+npm run lint
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Le build produit le manifest et le service worker, puis vérifie automatiquement que les
+icônes existent et que `/api` reste réseau seul avec `cache: no-store`. Le service worker
+ne persiste que `index.html`, les bundles versionnés et les ressources graphiques. Il ne
+met jamais en cache une réponse financière, un relevé importé ou une conversation du
+coach.
+
+Les icônes PNG sont reproductibles depuis `public/app-icon.svg` :
+
+```bash
+npm run icons
+```
+
+## Préparation iOS et Android
+
+Capacitor est configuré, sans projet natif généré dans le dépôt. Après stabilisation de
+la PWA :
+
+```bash
+npm run native:add:ios
+npm run native:add:android
+npm run native:sync
+```
+
+La couche `src/plateforme/` sépare réseau, installation, notifications, fichiers, liens,
+cycle de vie et transport de session. Sur le web, la session reste exclusivement dans le
+cookie `httponly`. L'adaptateur natif refuse de démarrer son transport tant qu'un véritable
+trousseau iOS/Keystore Android ne lui est pas injecté ; il n'existe aucun repli vers
+`localStorage`.

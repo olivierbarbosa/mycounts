@@ -5,25 +5,37 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/verifier-pwa.mjs",
+    "icons": "node scripts/generer-icones.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "native:sync": "npm run build && cap sync",
+    "native:add:ios": "cap add ios",
+    "native:add:android": "cap add android",
+    "native:open:ios": "cap open ios",
+    "native:open:android": "cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/core": "^7.6.8",
+    "@capacitor/ios": "^7.6.8",
     "lucide-react": "^1.33.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.8",
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
     "oxlint": "^1.75.0",
+    "sharp": "^0.35.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.11"
   }
 }

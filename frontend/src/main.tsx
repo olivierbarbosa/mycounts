@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 
 import { App } from './App'
 import { appliquerThemeEnregistre } from './composants/ReglageTheme'
+import { MiseAJourPwa } from './composants/MiseAJourPwa'
 import './design/global.css'
 import { feuilleDeTokens } from './design/tokens'
 
@@ -19,5 +20,6 @@ appliquerThemeEnregistre()
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>
     <App />
+    <MiseAJourPwa />
   </StrictMode>,
 )

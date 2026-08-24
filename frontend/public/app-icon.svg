@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="titre description">
+  <title id="titre">MyCounts</title>
+  <desc id="description">Un M blanc dessiné par deux rubans sur un carré bleu ardoise.</desc>
+  <defs>
+    <linearGradient id="fond" x1="72" y1="48" x2="440" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#334155"/>
+      <stop offset="0.58" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="ruban" x1="124" y1="150" x2="390" y2="374" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DD3FC"/>
+      <stop offset="1" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#fond)"/>
+  <circle cx="404" cy="110" r="116" fill="#0EA5E9" opacity=".16"/>
+  <circle cx="92" cy="420" r="132" fill="#7DD3FC" opacity=".1"/>
+  <path d="M112 354V174c0-25 29-39 49-23l95 77 95-77c20-16 49-2 49 23v180" fill="none" stroke="url(#ruban)" stroke-width="55" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M256 228v126" fill="none" stroke="#F1F5F9" stroke-width="34" stroke-linecap="round" opacity=".96"/>
+</svg>

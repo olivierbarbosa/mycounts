@@ -4,6 +4,7 @@ import {
   Landmark,
   LogOut,
   Palette,
+  Smartphone,
   Plus,
   Tags,
   UserRound,
@@ -25,6 +26,7 @@ import { ComptesBancaires } from '../composants/ComptesBancaires'
 import { type Origine, useEcranDeBulle } from '../composants/EcranDeBulle'
 import { ReglageTheme } from '../composants/ReglageTheme'
 import { ReglageTransparence } from '../composants/ReglageTransparence'
+import { ApplicationAppareil } from '../composants/ApplicationAppareil'
 import { Categories } from './Categories'
 import { type Vue, changerDeVue, vueCourante } from '../design/vue'
 import styles from './Parametres.module.css'
@@ -44,7 +46,7 @@ type Props = {
   readonly sousMenuInitial?: Cle | null
 }
 
-type Cle = 'compte' | 'comptes' | 'categories' | 'apparence' | 'foyer'
+type Cle = 'compte' | 'comptes' | 'categories' | 'apparence' | 'application' | 'foyer'
 
 /**
  * Paramètres, ouverts depuis la bulle d'avatar.
@@ -277,6 +279,7 @@ export function Parametres({
     },
     { cle: 'categories', libelle: 'Catégories', detail: `${categories.length}`, Icone: Tags },
     { cle: 'apparence', libelle: 'Apparence', detail: '', Icone: Palette },
+    { cle: 'application', libelle: 'Application', detail: '', Icone: Smartphone },
     ...(vue === 'foyer'
       ? [{ cle: 'foyer' as const, libelle: 'Foyer', detail: '', Icone: Users }]
       : []),
@@ -394,6 +397,10 @@ export function Parametres({
           </div>
         </>
       ),
+    },
+    application: {
+      titre: 'Application',
+      contenu: <ApplicationAppareil />,
     },
     foyer: {
       titre: 'Foyer',

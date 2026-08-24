@@ -1,5 +1,5 @@
 import { CalendarDays, ChartColumn, ChartPie, FileUp, House, PiggyBank, Wallet } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import type {
   CategoriePublique,
@@ -30,6 +30,8 @@ import { AucunCompteJoint } from './composants/AucunCompteJoint'
 import { PremierCompte } from './ecrans/PremierCompte'
 import { Statistiques } from './ecrans/Statistiques'
 import { Parametres } from './ecrans/Parametres'
+import { EtatHorsLigne } from './composants/EtatHorsLigne'
+import { plateforme } from './plateforme'
 
 const ONGLETS: readonly Onglet[] = [
   { cle: 'accueil', libelle: 'Accueil', Icone: House },
@@ -43,8 +45,15 @@ const ONGLETS: readonly Onglet[] = [
    une destination qu'on visite aussi souvent que ses dépenses. */
 
 export function App() {
+  const enLigne = useSyncExternalStore(
+    plateforme.reseau.ecouter,
+    plateforme.reseau.estEnLigne,
+    () => true,
+  )
+  const demarreHorsLigne = useRef(!enLigne)
+  const [reconnexionInitialeTerminee, setReconnexionInitialeTerminee] = useState(enLigne)
   const [utilisateur, setUtilisateur] = useState<UtilisateurPublic | null>(null)
-  const [chargement, setChargement] = useState(true)
+  const [chargement, setChargement] = useState(() => plateforme.reseau.estEnLigne())
   const [onglet, setOnglet] = useState('accueil')
   // Sens du dernier déplacement dans la barre. La page entre du côté d'où l'on vient :
   // aller vers la droite la fait arriver par la droite. Sans cette mémoire, toutes les
@@ -95,12 +104,23 @@ export function App() {
   }, [])
 
   useEffect(() => {
+    if (!plateforme.reseau.estEnLigne()) {
+      return
+    }
     // `chargerReferentiels` relit déjà l'utilisateur : un `api.moi()` de plus ici en
     // ferait deux au démarrage, et deux auteurs pour le même état.
     chargerReferentiels()
       .catch(() => setUtilisateur(null))
       .finally(() => setChargement(false))
   }, [chargerReferentiels])
+
+  useEffect(() => {
+    if (!enLigne || !demarreHorsLigne.current) return
+    demarreHorsLigne.current = false
+    void chargerReferentiels()
+      .catch(() => setUtilisateur(null))
+      .finally(() => setReconnexionInitialeTerminee(true))
+  }, [chargerReferentiels, enLigne])
 
   const apresEcriture = useCallback(async () => {
     setSaisieOuverte(false)
@@ -112,6 +132,13 @@ export function App() {
   }, [chargerReferentiels])
 
   if (chargement) return null
+
+  // Le shell fonctionne hors ligne, les données financières non. Montrer la connexion
+  // après un échec réseau laisserait croire que la session a expiré et inciterait à
+  // retaper un mot de passe inutilement.
+  if (!enLigne) return <EtatHorsLigne />
+
+  if (!reconnexionInitialeTerminee) return null
 
   if (utilisateur === null) {
     return (

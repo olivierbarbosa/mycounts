@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 /** UN seul préfixe relayé vers uvicorn. Une liste de chemins ici serait une seconde
  *  source de vérité en face du routeur FastAPI — elle a divergé dès la première route
@@ -15,7 +16,44 @@ const PORT_WEB = Number(process.env.MYCOUNTS_PORT_WEB ?? 5189)
 const PORT_API = Number(process.env.MYCOUNTS_PORT_API ?? 8010)
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'pwa',
+      filename: 'service-worker.ts',
+      injectRegister: false,
+      registerType: 'prompt',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+      },
+      manifest: {
+        id: '/',
+        name: 'MyCounts — Mon argent, clairement',
+        short_name: 'MyCounts',
+        description: 'Budgets, charges et épargne réunis dans une application simple.',
+        lang: 'fr-FR',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+        orientation: 'portrait-primary',
+        background_color: '#0F172A',
+        theme_color: '#0F172A',
+        categories: ['finance', 'productivity'],
+        icons: [
+          { src: '/pwa/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/pwa/icon-512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: '/pwa/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+    }),
+  ],
   server: {
     // 0.0.0.0 pour que l'application soit joignable depuis un autre appareil — en
     // pratique par Tailscale, dont le tunnel est chiffré de bout en bout. Le BACKEND,

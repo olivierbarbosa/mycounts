@@ -6,6 +6,7 @@
  * la compilation plutôt que de se découvrir à l'exécution.
  */
 import { EN_TETE_VUE, vueCourante } from '../design/vue'
+import { plateforme } from '../plateforme'
 import type { components } from './schema'
 
 export type UtilisateurPublic = components['schemas']['UtilisateurPublic']
@@ -120,10 +121,14 @@ export function lireDetailErreur(detail: unknown): DetailErreur {
 const BASE = '/api'
 
 async function appeler<T>(chemin: string, options: RequestInit = {}): Promise<T> {
+  const jetonNatif = await plateforme.session.lireJetonAcces()
   const reponse = await fetch(`${BASE}${chemin}`, {
     ...options,
-    // Indispensable : la session vit dans un cookie httpOnly, jamais en localStorage.
-    credentials: 'include',
+    // Le web/PWA envoie le cookie httpOnly. Le futur conteneur natif fournit ici un
+    // jeton court lu dans son trousseau : les endpoints métier n'ont pas à connaître le
+    // support qui transporte la session.
+    credentials:
+      plateforme.session.transport === 'cookie-httponly' ? 'include' : 'omit',
     // `Content-Type` seulement pour les corps JSON. Un envoi de fichier passe par un
     // `FormData`, dont la frontière multipart est générée par le NAVIGATEUR : lui imposer
     // un type ici produirait un corps que le serveur ne sait pas découper, et l'erreur
@@ -133,6 +138,7 @@ async function appeler<T>(chemin: string, options: RequestInit = {}): Promise<T>
       // appel est ce qui garantit qu'aucun ne l'oublie — et un appel qui l'oublierait
       // recevrait les comptes personnels, jamais ceux du foyer.
       [EN_TETE_VUE]: vueCourante(),
+      ...(jetonNatif === null ? {} : { Authorization: `Bearer ${jetonNatif}` }),
       ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     },

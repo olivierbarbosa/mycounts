@@ -43,6 +43,13 @@ body,
   height: 100%;
 }
 
+html {
+  /* Le conteneur natif et la PWA ne doivent jamais déclencher le rebond horizontal du
+     viewport en approchant le bord d'une zone sûre. */
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
 body {
   margin: 0;
   /* Dégradé fixe : il ne défile pas avec le contenu, sinon le verre laisserait voir une
@@ -59,6 +66,7 @@ body {
   -webkit-font-smoothing: antialiased;
   /* Le corps ne défile jamais horizontalement — vérifié par le garde-fou n°10. */
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Halos voyageurs.
