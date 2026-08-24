@@ -22,6 +22,8 @@ dist/
 .DS_Store
 playwright-report/
 test-results/
+# Cookie de session du compte de démonstration, écrit par frontend/e2e/preparation.ts
+frontend/e2e/.session-demo.json
 
 # Schéma OpenAPI régénéré à la demande (make front-installer / exporter_openapi)
 frontend/openapi.json

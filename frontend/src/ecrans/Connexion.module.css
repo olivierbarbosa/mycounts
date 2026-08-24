@@ -2,8 +2,9 @@
    Aucun panneau de login centré : la page entière est l'application. */
 
 .page {
-  min-height: 100dvh;
+  height: 100dvh;
   width: 100%;
+  overflow: hidden;
 }
 
 .coquille {
@@ -188,6 +189,38 @@
   background: var(--couleur-surface-haute);
   font-size: 14px;
   line-height: 1.4;
+}
+
+.confiance {
+  min-height: var(--cible-tactile);
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+}
+
+.confiance input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--couleur-accent-clair);
+}
+
+.actionsSecondaires {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--espace-m);
+}
+
+.actionsSecondaires button {
+  min-height: var(--cible-tactile);
+  padding: 0;
+  border: 0;
+  color: var(--couleur-accent-clair);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 .pied {

@@ -14,6 +14,9 @@ from sqlalchemy.orm import Session
 
 TABLES = (
     "tentative_connexion",
+    "courriel_sortant",
+    "appareil_confiance",
+    "jeton_identite",
     "invitation_espace",
     "appartenance",
     "plafond",

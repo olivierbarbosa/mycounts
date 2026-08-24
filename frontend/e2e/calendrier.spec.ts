@@ -15,11 +15,11 @@ const HIER = jourLocal(-1)
 async function connecter(page: import('@playwright/test').Page) {
   await page.goto('/')
   await page.locator('nav, form').first().waitFor({ state: 'visible' })
-  if (await page.locator('nav').isVisible()) return
+  if (await page.getByRole('navigation', { name: 'Navigation principale' }).isVisible()) return
   await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
   await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.locator('nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
 }
 
 async function ouvrirAgenda(page: import('@playwright/test').Page) {

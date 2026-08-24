@@ -1,46 +1,126 @@
-import { ArrowLeft, LockKeyhole, ShieldCheck, WalletCards } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { ArrowLeft, LockKeyhole, ShieldCheck, UserPlus, WalletCards } from 'lucide-react'
+import { type FormEvent, useEffect, useState } from 'react'
 
 import { ErreurApi, api, type UtilisateurPublic } from '../api/client'
 import styles from './Connexion.module.css'
 
 type Props = {
-  readonly surConnexion: (utilisateur: UtilisateurPublic) => void
+  readonly surConnexion: (utilisateur: UtilisateurPublic) => void | Promise<void>
 }
+
+type Etape =
+  | 'identifiants'
+  | 'second-facteur'
+  | 'inscription'
+  | 'recuperation'
+  | 'nouveau-mot-de-passe'
+  | 'message'
 
 export function Connexion({ surConnexion }: Props) {
   const [courriel, setCourriel] = useState('')
+  const [nom, setNom] = useState('')
   const [motDePasse, setMotDePasse] = useState('')
+  const [confirmation, setConfirmation] = useState('')
   const [code, setCode] = useState('')
-  const [etape, setEtape] = useState<'identifiants' | 'second-facteur'>('identifiants')
+  const [faireConfiance, setFaireConfiance] = useState(false)
+  const [etape, setEtape] = useState<Etape>('identifiants')
+  const [message, setMessage] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
+  const [jetonRecuperation, setJetonRecuperation] = useState<string | null>(null)
+
+  useEffect(() => {
+    const parametres = new URLSearchParams(window.location.search)
+    const verification = parametres.get('verification')
+    const recuperation = parametres.get('recuperation')
+    if (recuperation) {
+      setJetonRecuperation(recuperation)
+      setEtape('nouveau-mot-de-passe')
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
+    if (!verification) return
+    setEnCours(true)
+    void api
+      .verifierCourriel(verification)
+      .then((resultat) => {
+        setMessage(resultat.message)
+        setEtape('message')
+        window.history.replaceState({}, '', window.location.pathname)
+      })
+      .catch((cause) => {
+        setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
+        setEtape('message')
+      })
+      .finally(() => setEnCours(false))
+  }, [])
+
+  function revenir() {
+    setEtape('identifiants')
+    setErreur(null)
+    setMessage('')
+    setCode('')
+    setConfirmation('')
+  }
 
   async function soumettre(evenement: FormEvent) {
     evenement.preventDefault()
     setErreur(null)
     setEnCours(true)
     try {
-      surConnexion(
-        await api.connexion(
+      if (etape === 'identifiants' || etape === 'second-facteur') {
+        const utilisateur = await api.connexion(
           courriel,
           motDePasse,
           etape === 'second-facteur' ? code : undefined,
-        ),
-      )
+          etape === 'second-facteur' && faireConfiance,
+        )
+        await surConnexion(utilisateur)
+        return
+      }
+      if (etape === 'inscription') {
+        if (motDePasse !== confirmation) {
+          setErreur('Les deux mots de passe ne correspondent pas.')
+          return
+        }
+        const resultat = await api.inscription(courriel, nom, motDePasse)
+        setMessage(resultat.message)
+        setEtape('message')
+        return
+      }
+      if (etape === 'recuperation') {
+        const resultat = await api.demanderReinitialisation(courriel)
+        setMessage(resultat.message)
+        setEtape('message')
+        return
+      }
+      if (etape === 'nouveau-mot-de-passe' && jetonRecuperation !== null) {
+        if (motDePasse !== confirmation) {
+          setErreur('Les deux mots de passe ne correspondent pas.')
+          return
+        }
+        const resultat = await api.reinitialiserMotDePasse(
+          jetonRecuperation,
+          motDePasse,
+          code.trim() || undefined,
+        )
+        setMessage(resultat.message)
+        setEtape('message')
+      }
     } catch (cause) {
       if (cause instanceof ErreurApi && cause.motif === 'second_facteur_requis') {
         setEtape('second-facteur')
         setCode('')
         return
       }
-      // Le serveur renvoie déjà un message identique pour « adresse inconnue » et
-      // « mot de passe faux » : le client ne doit surtout pas les distinguer non plus.
       setErreur(cause instanceof ErreurApi ? cause.message : 'Le serveur est injoignable.')
     } finally {
       setEnCours(false)
     }
   }
+
+  const peutRevenir = etape !== 'identifiants'
+  const titre = titreDe(etape)
 
   return (
     <main className={styles.page}>
@@ -53,108 +133,117 @@ export function Connexion({ surConnexion }: Props) {
         </header>
 
         <section className={styles.contenu} aria-live="polite">
-          {etape === 'second-facteur' && (
-            <button
-              type="button"
-              className={styles.retour}
-              aria-label="Revenir aux identifiants"
-              onClick={() => {
-                setEtape('identifiants')
-                setErreur(null)
-              }}
-            >
+          {peutRevenir && (
+            <button type="button" className={styles.retour} aria-label="Revenir" onClick={revenir}>
               <ArrowLeft size={21} aria-hidden />
             </button>
           )}
 
           <div className={styles.introduction}>
-            {etape === 'second-facteur' && (
+            {etape !== 'identifiants' && (
               <span className={styles.temoinEtape} aria-hidden>
-                <ShieldCheck size={24} strokeWidth={1.8} />
+                {etape === 'inscription' ? (
+                  <UserPlus size={24} strokeWidth={1.8} />
+                ) : (
+                  <ShieldCheck size={24} strokeWidth={1.8} />
+                )}
               </span>
             )}
-            <h1 className={styles.titre}>
-              {etape === 'identifiants' ? 'Bonsoir.' : 'Vérifions que c’est bien vous.'}
-            </h1>
-            <p className={styles.sousTitre}>
-              {etape === 'identifiants'
-                ? 'Retrouvez votre argent, vos projets et votre prochain mois au même endroit.'
-                : 'Entrez le code de votre application d’authentification ou un code de secours.'}
-            </p>
+            <h1 className={styles.titre}>{titre}</h1>
+            <p className={styles.sousTitre}>{descriptionDe(etape, message)}</p>
           </div>
 
-          <form className={styles.formulaire} onSubmit={soumettre} noValidate>
-            {etape === 'identifiants' ? (
-              <>
-                <div className={styles.champ}>
-                  <label className={styles.etiquette} htmlFor="courriel">
-                    Adresse électronique
-                  </label>
-                  <input
-                    id="courriel"
-                    className={styles.saisie}
-                    type="email"
-                    value={courriel}
-                    onChange={(e) => setCourriel(e.target.value)}
-                    autoComplete="username"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    inputMode="email"
-                    required
-                    autoFocus
-                  />
-                </div>
-
-                <div className={styles.champ}>
-                  <label className={styles.etiquette} htmlFor="mot-de-passe">
-                    Mot de passe
-                  </label>
-                  <input
-                    id="mot-de-passe"
-                    className={styles.saisie}
-                    type="password"
-                    value={motDePasse}
-                    onChange={(e) => setMotDePasse(e.target.value)}
-                    autoComplete="current-password"
-                    required
-                  />
-                </div>
-              </>
-            ) : (
-              <div className={styles.champ}>
-                <label className={styles.etiquette} htmlFor="code-second-facteur">
-                  Code de vérification
-                </label>
-                <input
-                  id="code-second-facteur"
-                  className={`${styles.saisie} ${styles.code}`}
-                  type="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  autoComplete="one-time-code"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  placeholder="123 456 ou code de secours"
-                  required
-                  autoFocus
+          {etape !== 'message' && (
+            <form className={styles.formulaire} onSubmit={soumettre} noValidate>
+              {etape === 'inscription' && (
+                <Champ id="nom" label="Votre prénom ou nom" value={nom} onChange={setNom} />
+              )}
+              {(etape === 'identifiants' ||
+                etape === 'inscription' ||
+                etape === 'recuperation') && (
+                <Champ
+                  id="courriel"
+                  label="Adresse électronique"
+                  value={courriel}
+                  onChange={setCourriel}
+                  type="email"
+                  autoComplete="username"
                 />
-              </div>
-            )}
+              )}
+              {(etape === 'identifiants' ||
+                etape === 'inscription' ||
+                etape === 'nouveau-mot-de-passe') && (
+                <Champ
+                  id="mot-de-passe"
+                  label={etape === 'identifiants' ? 'Mot de passe' : 'Nouveau mot de passe'}
+                  value={motDePasse}
+                  onChange={setMotDePasse}
+                  type="password"
+                  autoComplete={etape === 'identifiants' ? 'current-password' : 'new-password'}
+                />
+              )}
+              {(etape === 'inscription' || etape === 'nouveau-mot-de-passe') && (
+                <Champ
+                  id="confirmation"
+                  label="Confirmer le mot de passe"
+                  value={confirmation}
+                  onChange={setConfirmation}
+                  type="password"
+                  autoComplete="new-password"
+                />
+              )}
+              {(etape === 'second-facteur' || etape === 'nouveau-mot-de-passe') && (
+                <Champ
+                  id="code-second-facteur"
+                  label={
+                    etape === 'second-facteur'
+                      ? 'Code de vérification'
+                      : 'Code MFA ou de secours si actif'
+                  }
+                  value={code}
+                  onChange={setCode}
+                  autoComplete="one-time-code"
+                  classe={styles.code}
+                  facultatif={etape === 'nouveau-mot-de-passe'}
+                />
+              )}
+              {etape === 'second-facteur' && (
+                <label className={styles.confiance}>
+                  <input
+                    type="checkbox"
+                    checked={faireConfiance}
+                    onChange={(e) => setFaireConfiance(e.target.checked)}
+                  />
+                  Faire confiance à ce téléphone pendant 30 jours
+                </label>
+              )}
 
-            {erreur !== null && (
-              <p className={styles.erreur} role="alert">
-                {erreur}
-              </p>
-            )}
+              {erreur !== null && (
+                <p className={styles.erreur} role="alert">
+                  {erreur}
+                </p>
+              )}
+              <button className={styles.bouton} type="submit" disabled={enCours}>
+                {enCours ? 'Vérification…' : actionDe(etape)}
+              </button>
+            </form>
+          )}
 
-            <button className={styles.bouton} type="submit" disabled={enCours}>
-              {enCours
-                ? 'Vérification…'
-                : etape === 'identifiants'
-                  ? 'Se connecter'
-                  : 'Continuer'}
-            </button>
-          </form>
+          {etape === 'identifiants' && (
+            <nav className={styles.actionsSecondaires} aria-label="Accès au compte">
+              <button type="button" onClick={() => setEtape('recuperation')}>
+                Mot de passe oublié
+              </button>
+              <button type="button" onClick={() => setEtape('inscription')}>
+                Créer un compte
+              </button>
+            </nav>
+          )}
+          {etape === 'message' && erreur !== null && (
+            <p className={styles.erreur} role="alert">
+              {erreur}
+            </p>
+          )}
         </section>
 
         <footer className={styles.pied}>
@@ -164,4 +253,75 @@ export function Connexion({ surConnexion }: Props) {
       </div>
     </main>
   )
+}
+
+type ChampProps = {
+  id: string
+  label: string
+  value: string
+  onChange: (valeur: string) => void
+  type?: 'text' | 'email' | 'password'
+  autoComplete?: string
+  classe?: string
+  facultatif?: boolean
+}
+
+function Champ({
+  id,
+  label,
+  value,
+  onChange,
+  type = 'text',
+  autoComplete,
+  classe,
+  facultatif = false,
+}: ChampProps) {
+  return (
+    <div className={styles.champ}>
+      <label className={styles.etiquette} htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        className={`${styles.saisie} ${classe ?? ''}`}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        autoCapitalize={type === 'email' ? 'none' : undefined}
+        spellCheck={false}
+        inputMode={type === 'email' ? 'email' : undefined}
+        required={!facultatif}
+      />
+    </div>
+  )
+}
+
+function titreDe(etape: Etape): string {
+  if (etape === 'identifiants') return 'Bonsoir.'
+  if (etape === 'second-facteur') return 'Vérifions que c’est bien vous.'
+  if (etape === 'inscription') return 'Votre espace commence ici.'
+  if (etape === 'recuperation') return 'Retrouvons votre accès.'
+  if (etape === 'nouveau-mot-de-passe') return 'Choisissez un nouvel accès.'
+  return 'C’est presque terminé.'
+}
+
+function descriptionDe(etape: Etape, message: string): string {
+  if (etape === 'identifiants')
+    return 'Retrouvez votre argent, vos projets et votre prochain mois au même endroit.'
+  if (etape === 'second-facteur')
+    return 'Entrez le code de votre application ou un code de secours.'
+  if (etape === 'inscription') return 'La bêta est privée ; une invitation peut être nécessaire.'
+  if (etape === 'recuperation') return 'Nous enverrons un lien si cette adresse possède un compte.'
+  if (etape === 'nouveau-mot-de-passe')
+    return 'Votre code MFA reste demandé si votre compte en possède un.'
+  return message || 'Vous pouvez revenir à la connexion.'
+}
+
+function actionDe(etape: Etape): string {
+  if (etape === 'identifiants') return 'Se connecter'
+  if (etape === 'second-facteur') return 'Continuer'
+  if (etape === 'inscription') return 'Créer mon espace'
+  if (etape === 'recuperation') return 'Recevoir le lien'
+  return 'Remplacer le mot de passe'
 }

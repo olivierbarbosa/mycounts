@@ -26,7 +26,12 @@ from tests.integration.test_api_auth import creer_compte
 ROUTES_PUBLIQUES = {
     ("/health", "GET"),
     ("/api/auth/connexion", "POST"),
+    ("/api/auth/inscription", "POST"),
     ("/api/auth/rejoindre", "POST"),
+    ("/api/auth/verification", "POST"),
+    ("/api/auth/verification/renvoyer", "POST"),
+    ("/api/auth/mot-de-passe-oublie", "POST"),
+    ("/api/auth/reinitialisation", "POST"),
 }
 
 

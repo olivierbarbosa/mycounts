@@ -26,11 +26,11 @@ const TECHNIQUES = new Set(['offset', 'computedOffset', 'easing', 'composite'])
 async function connecter(page: Page) {
   await page.goto('/')
   await page.locator('nav, form').first().waitFor({ state: 'visible' })
-  if (await page.locator('nav').isVisible()) return
+  if (await page.getByRole('navigation', { name: 'Navigation principale' }).isVisible()) return
   await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
   await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.locator('nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
 }
 
 /** Propriétés réellement animées sur un élément, hors clés techniques. */
@@ -177,7 +177,7 @@ test.describe('sur téléphone', () => {
     await connecter(page)
     await page.getByRole('button', { name: 'Épargne' }).click()
 
-    const animees = await proprietesAnimees(page, 'nav [aria-current="page"] svg')
+    const animees = await proprietesAnimees(page, 'nav[aria-label="Navigation principale"] [aria-current="page"] svg')
     expect(animees, 'l’icône de l’onglet actif ne joue aucune animation').not.toBeNull()
     expect(animees, 'le rebond se fait par une mise à l’échelle').toContain('scale')
     for (const propriete of animees!) {
@@ -187,7 +187,7 @@ test.describe('sur téléphone', () => {
     // Et elle se rejoue au changement suivant, pas seulement la première fois.
     await page.getByRole('button', { name: 'Calendrier' }).click()
     const seconde = await page.evaluate(() => {
-      const icone = document.querySelector('nav [aria-current="page"] svg')
+      const icone = document.querySelector('nav[aria-label="Navigation principale"] [aria-current="page"] svg')
       return icone?.getAnimations().length ?? 0
     })
     expect(seconde, 'l’animation ne s’est pas rejouée').toBeGreaterThan(0)

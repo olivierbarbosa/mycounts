@@ -28,7 +28,7 @@ Règle de lecture : **la colonne « ne fait pas » compte autant que l'autre.** 
 | | |
 |---|---|
 | **Sert à** | Entrer dans l'application. Rien d'autre. |
-| **Ne fait pas** | Pas d'inscription libre. Pas de mot de passe oublié pour l'instant (compte recréé par script). |
+| **Ne fait pas** | Pas d'inscription libre tant que `MYCOUNTS_INSCRIPTIONS_OUVERTES` est faux. Le mot de passe oublié passe par un lien envoyé par courriel (livré le 24 août 2026). |
 | **État** | ✅ Terminé. |
 
 ---
@@ -136,4 +136,4 @@ l'argent ce mois-ci ?*
 - Un compte supplémentaire : depuis les Réglages, ou depuis l'accueil ?
 - Les plafonds du foyer, quand les comptes joints arriveront : quelle période commune,
   puisque chaque membre a la sienne ?
-- Mot de passe oublié : script, ou envoi de courriel (qui impose un serveur SMTP fiable) ?
+- ~~Mot de passe oublié : script, ou envoi de courriel ?~~ — **TRANCHÉ le 24 août 2026** : courriel, par une boîte d'envoi en base et un worker SMTP séparé (`scripts/traiter_courriels.py`).

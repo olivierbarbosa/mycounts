@@ -12,7 +12,7 @@ import { expect, test } from '@playwright/test'
 async function connecter(page: import('@playwright/test').Page) {
   await page.goto('/')
   await page.locator('nav, form').first().waitFor({ state: 'visible' })
-  if (await page.locator('nav').isVisible()) return
+  if (await page.getByRole('navigation', { name: 'Navigation principale' }).isVisible()) return
   const courriel = page.getByLabel('Adresse électronique')
   if (await courriel.isVisible()) {
     await courriel.fill(process.env.MYCOUNTS_COURRIEL_TEST!)
@@ -24,7 +24,7 @@ async function connecter(page: import('@playwright/test').Page) {
     // laissait le temps — mais tout appel direct à `page.request` partait sans cookie et
     // recevait un 401 silencieux, dont le seul symptôme visible était une condition qui ne
     // se déclenchait jamais.
-    await expect(page.locator('nav')).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
   }
 }
 
@@ -147,7 +147,7 @@ test('la coche « c’est ma paie » n’existe plus, dans aucun des trois modes
       data: { nom: `Second ${Date.now()}`, produit: 'livret_a', prive: true },
     })
     await page.reload()
-    await expect(page.locator('nav')).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
   }
 
   await page.getByRole('button', { name: 'Saisir une opération' }).click()

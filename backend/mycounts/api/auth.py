@@ -10,19 +10,31 @@ import io
 import uuid
 from dataclasses import dataclass
 from typing import Annotated
+from urllib.parse import urlencode
 
 import qrcode
 import qrcode.image.svg
 from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile, status
 from sqlalchemy.exc import IntegrityError
 
-from mycounts.api.dependances import NOM_COOKIE, PrincipalCourant, SessionBase
+from mycounts.api.dependances import (
+    NOM_COOKIE,
+    PrincipalCourant,
+    PrincipalIdentite,
+    SessionBase,
+)
 from mycounts.api.schemas import (
+    AccuseIdentite,
+    AppareilPublic,
     DemandeActivationSecondFacteur,
     DemandeAdhesion,
     DemandeChangementCourriel,
     DemandeChangementMotDePasse,
     DemandeConnexion,
+    DemandeInscription,
+    DemandeJetonIdentite,
+    DemandeRecuperation,
+    DemandeReinitialisation,
     DemandeRenommage,
     DemandeSuppressionCompte,
     EnrolementPropose,
@@ -49,20 +61,28 @@ from mycounts.domain.securite import (
     DUREE_SESSION,
     empreinte_jeton,
     engendrer_jeton,
+    expiration_appareil_confiance,
     expiration_invitation,
+    expiration_reinitialisation,
     expiration_session,
+    expiration_verification_courriel,
     hacher_mot_de_passe,
     maintenant,
     normaliser_courriel,
     verifier_mot_de_passe,
 )
-from mycounts.models.auth import Utilisateur
+from mycounts.models.auth import AppareilConfiance, Utilisateur
 from mycounts.repository import auth as depot
 from mycounts.repository import budget as depot_budget
 from mycounts.repository import espaces as depot_espaces
+from mycounts.repository import identite as depot_identite
 from mycounts.repository import limitation_auth as depot_limitation
 
 routeur = APIRouter(prefix="/auth", tags=["authentification"])
+
+NOM_COOKIE_APPAREIL = "mycounts_appareil"
+USAGE_VERIFICATION = "verification_courriel"
+USAGE_REINITIALISATION = "reinitialisation_mot_de_passe"
 
 # Empreinte d'un mot de passe qui n'est celui de personne. Sert à faire travailler Argon2
 # même quand le compte n'existe pas : sans ça, une connexion sur adresse inconnue
@@ -189,6 +209,104 @@ def _pose_le_cookie(reponse: Response, jeton: str) -> None:
     )
 
 
+def _pose_le_cookie_appareil(reponse: Response, secret: str) -> None:
+    configuration = charger_configuration()
+    reponse.set_cookie(
+        key=NOM_COOKIE_APPAREIL,
+        value=secret,
+        httponly=True,
+        samesite="strict",
+        secure=configuration.environnement != "developpement",
+        max_age=int((expiration_appareil_confiance() - maintenant()).total_seconds()),
+        path="/api/auth",
+    )
+
+
+def _mettre_lien_identite_en_file(
+    session: SessionBase,
+    *,
+    utilisateur: Utilisateur,
+    usage: str,
+) -> None:
+    """Crée preuve et message dans la même transaction, sans journaliser le jeton."""
+    jeton = engendrer_jeton()
+    expire_le = (
+        expiration_verification_courriel()
+        if usage == USAGE_VERIFICATION
+        else expiration_reinitialisation()
+    )
+    preuve = depot_identite.creer_jeton(
+        session,
+        utilisateur_id=utilisateur.id,
+        usage=usage,
+        empreinte=empreinte_jeton(jeton),
+        expire_le=expire_le,
+    )
+    configuration = charger_configuration()
+    chemin = "verification" if usage == USAGE_VERIFICATION else "recuperation"
+    lien = (
+        f"{configuration.url_publique.rstrip('/')}/?"
+        + urlencode({chemin: jeton})
+    )
+    depot_identite.mettre_en_file(
+        session,
+        utilisateur_id=utilisateur.id,
+        cle_idempotence=f"{usage}:{preuve.id}",
+        destinataire=utilisateur.courriel,
+        modele=usage,
+        donnees={"nom": utilisateur.nom_affichage, "lien": lien},
+    )
+
+
+def _appareil_valide(
+    session: SessionBase, requete: Request, utilisateur: Utilisateur, *, instant: dt.datetime
+) -> AppareilConfiance | None:
+    secret = requete.cookies.get(NOM_COOKIE_APPAREIL)
+    if not secret:
+        return None
+    return depot_identite.appareil_actif(
+        session,
+        utilisateur_id=utilisateur.id,
+        empreinte_secret=empreinte_jeton(secret),
+        a_l_instant=instant,
+    )
+
+
+def _tourner_appareil(
+    session: SessionBase,
+    reponse: Response,
+    appareil: AppareilConfiance,
+) -> None:
+    secret = engendrer_jeton()
+    depot_identite.tourner_secret_appareil(
+        session,
+        appareil,
+        empreinte_secret=empreinte_jeton(secret),
+        expire_le=expiration_appareil_confiance(),
+    )
+    _pose_le_cookie_appareil(reponse, secret)
+
+
+def _faire_confiance_a_lappareil(
+    session: SessionBase,
+    requete: Request,
+    reponse: Response,
+    utilisateur: Utilisateur,
+    *,
+    nom_demande: str | None,
+) -> None:
+    secret = engendrer_jeton()
+    nom = (nom_demande or requete.headers.get("user-agent") or "Appareil").strip()
+    depot_identite.creer_appareil(
+        session,
+        utilisateur_id=utilisateur.id,
+        empreinte_secret=empreinte_jeton(secret),
+        nom=nom,
+        expire_le=expiration_appareil_confiance(),
+    )
+    _pose_le_cookie_appareil(reponse, secret)
+
+
 def _version_avatar(session: SessionBase, utilisateur_id: uuid.UUID) -> str | None:
     return depot.versions_des_avatars(session, [utilisateur_id]).get(utilisateur_id)
 
@@ -205,7 +323,7 @@ def _qr_en_svg(uri: str) -> str:
     return tampon.getvalue().decode()
 
 
-def _utilisateur_courant(session: SessionBase, principal: PrincipalCourant) -> Utilisateur:
+def _utilisateur_courant(session: SessionBase, principal: PrincipalIdentite) -> Utilisateur:
     """L'utilisateur derrière la session.
 
     Le 404 n'arrive qu'entre une suppression de compte et la fin d'une requête déjà
@@ -234,7 +352,152 @@ def _vue_publique(utilisateur: Utilisateur, *, version_avatar: str | None) -> Ut
         est_proprietaire=utilisateur.est_proprietaire,
         a_un_avatar=version_avatar is not None,
         avatar_version=version_avatar,
+        courriel_verifie=utilisateur.courriel_verifie_le is not None,
+        second_facteur_actif=utilisateur.totp_actif,
+        enrolement_requis=not utilisateur.totp_actif or utilisateur.secret_totp is None,
     )
+
+
+@routeur.post(
+    "/inscription",
+    response_model=AccuseIdentite,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def inscription(
+    demande: DemandeInscription, requete: Request, session: SessionBase
+) -> AccuseIdentite:
+    """Crée une identité non vérifiée; la bêta reste fermée par configuration."""
+    if not charger_configuration().inscriptions_ouvertes:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Les inscriptions sont actuellement sur invitation.",
+        )
+    instant = maintenant()
+    seaux = _seaux_de_connexion(requete, demande.courriel)
+    _refuser_si_limite_atteinte(session, seaux, instant=instant)
+    _compter_un_echec(session, seaux, instant=instant)
+
+    existant = depot.utilisateur_par_courriel(session, demande.courriel)
+    if existant is not None:
+        # Même réponse : l'inscription ne devient pas un annuaire d'adresses.
+        return AccuseIdentite(
+            message="Si cette adresse peut être utilisée, un lien vient d’être envoyé."
+        )
+
+    try:
+        utilisateur, espace_personnel = depot.creer_identite_personnelle(
+            session,
+            courriel=demande.courriel,
+            nom_affichage=demande.nom_affichage.strip(),
+            empreinte_mot_de_passe=hacher_mot_de_passe(demande.mot_de_passe),
+            courriel_verifie=False,
+        )
+        depot_budget.creer_categories_initiales(session, espace_personnel.id)
+        _mettre_lien_identite_en_file(
+            session, utilisateur=utilisateur, usage=USAGE_VERIFICATION
+        )
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+    return AccuseIdentite(
+        message="Si cette adresse peut être utilisée, un lien vient d’être envoyé."
+    )
+
+
+@routeur.post("/verification", response_model=AccuseIdentite)
+def verifier_le_courriel(
+    demande: DemandeJetonIdentite, session: SessionBase
+) -> AccuseIdentite:
+    instant = maintenant()
+    trouve = depot_identite.consommer_jeton(
+        session,
+        empreinte=empreinte_jeton(demande.jeton),
+        usage=USAGE_VERIFICATION,
+        a_l_instant=instant,
+    )
+    if trouve is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ce lien est inconnu, expiré ou déjà utilisé.",
+        )
+    _, utilisateur = trouve
+    depot_identite.marquer_courriel_verifie(session, utilisateur, a_l_instant=instant)
+    session.commit()
+    return AccuseIdentite(message="Votre adresse est vérifiée. Vous pouvez vous connecter.")
+
+
+@routeur.post(
+    "/verification/renvoyer",
+    response_model=AccuseIdentite,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def renvoyer_la_verification(
+    demande: DemandeRecuperation, requete: Request, session: SessionBase
+) -> AccuseIdentite:
+    instant = maintenant()
+    seaux = _seaux_de_connexion(requete, demande.courriel)
+    _refuser_si_limite_atteinte(session, seaux, instant=instant)
+    _compter_un_echec(session, seaux, instant=instant)
+    utilisateur = depot.utilisateur_par_courriel(session, demande.courriel)
+    if utilisateur is not None and utilisateur.courriel_verifie_le is None:
+        _mettre_lien_identite_en_file(
+            session, utilisateur=utilisateur, usage=USAGE_VERIFICATION
+        )
+        session.commit()
+    return AccuseIdentite(
+        message="Si cette adresse attend une vérification, un lien vient d’être envoyé."
+    )
+
+
+@routeur.post(
+    "/mot-de-passe-oublie",
+    response_model=AccuseIdentite,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def demander_une_reinitialisation(
+    demande: DemandeRecuperation, requete: Request, session: SessionBase
+) -> AccuseIdentite:
+    instant = maintenant()
+    seaux = _seaux_de_connexion(requete, demande.courriel)
+    _refuser_si_limite_atteinte(session, seaux, instant=instant)
+    _compter_un_echec(session, seaux, instant=instant)
+    utilisateur = depot.utilisateur_par_courriel(session, demande.courriel)
+    if utilisateur is not None and utilisateur.courriel_verifie_le is not None:
+        _mettre_lien_identite_en_file(
+            session, utilisateur=utilisateur, usage=USAGE_REINITIALISATION
+        )
+        session.commit()
+    return AccuseIdentite(
+        message="Si cette adresse possède un compte, un lien vient d’être envoyé."
+    )
+
+
+@routeur.post("/reinitialisation", response_model=AccuseIdentite)
+def reinitialiser_le_mot_de_passe(
+    demande: DemandeReinitialisation, session: SessionBase
+) -> AccuseIdentite:
+    trouve = depot_identite.consommer_jeton(
+        session,
+        empreinte=empreinte_jeton(demande.jeton),
+        usage=USAGE_REINITIALISATION,
+        a_l_instant=maintenant(),
+    )
+    if trouve is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ce lien est inconnu, expiré ou déjà utilisé.",
+        )
+    _, utilisateur = trouve
+    if utilisateur.totp_actif:
+        _exiger_le_second_facteur(session, utilisateur, demande.code)
+    depot.reinitialiser_le_mot_de_passe(
+        session,
+        utilisateur,
+        empreinte=hacher_mot_de_passe(demande.nouveau_mot_de_passe),
+    )
+    depot_identite.revoquer_tous_les_appareils(session, utilisateur.id)
+    session.commit()
+    return AccuseIdentite(message="Votre mot de passe a été remplacé.")
 
 
 @routeur.post("/connexion", response_model=UtilisateurPublic)
@@ -267,14 +530,44 @@ def connexion(
         _compter_un_echec(session, seaux, instant=instant)
         raise refus
 
+    if utilisateur.courriel_verifie_le is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "motif": "courriel_non_verifie",
+                "message": "Vérifiez votre adresse avant de vous connecter.",
+            },
+        )
+
+    appareil_deja_fiable: AppareilConfiance | None = None
+    preuve_mfa_directe = False
     if utilisateur.totp_actif and utilisateur.secret_totp is not None:
-        try:
-            _exiger_le_second_facteur(session, utilisateur, demande.code)
-        except HTTPException as erreur:
-            detail = erreur.detail
-            if isinstance(detail, dict) and detail.get("motif") == "second_facteur_invalide":
-                _compter_un_echec(session, seaux, instant=instant)
-            raise
+        appareil_deja_fiable = _appareil_valide(
+            session, requete, utilisateur, instant=instant
+        )
+        if not appareil_deja_fiable:
+            preuve_mfa_directe = demande.code is not None and demande.code.strip() != ""
+            try:
+                _exiger_le_second_facteur(session, utilisateur, demande.code)
+            except HTTPException as erreur:
+                detail = erreur.detail
+                if isinstance(detail, dict) and detail.get("motif") == "second_facteur_invalide":
+                    _compter_un_echec(session, seaux, instant=instant)
+                raise
+
+    second_facteur_satisfait = utilisateur.totp_actif and (
+        appareil_deja_fiable is not None or preuve_mfa_directe
+    )
+    if appareil_deja_fiable is not None:
+        _tourner_appareil(session, reponse, appareil_deja_fiable)
+    if demande.faire_confiance and preuve_mfa_directe:
+        _faire_confiance_a_lappareil(
+            session,
+            requete,
+            reponse,
+            utilisateur,
+            nom_demande=demande.nom_appareil,
+        )
 
     jeton = engendrer_jeton()
     depot.enregistrer_session_web(
@@ -282,6 +575,7 @@ def connexion(
         utilisateur_id=utilisateur.id,
         empreinte=empreinte_jeton(jeton),
         expire_le=expiration_session(),
+        second_facteur_satisfait=second_facteur_satisfait,
     )
     _oublier_les_seaux(
         session, tuple(seau for seau in seaux if seau.portee is Portee.COUPLE)
@@ -353,7 +647,7 @@ def deconnexion(
     requete: Request,
     reponse: Response,
     session: SessionBase,
-    principal: PrincipalCourant,
+    principal: PrincipalIdentite,
 ) -> None:
     """Ferme la session courante côté serveur ET côté navigateur.
 
@@ -369,7 +663,7 @@ def deconnexion(
 
 
 @routeur.get("/moi", response_model=UtilisateurPublic)
-def moi(session: SessionBase, principal: PrincipalCourant) -> UtilisateurPublic:
+def moi(session: SessionBase, principal: PrincipalIdentite) -> UtilisateurPublic:
     utilisateur = depot.utilisateur_par_id(session, principal.utilisateur_id)
     if utilisateur is None:  # pragma: no cover — le principal vient d'être validé
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session invalide.")
@@ -431,6 +725,10 @@ def rejoindre(
         courriel=courriel,
         nom_affichage=demande.nom_affichage,
         empreinte_mot_de_passe=hacher_mot_de_passe(demande.mot_de_passe),
+        courriel_verifie=False,
+    )
+    _mettre_lien_identite_en_file(
+        session, utilisateur=utilisateur, usage=USAGE_VERIFICATION
     )
     espace_personnel, _ = depot_espaces.creer_espace_personnel(session, utilisateur)
     depot_budget.creer_categories_initiales(session, espace_personnel.id)
@@ -442,6 +740,7 @@ def rejoindre(
         utilisateur_id=utilisateur.id,
         empreinte=empreinte_jeton(jeton),
         expire_le=expiration_session(),
+        second_facteur_satisfait=False,
     )
     session.commit()
     _pose_le_cookie(reponse, jeton)
@@ -528,6 +827,7 @@ def changer_le_mot_de_passe(
         # juste après avoir annoncé un succès, ce qui se lit comme un échec.
         sauf_empreinte_jeton=empreinte_jeton(requete.cookies.get(NOM_COOKIE, "")),
     )
+    depot_identite.revoquer_tous_les_appareils(session, utilisateur.id)
     session.commit()
 
 
@@ -549,6 +849,11 @@ def changer_le_courriel(
 
     try:
         depot.changer_le_courriel(session, utilisateur, courriel=demande.courriel)
+        utilisateur.courriel_verifie_le = None
+        depot_identite.revoquer_tous_les_appareils(session, utilisateur.id)
+        _mettre_lien_identite_en_file(
+            session, utilisateur=utilisateur, usage=USAGE_VERIFICATION
+        )
         session.commit()
     except IntegrityError:
         session.rollback()
@@ -591,7 +896,7 @@ async def envoyer_son_avatar(
 
 @routeur.get("/moi/second-facteur", response_model=EtatSecondFacteur)
 def etat_du_second_facteur(
-    session: SessionBase, principal: PrincipalCourant
+    session: SessionBase, principal: PrincipalIdentite
 ) -> EtatSecondFacteur:
     utilisateur = _utilisateur_courant(session, principal)
     return EtatSecondFacteur(
@@ -600,9 +905,43 @@ def etat_du_second_facteur(
     )
 
 
+@routeur.get("/moi/appareils", response_model=list[AppareilPublic])
+def lister_les_appareils(
+    session: SessionBase, principal: PrincipalCourant
+) -> list[AppareilPublic]:
+    return [
+        AppareilPublic(
+            id=appareil.id,
+            nom=appareil.nom,
+            cree_le=appareil.cree_le,
+            vu_le=appareil.vu_le,
+            expire_le=appareil.expire_le,
+        )
+        for appareil in depot_identite.appareils_de(session, principal.utilisateur_id)
+        if appareil.expire_le > maintenant()
+    ]
+
+
+@routeur.delete("/moi/appareils/{appareil_id}", status_code=status.HTTP_204_NO_CONTENT)
+def revoquer_un_appareil(
+    appareil_id: uuid.UUID,
+    reponse: Response,
+    session: SessionBase,
+    principal: PrincipalCourant,
+) -> None:
+    if not depot_identite.revoquer_appareil(
+        session, utilisateur_id=principal.utilisateur_id, appareil_id=appareil_id
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appareil introuvable.")
+    session.commit()
+    # Si c'était cet appareil, le cookie devient inutilisable; le retirer évite un essai
+    # silencieux à la prochaine connexion. Pour un autre appareil, c'est sans conséquence.
+    reponse.delete_cookie(NOM_COOKIE_APPAREIL, path="/api/auth")
+
+
 @routeur.post("/moi/second-facteur/preparer", response_model=EnrolementPropose)
 def preparer_le_second_facteur(
-    session: SessionBase, principal: PrincipalCourant
+    session: SessionBase, principal: PrincipalIdentite
 ) -> EnrolementPropose:
     """Engendre un secret et rend de quoi le configurer. **N'active rien.**
 
@@ -634,8 +973,9 @@ def preparer_le_second_facteur(
 def activer_le_second_facteur(
     demande: DemandeActivationSecondFacteur,
     requete: Request,
+    reponse: Response,
     session: SessionBase,
-    principal: PrincipalCourant,
+    principal: PrincipalIdentite,
 ) -> SecondFacteurActive:
     """Vérifie un PREMIER code, puis active. Rend les dix codes de secours, une seule fois.
 
@@ -674,6 +1014,18 @@ def activer_le_second_facteur(
         utilisateur,
         empreintes_de_secours=[hacher_code_de_secours(c) for c in codes],
     )
+    depot_identite.revoquer_tous_les_appareils(session, utilisateur.id)
+    jeton_session = requete.cookies.get(NOM_COOKIE)
+    if jeton_session is not None:
+        depot.marquer_session_mfa(session, empreinte=empreinte_jeton(jeton_session))
+    if demande.faire_confiance:
+        _faire_confiance_a_lappareil(
+            session,
+            requete,
+            reponse,
+            utilisateur,
+            nom_demande=demande.nom_appareil,
+        )
     _oublier_les_seaux(session, seaux)
     session.commit()
     return SecondFacteurActive(codes_de_secours=codes)
@@ -709,6 +1061,7 @@ def desactiver_le_second_facteur(
         raise
 
     depot.desactiver_le_second_facteur(session, utilisateur)
+    depot_identite.revoquer_tous_les_appareils(session, utilisateur.id)
     _oublier_les_seaux(session, seaux)
     session.commit()
 

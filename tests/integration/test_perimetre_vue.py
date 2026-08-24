@@ -21,8 +21,8 @@ from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
 from mycounts.repository import auth as depot_auth
 from sqlalchemy.orm import Session
 
-from tests.integration.test_api_auth import MOT_DE_PASSE, connecter
-from tests.integration.test_api_budget import session_ouverte
+from tests.integration.test_api_auth import MOT_DE_PASSE
+from tests.integration.test_api_budget import connecter_avec_mfa, session_ouverte
 
 FOYER = {"X-Mycounts-Vue": "foyer"}
 
@@ -84,9 +84,10 @@ def test_un_plafond_de_foyer_est_commun_un_plafond_personnel_ne_lest_pas(
         courriel=normaliser_courriel("bruno@essai.fr"),
         nom_affichage="Bruno",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
-    connecter(client, "bruno@essai.fr")
+    connecter_avec_mfa(client, session_bd, "bruno@essai.fr")
 
     # Ce que Bruno DOIT voir : la limite commune, posée par Alice.
     partages = [p["categorie_id"] for p in client.get("/api/plafonds", headers=FOYER).json()]
@@ -160,9 +161,10 @@ def test_une_operation_dit_qui_la_saisie(client: TestClient, session_bd: Session
         courriel=normaliser_courriel("bruno@essai.fr"),
         nom_affichage="Bruno",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
-    connecter(client, "bruno@essai.fr")
+    connecter_avec_mfa(client, session_bd, "bruno@essai.fr")
 
     ecrite = client.post(
         "/api/operations",
@@ -179,7 +181,7 @@ def test_une_operation_dit_qui_la_saisie(client: TestClient, session_bd: Session
     assert ecrite.json()["cree_par_id"] == bruno_id
 
     # Et Alice, qui relit la même ligne, apprend qui l'a écrite.
-    connecter(client, "a@essai.fr")
+    connecter_avec_mfa(client, session_bd, "a@essai.fr")
     lignes = client.get("/api/operations", headers=FOYER).json()
     saisie = next(o for o in lignes if o["libelle"] == "Courses de Bruno")
     assert saisie["cree_par_id"] == bruno_id, "l’auteur doit survivre au changement de lecteur"

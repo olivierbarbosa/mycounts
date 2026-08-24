@@ -34,11 +34,40 @@ class DemandeConnexion(BaseModel):
     Le serveur essaie le TOTP d'abord, le code de secours ensuite — leurs formats ne se
     confondent pas."""
 
+    faire_confiance: bool = False
+    nom_appareil: str | None = Field(default=None, max_length=120)
+
+
+class DemandeInscription(BaseModel):
+    courriel: Courriel
+    nom_affichage: str = Field(min_length=1, max_length=80)
+    mot_de_passe: str = Field(min_length=LONGUEUR_MINIMALE_MOT_DE_PASSE)
+
+
+class DemandeJetonIdentite(BaseModel):
+    jeton: str = Field(min_length=20, max_length=200)
+
+
+class DemandeRecuperation(BaseModel):
+    courriel: Courriel
+
+
+class DemandeReinitialisation(BaseModel):
+    jeton: str = Field(min_length=20, max_length=200)
+    nouveau_mot_de_passe: str = Field(min_length=LONGUEUR_MINIMALE_MOT_DE_PASSE)
+    code: str | None = None
+
+
+class AccuseIdentite(BaseModel):
+    message: str
+
 
 class DemandeActivationSecondFacteur(BaseModel):
     """Le premier code, celui qui prouve que l'application est bien configurée."""
 
     code: str = Field(min_length=6, max_length=10)
+    faire_confiance: bool = False
+    nom_appareil: str | None = Field(default=None, max_length=120)
 
 
 class DemandeAdhesion(BaseModel):
@@ -81,6 +110,18 @@ class UtilisateurPublic(BaseModel):
     local ne rafraîchirait que le formulaire qui l'incrémente, et la bulle garderait
     l'ancienne photo — l'`ETag` ne suffit pas, une image déjà dans le DOM n'est pas
     redemandée tant que son URL ne bouge pas."""
+
+    courriel_verifie: bool = True
+    second_facteur_actif: bool = False
+    enrolement_requis: bool = False
+
+
+class AppareilPublic(BaseModel):
+    id: uuid.UUID
+    nom: str
+    cree_le: dt.datetime
+    vu_le: dt.datetime
+    expire_le: dt.datetime
 
 
 class MembrePublic(BaseModel):

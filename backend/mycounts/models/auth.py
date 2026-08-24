@@ -11,6 +11,7 @@ import datetime as dt
 import uuid
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -129,6 +130,9 @@ class Utilisateur(Base):
     nom_affichage: Mapped[str] = mapped_column(String(80))
     empreinte_mot_de_passe: Mapped[str] = mapped_column(String(255))
     actif: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    courriel_verifie_le: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
     # Qui peut détruire le foyer et gérer ses membres. Une colonne explicite plutôt que
     # « le membre le plus ancien » : déduire un pouvoir d'une date de création en fait une
     # règle sans auteur, que le premier tri par `cree_le` écrit ailleurs contredirait.
@@ -299,6 +303,86 @@ class SessionWeb(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     expire_le: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    second_facteur_satisfait: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
+
+
+class JetonIdentite(Base):
+    """Jeton opaque à usage unique pour vérifier ou récupérer une identité."""
+
+    __tablename__ = "jeton_identite"
+    __table_args__ = (
+        UniqueConstraint("empreinte", name="uq_jeton_identite_empreinte"),
+        CheckConstraint(
+            "usage in ('verification_courriel', 'reinitialisation_mot_de_passe')",
+            name="ck_jeton_identite_usage",
+        ),
+        Index("ix_jeton_identite_expiration", "expire_le"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    utilisateur_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="CASCADE")
+    )
+    usage: Mapped[str] = mapped_column(String(40))
+    empreinte: Mapped[str] = mapped_column(String(64))
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    expire_le: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    utilise_le: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+
+class AppareilConfiance(Base):
+    """Appareil autorisé à éviter le TOTP pendant trente jours, révocable seul."""
+
+    __tablename__ = "appareil_confiance"
+    __table_args__ = (
+        UniqueConstraint("empreinte_secret", name="uq_appareil_confiance_empreinte"),
+        Index("ix_appareil_confiance_expiration", "expire_le"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    utilisateur_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="CASCADE")
+    )
+    empreinte_secret: Mapped[str] = mapped_column(String(64))
+    nom: Mapped[str] = mapped_column(String(120), default="Appareil")
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    vu_le: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expire_le: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+
+
+class CourrielSortant(Base):
+    """Boîte d'envoi transactionnelle, sans contenu financier ni secret SMTP."""
+
+    __tablename__ = "courriel_sortant"
+    __table_args__ = (
+        UniqueConstraint("cle_idempotence", name="uq_courriel_sortant_idempotence"),
+        Index("ix_courriel_sortant_a_envoyer", "envoye_le", "prochaine_tentative_le"),
+        CheckConstraint("tentatives >= 0", name="ck_courriel_sortant_tentatives"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    utilisateur_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="CASCADE")
+    )
+    cle_idempotence: Mapped[str] = mapped_column(String(120))
+    destinataire: Mapped[str] = mapped_column(String(254))
+    modele: Mapped[str] = mapped_column(String(48))
+    donnees: Mapped[dict[str, str]] = mapped_column(JSON)
+    tentatives: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    cree_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    prochaine_tentative_le: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    envoye_le: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    derniere_erreur: Mapped[str | None] = mapped_column(String(240), default=None)
 
 
 class TentativeConnexion(Base):

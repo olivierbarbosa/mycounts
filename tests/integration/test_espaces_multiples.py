@@ -19,7 +19,8 @@ from mycounts.repository.base import Principal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-MOT_DE_PASSE = "correct cheval batterie agrafe"
+from tests.integration.test_api_auth import MOT_DE_PASSE
+from tests.integration.test_api_budget import connecter_avec_mfa
 
 
 def _identite(session: Session, courriel: str, nom: str) -> tuple[Principal, Principal]:
@@ -30,6 +31,7 @@ def _identite(session: Session, courriel: str, nom: str) -> tuple[Principal, Pri
         courriel=courriel,
         nom_affichage=nom,
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
         est_proprietaire=True,
     )
     espace, _ = depot.creer_espace_personnel(session, utilisateur)
@@ -53,14 +55,6 @@ def _identite(session: Session, courriel: str, nom: str) -> tuple[Principal, Pri
     )
 
 
-def _connecter(client: TestClient, courriel: str) -> None:
-    reponse = client.post(
-        "/api/auth/connexion",
-        json={"courriel": courriel, "mot_de_passe": MOT_DE_PASSE},
-    )
-    assert reponse.status_code == 200, reponse.text
-
-
 def test_un_uuid_non_autorise_ne_lit_pas_lespace_personnel(
     client: TestClient, session_bd: Session
 ) -> None:
@@ -69,7 +63,7 @@ def test_un_uuid_non_autorise_ne_lit_pas_lespace_personnel(
     depot_budget.creer_compte(session_bd, alice, nom="Personnel Alice")
     depot_budget.creer_compte(session_bd, bob, nom="Secret Bob")
     session_bd.commit()
-    _connecter(client, "alice@essai.fr")
+    connecter_avec_mfa(client, session_bd, "alice@essai.fr")
 
     reponse = client.get("/api/comptes", headers={"X-Mycounts-Espace": str(bob.espace_id)})
     inconnue = client.get(
@@ -89,7 +83,7 @@ def test_un_uuid_non_autorise_necrit_pas_dans_lespace_personnel(
     bob, _ = _identite(session_bd, "bob@essai.fr", "Bob")
     depot_budget.creer_compte(session_bd, alice, nom="Personnel Alice")
     session_bd.commit()
-    _connecter(client, "alice@essai.fr")
+    connecter_avec_mfa(client, session_bd, "alice@essai.fr")
 
     reponse = client.post(
         "/api/comptes",
@@ -109,7 +103,7 @@ def test_un_identifiant_espace_malforme_est_refuse_sans_repli(
     alice, _ = _identite(session_bd, "alice@essai.fr", "Alice")
     depot_budget.creer_compte(session_bd, alice, nom="Personnel Alice")
     session_bd.commit()
-    _connecter(client, "alice@essai.fr")
+    connecter_avec_mfa(client, session_bd, "alice@essai.fr")
 
     reponse = client.get("/api/comptes", headers={"X-Mycounts-Espace": "pas-un-uuid"})
 
@@ -120,7 +114,7 @@ def test_lancienne_invitation_ne_peut_pas_partager_lespace_personnel(
     client: TestClient, session_bd: Session
 ) -> None:
     alice, _ = _identite(session_bd, "alice@essai.fr", "Alice")
-    _connecter(client, "alice@essai.fr")
+    connecter_avec_mfa(client, session_bd, "alice@essai.fr")
 
     reponse = client.post(
         "/api/auth/invitations",
@@ -135,7 +129,7 @@ def test_un_compte_peut_rejoindre_plusieurs_foyers_et_les_donnees_restent_isolee
 ) -> None:
     alice, _ = _identite(session_bd, "alice@essai.fr", "Alice")
     bob, _ = _identite(session_bd, "bob@essai.fr", "Bob")
-    _connecter(client, "alice@essai.fr")
+    connecter_avec_mfa(client, session_bd, "alice@essai.fr")
 
     cree = client.post(
         "/api/espaces",
@@ -151,7 +145,7 @@ def test_un_compte_peut_rejoindre_plusieurs_foyers_et_les_donnees_restent_isolee
     )
     assert invitation.status_code == 201, invitation.text
     client.post("/api/auth/deconnexion")
-    _connecter(client, "bob@essai.fr")
+    connecter_avec_mfa(client, session_bd, "bob@essai.fr")
 
     acceptee = client.post(
         "/api/espaces/invitations/accepter",
@@ -205,7 +199,7 @@ def test_transfert_puis_depart_ne_touche_pas_les_espaces_personnels(
         a_l_instant=dt.datetime.now(dt.UTC),
     )
     session_bd.commit()
-    _connecter(client, "alice@essai.fr")
+    connecter_avec_mfa(client, session_bd, "alice@essai.fr")
 
     transfert = client.post(
         "/api/espaces/propriete",
@@ -267,7 +261,7 @@ def test_supprimer_le_foyer_historique_preserve_identite_et_espace_personnel(
     depot_budget.creer_categories_initiales(session_bd, foyer.espace_id)
     depot_budget.creer_compte(session_bd, foyer, nom="Compte commun", prive=False)
     session_bd.commit()
-    _connecter(client, "alice@essai.fr")
+    connecter_avec_mfa(client, session_bd, "alice@essai.fr")
 
     reponse = client.request(
         "DELETE",

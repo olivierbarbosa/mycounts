@@ -15,6 +15,7 @@ export type MembrePublic = components['schemas']['MembrePublic']
 export type EtatSecondFacteur = components['schemas']['EtatSecondFacteur']
 export type EnrolementPropose = components['schemas']['EnrolementPropose']
 export type SecondFacteurActive = components['schemas']['SecondFacteurActive']
+export type AppareilPublic = components['schemas']['AppareilPublic']
 export type InvitationCreee = components['schemas']['InvitationCreee']
 export type EspacePublic = components['schemas']['EspacePublic']
 export type MembreEspacePublic = components['schemas']['MembreEspacePublic']
@@ -169,12 +170,56 @@ async function appeler<T>(
 }
 
 export const api = {
-  connexion: (courriel: string, motDePasse: string, code?: string) =>
+  connexion: (
+    courriel: string,
+    motDePasse: string,
+    code?: string,
+    faireConfiance = false,
+  ) =>
     appeler<UtilisateurPublic>('/auth/connexion', {
       method: 'POST',
       body: JSON.stringify({
         courriel,
         mot_de_passe: motDePasse,
+        ...(code === undefined ? {} : { code }),
+        faire_confiance: faireConfiance,
+      }),
+    }),
+
+  inscription: (courriel: string, nomAffichage: string, motDePasse: string) =>
+    appeler<{ message: string }>('/auth/inscription', {
+      method: 'POST',
+      body: JSON.stringify({
+        courriel,
+        nom_affichage: nomAffichage,
+        mot_de_passe: motDePasse,
+      }),
+    }),
+
+  verifierCourriel: (jeton: string) =>
+    appeler<{ message: string }>('/auth/verification', {
+      method: 'POST',
+      body: JSON.stringify({ jeton }),
+    }),
+
+  renvoyerVerification: (courriel: string) =>
+    appeler<{ message: string }>('/auth/verification/renvoyer', {
+      method: 'POST',
+      body: JSON.stringify({ courriel }),
+    }),
+
+  demanderReinitialisation: (courriel: string) =>
+    appeler<{ message: string }>('/auth/mot-de-passe-oublie', {
+      method: 'POST',
+      body: JSON.stringify({ courriel }),
+    }),
+
+  reinitialiserMotDePasse: (jeton: string, nouveau: string, code?: string) =>
+    appeler<{ message: string }>('/auth/reinitialisation', {
+      method: 'POST',
+      body: JSON.stringify({
+        jeton,
+        nouveau_mot_de_passe: nouveau,
         ...(code === undefined ? {} : { code }),
       }),
     }),
@@ -284,11 +329,16 @@ export const api = {
     appeler<EnrolementPropose>('/auth/moi/second-facteur/preparer', { method: 'POST' }),
 
   /** Vérifie un premier code, active, et rend les dix codes de secours — une seule fois. */
-  activerSecondFacteur: (code: string) =>
+  activerSecondFacteur: (code: string, faireConfiance = false) =>
     appeler<SecondFacteurActive>('/auth/moi/second-facteur/activer', {
       method: 'POST',
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, faire_confiance: faireConfiance }),
     }),
+
+  appareils: () => appeler<AppareilPublic[]>('/auth/moi/appareils'),
+
+  revoquerAppareil: (id: string) =>
+    appeler<void>(`/auth/moi/appareils/${id}`, { method: 'DELETE' }),
 
   /** Retire le second facteur. Un code EN COURS est exigé : une session ouverte ne
    *  suffit pas, c'est justement contre elle que le facteur protège. */

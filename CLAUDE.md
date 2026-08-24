@@ -26,12 +26,21 @@ geste du personnel à chacun des foyers ; le changement de libellé et de donné
 atomique. Les routes historiques de « vue comptes joints » restent compatibles pendant la
 migration, sans définir le nouveau périmètre.
 
+**Identité livrée le 24 août 2026** : le second facteur est OBLIGATOIRE — une session
+sans TOTP satisfait n'obtient que les routes `/auth` (`principal_identite`), et les routes
+financières (`principal_courant`) répondent 403 avec un motif machine-lisible tant que
+l'adresse n'est pas vérifiée et le TOTP activé ; parcours d'enrôlement dédié
+(`frontend/src/ecrans/EnrolementMfa.tsx`) avec codes de secours à confirmer ; appareils
+fiables trente jours (`repository/identite.py`, cookie `samesite=strict`, secret tourné à
+chaque usage) ; vérification d'adresse et mot de passe oublié par jetons opaques à usage
+unique ; inscription publique fermée par `MYCOUNTS_INSCRIPTIONS_OUVERTES=false` ; boîte
+d'envoi transactionnelle et worker SMTP `scripts/traiter_courriels.py`, service `courriels`
+du compose VPS. Migration `e18c7d41a2b0_identite_publique.py`.
+
 **Manque** : couverture des enveloppes par compte, au sens du rapprochement — où
-l'argent EST contre où il devrait être (lot E2) ; MFA obligatoire dans l'onboarding et
-appareils de confiance — le TOTP, ses codes de secours et l'anti-rejeu sont livrés ; mot
-de passe oublié ; chiffrement des libellés et des noms — les montants restent en clair,
-sans quoi soldes et plafonds quitteraient SQL (tranché le 22 août 2026) ; quitter un
-foyer ; historique des corrections de solde.
+l'argent EST contre où il devrait être (lot E2) ; chiffrement des libellés et des noms —
+les montants restent en clair, sans quoi soldes et plafonds quitteraient SQL (tranché le
+22 août 2026) ; quitter un foyer ; historique des corrections de solde.
 
 **PWA livrée** : manifest et icônes standard/maskable ; installation guidée dans les
 paramètres ; métadonnées iOS et zones sûres ; mise à jour consentie ; shell hors ligne sans
@@ -118,6 +127,11 @@ make tests-e2e          # mise en page sur 390/820/1280 px dans un vrai navigate
 ```
 
 La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'appelle.
+`make tests-e2e` exige un Chromium Playwright (`cd frontend && npx playwright install
+chromium`, précédé de `PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright`
+sur la machine de développement, dont l'adresse IP est refusée par le CDN officiel) et
+ses bibliothèques système. Sans lui, la suite est rouge en 10 ms par test — et avant le
+24 août 2026, elle n'avait jamais tourné ici (ERREURS.md #050).
 
 ## Règles en vigueur
 
@@ -143,8 +157,20 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 - **Toute requête passe par `backend/mycounts/repository/`** — `scripts/verifier_scope_repository.py`
   refuse tout `select`/`execute` écrit ailleurs dans `backend/mycounts/`. Chaque lecture
   de données de foyer prend un `Principal` : le périmètre n'est jamais implicite.
-- **Aucune inscription publique.** Premier compte par `scripts/creer_premier_compte.py`,
-  les autres par code d'invitation (haché, usage unique, 7 jours).
+- **Aucune inscription publique tant que `MYCOUNTS_INSCRIPTIONS_OUVERTES` est faux** —
+  son défaut. `POST /auth/inscription` répond alors 403 ; ouvert, il crée une identité
+  NON vérifiée dont le seul espace initial est personnel
+  (`repository/auth.creer_identite_personnelle`), et répond la même phrase que l'adresse
+  soit libre ou prise. Premier compte par `scripts/creer_premier_compte.py`, les autres
+  par code d'invitation (haché, usage unique, 7 jours).
+- **Le second facteur n'est pas une option.** `principal_courant` refuse toute session dont
+  `second_facteur_satisfait` est faux ; seules les routes `/auth` acceptent
+  `principal_identite`, pour que l'enrôlement reste possible. Un test qui crée une
+  identité en base passe par `connecter_avec_mfa` (`tests/integration/test_api_budget.py`),
+  jamais par un simple `POST /connexion` : dix-neuf tests contournaient l'enrôlement ainsi.
+  Les tests de bout en bout reçoivent une session déjà enrôlée par
+  `frontend/e2e/preparation.ts` (`storageState`) — l'anti-rejeu TOTP interdit de se
+  connecter par l'écran dans chaque test.
 - **Un foyer a UN propriétaire** — `Utilisateur.est_proprietaire`, index unique partiel
   déclaré dans la migration seule (un `WHERE` exigerait un `text()`, que le garde-fou n°7
   refuse hors du repository — même convention que `Plafond`). C'est celui qui a créé le
@@ -269,6 +295,11 @@ La liste des contrôles vit dans le `Makefile` et nulle part ailleurs ; la CI l'
 - **Session en cookie `httponly` + `samesite=lax`**, jamais en `localStorage`. Une adresse
   inconnue et un mot de passe faux produisent la même réponse ET le même temps de réponse
   (empreinte-leurre Argon2 — sans elle, l'écart mesuré est de 12,5×).
+- **Un courriel ne part jamais depuis une requête HTTP.** L'API écrit dans
+  `courriel_sortant` (`repository/identite.mettre_en_file`) dans la MÊME transaction que
+  le jeton ; `scripts/traiter_courriels.py` envoie à part, avec un nombre d'essais borné,
+  et ne consomme aucun essai tant que le SMTP n'est pas configuré. Aucune donnée
+  financière ne figure ni dans un message ni dans un journal.
 
 ## Garde-fous actifs
 

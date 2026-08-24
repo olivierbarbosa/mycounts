@@ -52,7 +52,7 @@ def test_activer_exige_un_premier_code_valide(client: TestClient, session_bd: Se
     Sans elle, le serveur croirait l'enrôlement fait et le compte serait perdu — c'est le
     seul défaut de ce module qu'on ne peut pas réparer depuis l'application.
     """
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     client.post("/api/auth/moi/second-facteur/preparer")
 
     refus = client.post("/api/auth/moi/second-facteur/activer", json={"code": "000000"})
@@ -67,7 +67,7 @@ def test_activer_exige_un_premier_code_valide(client: TestClient, session_bd: Se
 def test_deviner_le_code_dactivation_est_limite(
     client: TestClient, session_bd: Session
 ) -> None:
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     client.post("/api/auth/moi/second-facteur/preparer")
 
     for _ in range(10):
@@ -88,7 +88,7 @@ def test_preparer_deux_fois_engendre_un_secret_neuf(
     """On rappelle cette route quand la première tentative a échoué. Réutiliser le secret
     laisserait la moitié du travail faite avec une application dont on ne sait plus ce
     qu'elle contient."""
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     premier = client.post("/api/auth/moi/second-facteur/preparer").json()["secret"]
     second = client.post("/api/auth/moi/second-facteur/preparer").json()["secret"]
     assert premier != second
@@ -103,7 +103,7 @@ def test_une_fois_actif_le_code_est_exige_a_la_connexion(
     afficherait sinon « code incorrect » à quelqu'un qui n'en a encore saisi aucun. Le
     motif est machine-lisible pour cette raison.
     """
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     secret, _, code_activation = enroler(client)
 
     neuf = TestClient(client.app)
@@ -157,7 +157,7 @@ def test_un_mot_de_passe_faux_reste_indiscernable_meme_avec_le_second_facteur(
 ) -> None:
     """La règle d'origine tient : un mot de passe faux ne doit pas révéler que le compte
     existe, ni qu'il a un second facteur. Le contrôle du mot de passe passe donc AVANT."""
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     enroler(client)
 
     neuf = TestClient(client.app)
@@ -173,7 +173,7 @@ def test_un_mot_de_passe_faux_reste_indiscernable_meme_avec_le_second_facteur(
 def test_demander_le_code_ne_compte_pas_comme_un_echec_mais_un_code_faux_oui(
     client: TestClient, session_bd: Session
 ) -> None:
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     enroler(client)
     neuf = TestClient(client.app)
 
@@ -203,7 +203,7 @@ def test_un_code_de_secours_ouvre_la_session_et_ne_sert_QUUNE_fois(
     rejouable ne serait plus à usage unique — et l'intercepter une fois suffirait à entrer
     indéfiniment.
     """
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     _, codes, _ = enroler(client)
     assert len(codes) == NOMBRE_DE_CODES_DE_SECOURS
 
@@ -233,7 +233,7 @@ def test_un_code_de_secours_se_tape_comme_on_peut(
     Le refuser pour cette raison serait refuser au pire moment — celui où l'on a perdu son
     téléphone — et pour un motif qui n'a rien à voir avec la sécurité.
     """
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     _, codes, _ = enroler(client)
     maladroit = codes[0].lower().replace("-", " ")
 
@@ -251,7 +251,7 @@ def test_desactiver_exige_un_code_en_cours(client: TestClient, session_bd: Sessi
     C'est contre l'usage d'une session volée que le second facteur existe : le retirer sans
     preuve de possession annulerait la protection depuis l'endroit même qu'elle protège.
     """
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     secret, _, _ = enroler(client)
 
     refus = client.request(
@@ -274,7 +274,7 @@ def test_preparer_est_refuse_quand_le_facteur_est_deja_actif(
 ) -> None:
     """Régénérer un secret depuis une session ouverte permettrait de remplacer le facteur
     sans posséder l'ancien, ce qui le viderait de son sens."""
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     enroler(client)
     refus = client.post("/api/auth/moi/second-facteur/preparer")
     assert refus.status_code == 409, refus.text
@@ -285,7 +285,7 @@ def test_lenrolement_rend_de_quoi_configurer_sans_camera(
 ) -> None:
     """Le secret en clair ET l'URI : une application sans caméra ne peut rien scanner, et
     refuser la saisie manuelle exclurait l'ordinateur de bureau."""
-    session_ouverte(client, session_bd)
+    session_ouverte(client, session_bd, enroler_mfa=False)
     propose = client.post("/api/auth/moi/second-facteur/preparer").json()
 
     assert propose["secret"]

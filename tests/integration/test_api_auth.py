@@ -29,6 +29,7 @@ def creer_compte(
         courriel=normaliser_courriel(courriel),
         nom_affichage=nom,
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
         # Ce helper crée un foyer NEUF : son unique membre en est le propriétaire, comme
         # le fait `creer_premier_compte.py`. Laisser le défaut produirait des foyers sans
         # administrateur, un état que la production ne connaît pas.
@@ -39,13 +40,23 @@ def creer_compte(
 
 
 def connecter(
-    client: TestClient, courriel: str, mot_de_passe: str = MOT_DE_PASSE
+    client: TestClient,
+    courriel: str,
+    mot_de_passe: str = MOT_DE_PASSE,
+    *,
+    code: str | None = None,
+    faire_confiance: bool = False,
 ) -> httpx.Response:
     # TestClient est typé de façon lâche par Starlette ; le cast rend explicite le type
     # réellement renvoyé plutôt que de le taire.
-    reponse: httpx.Response = client.post(
-        "/api/auth/connexion", json={"courriel": courriel, "mot_de_passe": mot_de_passe}
-    )
+    corps: dict[str, str | bool] = {
+        "courriel": courriel,
+        "mot_de_passe": mot_de_passe,
+        "faire_confiance": faire_confiance,
+    }
+    if code is not None:
+        corps["code"] = code
+    reponse: httpx.Response = client.post("/api/auth/connexion", json=corps)
     return reponse
 
 
@@ -243,6 +254,7 @@ def test_une_session_expiree_est_refusee(client: TestClient, session_bd: Session
         utilisateur_id=utilisateur_id,
         empreinte=empreinte_jeton(jeton),
         expire_le=dt.datetime.now(tz=dt.UTC) - dt.timedelta(seconds=1),
+        second_facteur_satisfait=True,
     )
     session_bd.commit()
 

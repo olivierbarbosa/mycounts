@@ -11,11 +11,11 @@ import { expect, test, type Page } from '@playwright/test'
 async function connecter(page: Page) {
   await page.goto('/')
   await page.locator('nav, form').first().waitFor({ state: 'visible' })
-  if (await page.locator('nav').isVisible()) return
+  if (await page.getByRole('navigation', { name: 'Navigation principale' }).isVisible()) return
   await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
   await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.locator('nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
 }
 
 /** `dispatchEvent` et non `click` : l'écran monte sa coquille sans attendre le réseau et
@@ -76,7 +76,7 @@ test('un virement n’apparaît pas dans les dépenses', async ({ page }) => {
       data: { nom: `Livret ${Date.now()}`, produit: 'livret_a', prive: true },
     })
     await page.reload()
-    await expect(page.locator('nav')).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
   }
 
   const avant = (await (await page.request.get('/api/statistiques')).json()) as {

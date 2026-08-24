@@ -4,21 +4,86 @@ from __future__ import annotations
 
 import datetime as dt
 
+import pyotp
 from fastapi.testclient import TestClient
+from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot
 from mycounts.repository.base import Principal
 from sqlalchemy.orm import Session
 
-from tests.integration.test_api_auth import connecter, creer_compte
+from tests.integration.test_api_auth import MOT_DE_PASSE, connecter, creer_compte
 
 AUJOURD_HUI = dt.date.today()
+_CODES_SECOURS_PAR_COURRIEL: dict[str, list[str]] = {}
 
 
-def session_ouverte(client: TestClient, session_bd: Session) -> Principal:
+def session_ouverte(
+    client: TestClient, session_bd: Session, *, enroler_mfa: bool = True
+) -> Principal:
     foyer_id, utilisateur_id = creer_compte(session_bd, "a@essai.fr")
     session_bd.commit()
     connecter(client, "a@essai.fr")
+    if enroler_mfa:
+        preparation = client.post("/api/auth/moi/second-facteur/preparer")
+        code = pyotp.TOTP(preparation.json()["secret"]).now()
+        activation = client.post(
+            "/api/auth/moi/second-facteur/activer",
+            json={"code": code, "faire_confiance": True, "nom_appareil": "Test"},
+        )
+        assert activation.status_code == 200
+        _CODES_SECOURS_PAR_COURRIEL["a@essai.fr"] = list(
+            activation.json()["codes_de_secours"]
+        )
     return Principal(utilisateur_id=utilisateur_id, foyer_id=foyer_id)
+
+
+def connecter_avec_mfa(
+    client: TestClient,
+    session_bd: Session,
+    courriel: str,
+    mot_de_passe: str = MOT_DE_PASSE,
+) -> None:
+    """Ouvre une session financière pour une identité créée directement par un test.
+
+    Un utilisateur neuf suit le véritable enrôlement. Un utilisateur déjà enrôlé fournit
+    le code de la fenêtre suivante, que la tolérance RFC 6238 accepte sans réutiliser le
+    code consommé pendant l'activation.
+    """
+    session_bd.expire_all()
+    utilisateur = depot_auth.utilisateur_par_courriel(session_bd, courriel)
+    assert utilisateur is not None
+    if utilisateur.totp_actif:
+        assert utilisateur.secret_totp is not None
+        secours = _CODES_SECOURS_PAR_COURRIEL.get(courriel, [])
+        if secours:
+            reponse = connecter(client, courriel, mot_de_passe, code=secours.pop())
+            assert reponse.status_code == 200, reponse.text
+            return
+        code = str(
+            pyotp.TOTP(utilisateur.secret_totp).at(
+                dt.datetime.now(dt.UTC) + dt.timedelta(seconds=30)
+            )
+        )
+        reponse = connecter(client, courriel, mot_de_passe, code=code)
+        assert reponse.status_code == 200, reponse.text
+        return
+
+    reponse = connecter(client, courriel, mot_de_passe)
+    assert reponse.status_code == 200, reponse.text
+    preparation = client.post("/api/auth/moi/second-facteur/preparer")
+    assert preparation.status_code == 200, preparation.text
+    activation = client.post(
+        "/api/auth/moi/second-facteur/activer",
+        json={
+            "code": pyotp.TOTP(preparation.json()["secret"]).now(),
+            "faire_confiance": True,
+            "nom_appareil": "Test",
+        },
+    )
+    assert activation.status_code == 200, activation.text
+    _CODES_SECOURS_PAR_COURRIEL[courriel] = list(
+        activation.json()["codes_de_secours"]
+    )
 
 
 def creer_compte_api(client: TestClient, nom: str = "Courant") -> str:
@@ -271,7 +336,7 @@ def test_le_foyer_nait_avec_ses_categories(client: TestClient, session_bd: Sessi
     foyer_id, utilisateur_id = creer_compte(session_bd, "c@essai.fr", nom_foyer="Avec catégories")
     depot_budget.creer_categories_initiales(session_bd, foyer_id)
     session_bd.commit()
-    connecter(client, "c@essai.fr")
+    connecter_avec_mfa(client, session_bd, "c@essai.fr")
 
     noms = [c["nom"] for c in client.get("/api/categories").json()]
     assert "Courses" in noms

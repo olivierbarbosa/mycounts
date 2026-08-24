@@ -43,11 +43,11 @@ const FRONTIERE = 0.3
 async function connecter(page: Page) {
   await page.goto('/')
   await page.locator('nav, form').first().waitFor({ state: 'visible' })
-  if (await page.locator('nav').isVisible()) return
+  if (await page.getByRole('navigation', { name: 'Navigation principale' }).isVisible()) return
   await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
   await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.locator('nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
 }
 
 /** Ouvre le panneau puis sa page Apparence. Le panneau est modal : une fois ouvert, il
@@ -100,7 +100,7 @@ test('le thème choisi survit au rechargement', async ({ page }) => {
   await choisirTheme(page, 'Sombre')
 
   await page.reload()
-  await expect(page.locator('nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
   expect(await luminance(page)).toBeLessThan(FRONTIERE)
 
   // Remettre « Système » : les tests suivants partagent ce navigateur et son stockage.

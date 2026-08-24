@@ -27,6 +27,7 @@ import { Connexion } from './ecrans/Connexion'
 import { changerEspace, espaceCourant } from './design/espace'
 import { changerDeVue, vueCourante } from './design/vue'
 import { Enveloppes } from './ecrans/Enveloppes'
+import { EnrolementMfa } from './ecrans/EnrolementMfa'
 import { Epargne } from './ecrans/Epargne'
 import { ImportReleve } from './ecrans/ImportReleve'
 import { AucunCompteJoint } from './composants/AucunCompteJoint'
@@ -135,9 +136,16 @@ export function App() {
     if (!plateforme.reseau.estEnLigne()) {
       return
     }
-    // `chargerReferentiels` relit déjà l'utilisateur : un `api.moi()` de plus ici en
-    // ferait deux au démarrage, et deux auteurs pour le même état.
-    chargerReferentiels()
+    // L'identité se lit AVANT les finances : une première session volontairement
+    // restreinte doit pouvoir afficher l'enrôlement MFA, alors que /comptes lui répond 403.
+    api
+      .moi()
+      .then(async (u) => {
+        setUtilisateur(u)
+        if (!u.enrolement_requis) {
+          await chargerReferentiels()
+        }
+      })
       .catch(() => setUtilisateur(null))
       .finally(() => setChargement(false))
   }, [chargerReferentiels])
@@ -172,6 +180,17 @@ export function App() {
     return (
       <Connexion
         surConnexion={async (u) => {
+          setUtilisateur(u)
+          if (!u.enrolement_requis) await chargerReferentiels()
+        }}
+      />
+    )
+  }
+
+  if (utilisateur.enrolement_requis) {
+    return (
+      <EnrolementMfa
+        surTermine={async (u) => {
           setUtilisateur(u)
           await chargerReferentiels()
         }}

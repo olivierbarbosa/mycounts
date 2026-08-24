@@ -34,11 +34,11 @@ function ligne(libelle: string, debit: string, reference = '', date = '17/08/202
 async function connecter(page: Page) {
   await page.goto('/')
   await page.locator('nav, form').first().waitFor({ state: 'visible' })
-  if (await page.locator('nav').isVisible()) return
+  if (await page.getByRole('navigation', { name: 'Navigation principale' }).isVisible()) return
   await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
   await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.locator('nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
 }
 
 /** `dispatchEvent` : l'écran monte sa coquille sans attendre le réseau et recouvre la
@@ -269,7 +269,7 @@ test('une ligne peut être reclassée en virement entre comptes', async ({ page 
     data: { nom: nomDeLaContrepartie, produit: 'lep', prive: true },
   })
   await page.reload()
-  await expect(page.locator('nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
 
   const libelle = `VIR RECU ${marque}`
   await ouvrirImport(page)

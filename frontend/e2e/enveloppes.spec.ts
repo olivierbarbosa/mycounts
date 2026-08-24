@@ -16,11 +16,11 @@ import { expect, test, type Page } from '@playwright/test'
 async function connecter(page: Page) {
   await page.goto('/')
   await page.locator('nav, form').first().waitFor({ state: 'visible' })
-  if (await page.locator('nav').isVisible()) return
+  if (await page.getByRole('navigation', { name: 'Navigation principale' }).isVisible()) return
   await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
   await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.locator('nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
 }
 
 /** Garantit qu'il y a de l'épargne à découper. Sans livret, toute enveloppe met la
@@ -362,7 +362,7 @@ test('une feuille modale couvre la barre de navigation', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: `Réglages de ${nom}` })).toBeVisible()
 
   const couvre = await page.evaluate(() => {
-    const barre = document.querySelector('nav')
+    const barre = document.querySelector('nav[aria-label="Navigation principale"]')
     if (barre === null) return null
     const boite = barre.getBoundingClientRect()
     const dessus = document.elementFromPoint(boite.x + boite.width / 2, boite.y + boite.height / 2)

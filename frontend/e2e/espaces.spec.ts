@@ -4,7 +4,7 @@ const PERSONNEL = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
 const FOYER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2'
 
 async function simulerApi(page: import('@playwright/test').Page) {
-  await page.route('**/api/**', async (route) => {
+  await page.route('*://*/api/**', async (route) => {
     const requete = route.request()
     const chemin = new URL(requete.url()).pathname
     if (chemin === '/api/espaces') {

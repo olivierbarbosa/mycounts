@@ -1507,3 +1507,39 @@ conteneur d'onglet — aurait réglé ce cas et laissé le suivant intact : le p
 `filter`, le prochain `will-change` recréeraient un contexte, et la feuille disparaîtrait
 sans que personne n'ait touché à la feuille. Un test e2e mesure désormais ce qui occupe le
 centre de la barre, feuille ouverte.
+
+## #050 — Le simulacre qui interceptait l'application elle-même
+
+**Ce que je croyais.** Que les tests de bout en bout « simulés » — `connexion.spec`,
+`espaces.spec`, `second-facteur.spec` — mesuraient l'écran face à une API rejouée par
+`page.route('**/api/**', …)`. Ils avaient été verts à leur écriture ; leurs échecs du
+24 août 2026 devaient donc venir du lot en cours d'intégration, le MFA obligatoire.
+
+**Ce qu'il s'est passé.** Dix rouges d'un coup, dont cinq sur l'écran d'enrôlement que je
+venais d'écrire, et un `connexion.spec` incapable de trouver le champ « Adresse
+électronique » alors que l'écran existe. Le contexte d'erreur de Playwright ne contenait
+aucun instantané de page : il n'y avait PAS de page.
+
+**La cause.** La trace réseau n'affichait qu'une requête interceptée :
+`GET /src/api/client.ts → 401`. Le glob `**/api/**` attrape tout chemin contenant
+`/api/` — y compris le module source `src/api/client.ts` que Vite sert en développement.
+Le simulacre répondait un JSON 401 À LA PLACE DU CODE de l'application, qui ne démarrait
+jamais. Le rouge ne mesurait pas le MFA ; il mesurait un motif trop large, présent depuis
+l'écriture de ces tests.
+
+Pourquoi personne ne l'avait vu : cette machine n'a jamais eu de navigateur Playwright.
+Trois lots — espaces multiples, PWA, identité — ont été fusionnés en annonçant des tests
+verts, et la seule chose verte était un `make tests-e2e` qui n'avait jamais lancé un seul
+navigateur. Même forme que #006 et que les 268 tests d'intégration « passés » du même
+jour, en fait SKIPPÉS faute de table : une suite qui ne peut pas rendre la réponse inverse
+ne prouve rien, et un compteur se lit avant un statut.
+
+**Ce que ça dit de plus général.** Un simulacre a un domaine de validité, comme une sonde
+(#011, #021) : ici « les requêtes d'API », et le motif l'écrivait comme « tout ce qui
+contient /api/ ». L'écart entre ce qu'on croit intercepter et ce qu'on intercepte ne se
+voit qu'en listant ce qui a été effectivement intercepté — la trace, pas le test.
+
+**Le contrôle en place maintenant.** Le motif est `*://*/api/**` — `*` ne traverse pas
+`/`, donc seul le préfixe d'API du serveur est visé. Et la suite e2e tourne désormais sur
+cette machine : Chromium via le miroir `PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright`
+(le CDN officiel refuse cette adresse IP), et cinq bibliothèques système.

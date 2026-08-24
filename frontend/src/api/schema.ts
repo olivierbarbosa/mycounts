@@ -157,6 +157,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/inscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inscription
+         * @description Crée une identité non vérifiée; la bêta reste fermée par configuration.
+         */
+        post: operations["inscription_api_auth_inscription_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/invitations": {
         parameters: {
             query?: never;
@@ -222,6 +242,40 @@ export interface paths {
          *     donnerait un disque muet, d'où la longueur minimale portée par le schéma.
          */
         patch: operations["renommer_api_auth_moi_patch"];
+        trace?: never;
+    };
+    "/api/auth/moi/appareils": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lister Les Appareils */
+        get: operations["lister_les_appareils_api_auth_moi_appareils_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/moi/appareils/{appareil_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoquer Un Appareil */
+        delete: operations["revoquer_un_appareil_api_auth_moi_appareils__appareil_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/auth/moi/avatar": {
@@ -388,6 +442,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/mot-de-passe-oublie": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Demander Une Reinitialisation */
+        post: operations["demander_une_reinitialisation_api_auth_mot_de_passe_oublie_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/reinitialisation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reinitialiser Le Mot De Passe */
+        post: operations["reinitialiser_le_mot_de_passe_api_auth_reinitialisation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/rejoindre": {
         parameters: {
             query?: never;
@@ -430,6 +518,40 @@ export interface paths {
         get: operations["avatar_dune_personne_api_auth_utilisateurs__utilisateur_id__avatar_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verifier Le Courriel */
+        post: operations["verifier_le_courriel_api_auth_verification_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/verification/renvoyer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renvoyer La Verification */
+        post: operations["renvoyer_la_verification_api_auth_verification_renvoyer_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1272,12 +1394,42 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccuseIdentite */
+        AccuseIdentite: {
+            /** Message */
+            message: string;
+        };
         /** AjustementFait */
         AjustementFait: {
             /** Ecart Centimes */
             ecart_centimes: number;
             /** Solde Centimes */
             solde_centimes: number;
+        };
+        /** AppareilPublic */
+        AppareilPublic: {
+            /**
+             * Cree Le
+             * Format: date-time
+             */
+            cree_le: string;
+            /**
+             * Expire Le
+             * Format: date-time
+             */
+            expire_le: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nom */
+            nom: string;
+            /**
+             * Vu Le
+             * Format: date-time
+             */
+            vu_le: string;
         };
         /** Body_analyser_un_releve_api_import_analyse_post */
         Body_analyser_un_releve_api_import_analyse_post: {
@@ -1419,6 +1571,13 @@ export interface components {
         DemandeActivationSecondFacteur: {
             /** Code */
             code: string;
+            /**
+             * Faire Confiance
+             * @default false
+             */
+            faire_confiance: boolean;
+            /** Nom Appareil */
+            nom_appareil?: string | null;
         };
         /**
          * DemandeAdhesion
@@ -1513,8 +1672,15 @@ export interface components {
             code?: string | null;
             /** Courriel */
             courriel: string;
+            /**
+             * Faire Confiance
+             * @default false
+             */
+            faire_confiance: boolean;
             /** Mot De Passe */
             mot_de_passe: string;
+            /** Nom Appareil */
+            nom_appareil?: string | null;
         };
         /** DemandeCreationEspace */
         DemandeCreationEspace: {
@@ -1559,6 +1725,20 @@ export interface components {
             courriel: string;
             /** @default membre */
             role: components["schemas"]["RoleEspace"];
+        };
+        /** DemandeInscription */
+        DemandeInscription: {
+            /** Courriel */
+            courriel: string;
+            /** Mot De Passe */
+            mot_de_passe: string;
+            /** Nom Affichage */
+            nom_affichage: string;
+        };
+        /** DemandeJetonIdentite */
+        DemandeJetonIdentite: {
+            /** Jeton */
+            jeton: string;
         };
         /** DemandeMouvement */
         DemandeMouvement: {
@@ -1628,6 +1808,11 @@ export interface components {
             /** Lignes */
             lignes: components["schemas"]["ChoixDeLigne"][];
         };
+        /** DemandeRecuperation */
+        DemandeRecuperation: {
+            /** Courriel */
+            courriel: string;
+        };
         /** DemandeRecurrence */
         DemandeRecurrence: {
             /**
@@ -1658,6 +1843,15 @@ export interface components {
              */
             montant_centimes: number;
             unite: components["schemas"]["UniteRecurrence"];
+        };
+        /** DemandeReinitialisation */
+        DemandeReinitialisation: {
+            /** Code */
+            code?: string | null;
+            /** Jeton */
+            jeton: string;
+            /** Nouveau Mot De Passe */
+            nouveau_mot_de_passe: string;
         };
         /**
          * DemandeRenommage
@@ -2553,6 +2747,16 @@ export interface components {
             avatar_version?: string | null;
             /** Courriel */
             courriel: string;
+            /**
+             * Courriel Verifie
+             * @default true
+             */
+            courriel_verifie: boolean;
+            /**
+             * Enrolement Requis
+             * @default false
+             */
+            enrolement_requis: boolean;
             /** Est Proprietaire */
             est_proprietaire: boolean;
             /**
@@ -2569,6 +2773,11 @@ export interface components {
             id: string;
             /** Nom Affichage */
             nom_affichage: string;
+            /**
+             * Second Facteur Actif
+             * @default false
+             */
+            second_facteur_actif: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -2806,6 +3015,39 @@ export interface operations {
             };
         };
     };
+    inscription_api_auth_inscription_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeInscription"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccuseIdentite"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     creer_invitation_api_auth_invitations_post: {
         parameters: {
             query?: never;
@@ -2936,6 +3178,72 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UtilisateurPublic"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lister_les_appareils_api_auth_moi_appareils_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppareilPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoquer_un_appareil_api_auth_moi_appareils__appareil_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+            };
+            path: {
+                appareil_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -3232,6 +3540,72 @@ export interface operations {
             };
         };
     };
+    demander_une_reinitialisation_api_auth_mot_de_passe_oublie_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeRecuperation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccuseIdentite"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reinitialiser_le_mot_de_passe_api_auth_reinitialisation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeReinitialisation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccuseIdentite"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     rejoindre_api_auth_rejoindre_post: {
         parameters: {
             query?: never;
@@ -3297,6 +3671,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verifier_le_courriel_api_auth_verification_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeJetonIdentite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccuseIdentite"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    renvoyer_la_verification_api_auth_verification_renvoyer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeRecuperation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccuseIdentite"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -22,8 +22,8 @@ from mycounts.repository import auth as depot_auth
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from tests.integration.test_api_auth import MOT_DE_PASSE, connecter
-from tests.integration.test_api_budget import session_ouverte
+from tests.integration.test_api_auth import MOT_DE_PASSE
+from tests.integration.test_api_budget import connecter_avec_mfa, session_ouverte
 
 NOM_FOYER = "Foyer"
 COURRIEL = "a@essai.fr"
@@ -155,9 +155,10 @@ def test_un_membre_invite_ne_peut_pas_dissoudre_le_partage(
         courriel=normaliser_courriel(invite),
         nom_affichage="Invité",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
-    connecter(client, invite)
+    connecter_avec_mfa(client, session_bd, invite)
 
     refus = client.delete("/api/auth/foyer/partage")
     assert refus.status_code == 403, refus.text

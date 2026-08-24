@@ -41,6 +41,7 @@ services:
 
   # ── API FastAPI ───────────────────────────────────────────────────────────
   api:
+    image: ${MYCOUNTS_PILE}-api
     build:
       context: ..
       dockerfile: infra/Dockerfile.api
@@ -57,6 +58,8 @@ services:
       MYCOUNTS_PROXY_FIABLE_HOTE: ${MYCOUNTS_PROXY_FIABLE_HOTE:-luminapp_traefik}
       MYCOUNTS_CLE_OPENROUTER: ${MYCOUNTS_CLE_OPENROUTER:-}
       MYCOUNTS_MODELE_IA: ${MYCOUNTS_MODELE_IA:-mistralai/mistral-nemo}
+      MYCOUNTS_INSCRIPTIONS_OUVERTES: ${MYCOUNTS_INSCRIPTIONS_OUVERTES:-false}
+      MYCOUNTS_URL_PUBLIQUE: https://${MYCOUNTS_DOMAINE}
     depends_on:
       db:
         condition: service_healthy
@@ -75,6 +78,30 @@ services:
       - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.tls.certresolver=myresolver"
       - "traefik.http.routers.mycounts-${MYCOUNTS_SUFFIXE}-api.middlewares=compress@file"
       - "traefik.http.services.mycounts-${MYCOUNTS_SUFFIXE}-api.loadbalancer.server.port=8000"
+
+  courriels:
+    image: ${MYCOUNTS_PILE}-api
+    container_name: ${MYCOUNTS_PILE}_courriels
+    restart: unless-stopped
+    command: ["python", "-m", "scripts.traiter_courriels"]
+    environment:
+      MYCOUNTS_DATABASE_URL: postgresql+psycopg://mycounts:${MYCOUNTS_DB_MOT_DE_PASSE}@db:5432/mycounts
+      MYCOUNTS_ENVIRONNEMENT: ${MYCOUNTS_ENVIRONNEMENT:?environnement requis}
+      MYCOUNTS_CLE_HMAC_AUTH: ${MYCOUNTS_CLE_HMAC_AUTH:?clé HMAC d'authentification requise}
+      MYCOUNTS_URL_PUBLIQUE: https://${MYCOUNTS_DOMAINE}
+      MYCOUNTS_SMTP_HOTE: ${MYCOUNTS_SMTP_HOTE:-}
+      MYCOUNTS_SMTP_PORT: ${MYCOUNTS_SMTP_PORT:-465}
+      MYCOUNTS_SMTP_UTILISATEUR: ${MYCOUNTS_SMTP_UTILISATEUR:-}
+      MYCOUNTS_SMTP_MOT_DE_PASSE: ${MYCOUNTS_SMTP_MOT_DE_PASSE:-}
+      MYCOUNTS_SMTP_SSL: ${MYCOUNTS_SMTP_SSL:-true}
+      MYCOUNTS_SMTP_STARTTLS: ${MYCOUNTS_SMTP_STARTTLS:-false}
+      MYCOUNTS_COURRIEL_EXPEDITEUR: ${MYCOUNTS_COURRIEL_EXPEDITEUR:-no-reply@mycounts.app}
+      MYCOUNTS_COURRIEL_SUPPORT: ${MYCOUNTS_COURRIEL_SUPPORT:-support@mycounts.app}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - interne
 
   # ── Front React servi en statique ─────────────────────────────────────────
   web:

@@ -1,5 +1,7 @@
 import { defineConfig } from '@playwright/test'
 
+import { CHEMIN_ETAT_SESSION } from './e2e/preparation'
+
 /** Trois tailles réelles : téléphone, tablette, bureau. Le garde-fou n°10 vérifie sur
  *  chacune qu'aucun débordement horizontal n'apparaît et que toute cible tactile atteint
  *  44 px — la mesure échoue immédiatement sur une grille figée en pixels. */
@@ -19,25 +21,11 @@ export default defineConfig({
   globalSetup: './e2e/preparation.ts',
   use: {
     baseURL: 'http://127.0.0.1:5189',
-    /* Chaque test part de la vue PERSONNELLE, le défaut de l'application.
-     *
-     * La vue est conservée dans `localStorage` (voir `design/vue.ts`) : elle survit d'un
-     * test à l'autre. Tant que les deux vues affichaient la même chose, l'oubli était
-     * sans conséquence ; depuis qu'un périmètre sans compte n'affiche plus que son
-     * invitation, un test laissé en vue foyer fait échouer le suivant — qui cherche un
-     * écran que sa propre exécution n'a pas rendu vide. Poser l'état ici plutôt que dans
-     * les dix-huit fichiers de tests : une valeur par défaut a un auteur, pas dix-huit.
-     *
-     * `vue-foyer.spec.ts` bascule explicitement, c'est son sujet. */
-    storageState: {
-      cookies: [],
-      origins: [
-        {
-          origin: 'http://127.0.0.1:5189',
-          localStorage: [{ name: 'mycounts.vue', value: 'personnelle' }],
-        },
-      ],
-    },
+    /* La session du compte de démonstration, ouverte UNE fois par `e2e/preparation.ts`
+       après l'enrôlement au second facteur — obligatoire depuis le lot identité. Chaque
+       test la reçoit déjà ouverte, avec la vue personnelle posée dans `localStorage`. Les
+       tests qui mesurent la page de connexion effacent d'abord leurs cookies. */
+    storageState: CHEMIN_ETAT_SESSION,
   },
   /* Playwright démarre lui-même les deux serveurs : les tests ne dépendent donc d'aucun
      processus lancé à la main. C'est exactement la leçon d'ERREURS.md #006 — une

@@ -9,6 +9,7 @@ from fastapi import Cookie, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from mycounts.domain.securite import empreinte_jeton, maintenant
+from mycounts.models.auth import SessionWeb, Utilisateur
 from mycounts.repository import auth as depot
 from mycounts.repository import espaces as depot_espaces
 from mycounts.repository.base import Principal, Vue, obtenir_session
@@ -23,13 +24,58 @@ EN_TETE_VUE = "X-Mycounts-Vue"
 EN_TETE_ESPACE = "X-Mycounts-Espace"
 
 
-def principal_courant(
+def _session_et_utilisateur(
     session: SessionBase,
     mycounts_session: Annotated[str | None, Cookie(alias=NOM_COOKIE)] = None,
+) -> tuple[SessionWeb, Utilisateur]:
+    """Résout le cookie une seule fois, sans encore accorder l'accès financier."""
+    refus = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentification requise."
+    )
+    if not mycounts_session:
+        raise refus
+    trouve = depot.session_web_active(
+        session, empreinte=empreinte_jeton(mycounts_session), a_l_instant=maintenant()
+    )
+    if trouve is None:
+        raise refus
+    return trouve
+
+
+def principal_identite(
+    session: SessionBase,
+    session_et_utilisateur: Annotated[
+        tuple[SessionWeb, Utilisateur], Depends(_session_et_utilisateur)
+    ],
+) -> Principal:
+    """Identité connectée, y compris pendant l'enrôlement MFA restreint.
+
+    Cette dépendance est réservée aux routes `/auth`. Les routes financières utilisent
+    `principal_courant`, qui exige en plus l'adresse vérifiée et le second facteur.
+    """
+    _, utilisateur = session_et_utilisateur
+    personnel = depot_espaces.principal_pour(
+        session, utilisateur_id=utilisateur.id, espace_id=None
+    )
+    if personnel is not None:
+        return personnel
+    # Repli limité aux routes d'identité pendant une migration. Les routes financières
+    # exigent toujours un espace actif et ne passent jamais par cette branche.
+    return Principal(
+        utilisateur_id=utilisateur.id,
+        foyer_id=utilisateur.foyer_id,
+    )
+
+
+def principal_courant(
+    session: SessionBase,
+    session_et_utilisateur: Annotated[
+        tuple[SessionWeb, Utilisateur], Depends(_session_et_utilisateur)
+    ],
     vue_demandee: Annotated[str | None, Header(alias=EN_TETE_VUE)] = None,
     espace_demande: Annotated[str | None, Header(alias=EN_TETE_ESPACE)] = None,
 ) -> Principal:
-    """Utilisateur authentifié, sur le périmètre demandé, ou 401.
+    """Utilisateur authentifié ET MFA satisfait, sur le périmètre demandé.
 
     Le message est identique quel que soit le motif (cookie absent, session inconnue,
     session expirée) : distinguer ces cas renseignerait un attaquant sur l'existence
@@ -44,19 +90,23 @@ def principal_courant(
     non autorisé reçoit le même 404 neutre : l'en-tête ne devient ni une fuite ni un
     oracle, et une écriture destinée à un foyer révoqué ne change jamais de périmètre.
     """
-    refus = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentification requise."
-    )
-    if not mycounts_session:
-        raise refus
-
-    trouve = depot.session_web_active(
-        session, empreinte=empreinte_jeton(mycounts_session), a_l_instant=maintenant()
-    )
-    if trouve is None:
-        raise refus
-
-    _, utilisateur = trouve
+    session_web, utilisateur = session_et_utilisateur
+    if utilisateur.courriel_verifie_le is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "motif": "courriel_non_verifie",
+                "message": "Vérifiez votre adresse avant de continuer.",
+            },
+        )
+    if not utilisateur.totp_actif or not session_web.second_facteur_satisfait:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "motif": "enrolement_second_facteur_requis",
+                "message": "Configurez le second facteur avant vos données financières.",
+            },
+        )
 
     identifiant_espace: uuid.UUID | None = None
     if espace_demande is not None:
@@ -83,9 +133,7 @@ def principal_courant(
             detail="Espace indisponible.",
         )
 
-    # Les bases antérieures à la migration n'ont pas encore d'espace personnel. Ce
-    # repli disparaîtra avec les colonnes legacy ; il ne peut viser que le foyer déjà
-    # lié à l'identité authentifiée.
+    # Repli réservé aux bases antérieures pendant la fenêtre de migration.
     return Principal(
         utilisateur_id=utilisateur.id,
         foyer_id=utilisateur.foyer_id,
@@ -109,3 +157,4 @@ def _vue_ou_personnelle(demandee: str | None) -> Vue:
 
 
 PrincipalCourant = Annotated[Principal, Depends(principal_courant)]
+PrincipalIdentite = Annotated[Principal, Depends(principal_identite)]

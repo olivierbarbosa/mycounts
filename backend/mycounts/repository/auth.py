@@ -57,6 +57,7 @@ def creer_utilisateur(
     courriel: str,
     nom_affichage: str,
     empreinte_mot_de_passe: str,
+    courriel_verifie: bool,
     est_proprietaire: bool = False,
 ) -> Utilisateur:
     espace = session.get(Espace, foyer_id)
@@ -70,6 +71,7 @@ def creer_utilisateur(
         nom_affichage=nom_affichage,
         empreinte_mot_de_passe=empreinte_mot_de_passe,
         est_proprietaire=est_proprietaire,
+        courriel_verifie_le=dt.datetime.now(tz=dt.UTC) if courriel_verifie else None,
     )
     session.add(utilisateur)
     session.flush()
@@ -85,6 +87,54 @@ def creer_utilisateur(
     )
     session.flush()
     return utilisateur
+
+
+def creer_identite_personnelle(
+    session: Session,
+    *,
+    courriel: str,
+    nom_affichage: str,
+    empreinte_mot_de_passe: str,
+    courriel_verifie: bool,
+) -> tuple[Utilisateur, Espace]:
+    """Crée une identité dont l'unique espace initial est personnel.
+
+    ``Utilisateur.foyer_id`` est encore non nullable pendant la transition. Précréer son
+    conteneur ``Foyer`` avec l'UUID du futur espace évite le faux foyer partagé qu'aurait
+    créé l'ancien constructeur, sans rendre la colonne nullable entre deux migrations.
+    """
+    espace_id = uuid.uuid4()
+    utilisateur_id = uuid.uuid4()
+    session.add(Foyer(id=espace_id, nom=nom_affichage))
+    session.flush()
+    utilisateur = Utilisateur(
+        id=utilisateur_id,
+        foyer_id=espace_id,
+        courriel=courriel,
+        nom_affichage=nom_affichage,
+        empreinte_mot_de_passe=empreinte_mot_de_passe,
+        est_proprietaire=False,
+        courriel_verifie_le=dt.datetime.now(tz=dt.UTC) if courriel_verifie else None,
+    )
+    session.add(utilisateur)
+    session.flush()
+    espace = Espace(
+        id=espace_id,
+        type=TypeEspace.PERSONNEL,
+        nom=nom_affichage,
+        proprietaire_personnel_id=utilisateur_id,
+    )
+    session.add(espace)
+    session.flush()
+    session.add(
+        Appartenance(
+            utilisateur_id=utilisateur_id,
+            espace_id=espace_id,
+            role=RoleEspace.PROPRIETAIRE,
+        )
+    )
+    session.flush()
+    return utilisateur, espace
 
 
 def utilisateur_par_courriel(session: Session, courriel: str) -> Utilisateur | None:
@@ -105,10 +155,18 @@ def utilisateur_par_id(session: Session, utilisateur_id: uuid.UUID) -> Utilisate
 
 
 def enregistrer_session_web(
-    session: Session, *, utilisateur_id: uuid.UUID, empreinte: str, expire_le: dt.datetime
+    session: Session,
+    *,
+    utilisateur_id: uuid.UUID,
+    empreinte: str,
+    expire_le: dt.datetime,
+    second_facteur_satisfait: bool,
 ) -> SessionWeb:
     session_web = SessionWeb(
-        utilisateur_id=utilisateur_id, empreinte_jeton=empreinte, expire_le=expire_le
+        utilisateur_id=utilisateur_id,
+        empreinte_jeton=empreinte,
+        expire_le=expire_le,
+        second_facteur_satisfait=second_facteur_satisfait,
     )
     session.add(session_web)
     session.flush()
@@ -147,6 +205,17 @@ def supprimer_session_web(session: Session, *, empreinte: str) -> int:
         session.execute(delete(SessionWeb).where(SessionWeb.empreinte_jeton == empreinte)),
     )
     return resultat.rowcount
+
+
+def marquer_session_mfa(session: Session, *, empreinte: str) -> bool:
+    session_web = session.execute(
+        select(SessionWeb).where(SessionWeb.empreinte_jeton == empreinte)
+    ).scalar_one_or_none()
+    if session_web is None:
+        return False
+    session_web.second_facteur_satisfait = True
+    session.flush()
+    return True
 
 
 def purger_sessions_expirees(session: Session, *, a_l_instant: dt.datetime) -> int:
@@ -477,6 +546,15 @@ def changer_le_mot_de_passe(
     )
     session.flush()
     return fermees.rowcount
+
+
+def reinitialiser_le_mot_de_passe(
+    session: Session, utilisateur: Utilisateur, *, empreinte: str
+) -> None:
+    """Change le secret après preuve email et révoque toutes les sessions."""
+    utilisateur.empreinte_mot_de_passe = empreinte
+    session.execute(delete(SessionWeb).where(SessionWeb.utilisateur_id == utilisateur.id))
+    session.flush()
 
 
 def versions_des_avatars(

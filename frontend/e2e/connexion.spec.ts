@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 test('la connexion passe au MFA sans perdre les identifiants', async ({ page }) => {
   const corpsConnexion: unknown[] = []
 
-  await page.route('**/api/**', async (route) => {
+  await page.route('*://*/api/**', async (route) => {
     const requete = route.request()
     if (requete.url().endsWith('/api/auth/connexion')) {
       const corps = requete.postDataJSON()
@@ -42,26 +42,30 @@ test('la connexion passe au MFA sans perdre les identifiants', async ({ page }) 
   await page.getByRole('button', { name: 'Continuer' }).click()
   await expect(page.getByRole('alert')).toHaveText('Ce code n’est pas valable.')
 
+  // `faire_confiance` est faux tant que la case n'est pas cochée : le seul appareil qui
+  // devient fiable est celui qu'on a explicitement désigné.
   expect(corpsConnexion).toEqual([
     {
       courriel: 'personne@essai.fr',
       mot_de_passe: 'correct cheval batterie agrafe',
+      faire_confiance: false,
     },
     {
       courriel: 'personne@essai.fr',
       mot_de_passe: 'correct cheval batterie agrafe',
       code: '000000',
+      faire_confiance: false,
     },
   ])
 
-  await page.getByRole('button', { name: 'Revenir aux identifiants' }).click()
+  await page.getByRole('button', { name: 'Revenir' }).click()
   await expect(page.getByLabel('Adresse électronique')).toHaveValue('personne@essai.fr')
   await expect(page.getByLabel('Mot de passe')).toHaveValue('correct cheval batterie agrafe')
 })
 
 test('le login tient dans un petit écran sans défiler', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 700 })
-  await page.route('**/api/**', (route) =>
+  await page.route('*://*/api/**', (route) =>
     route.fulfill({
       status: 401,
       contentType: 'application/json',

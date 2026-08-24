@@ -166,6 +166,7 @@ def test_les_plafonds_sont_personnels(client: TestClient, session_bd: Session) -
         courriel="conjoint@essai.fr",
         nom_affichage="Conjoint",
         empreinte_mot_de_passe=hacher_mot_de_passe("correct cheval batterie agrafe"),
+        courriel_verifie=True,
     )
     session_bd.commit()
     autre = Principal(utilisateur_id=conjoint.id, foyer_id=principal.foyer_id)

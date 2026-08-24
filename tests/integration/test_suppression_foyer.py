@@ -26,7 +26,6 @@ import datetime as dt
 import io
 import uuid
 
-import pyotp
 from fastapi.testclient import TestClient
 from mycounts.domain.espaces import RoleEspace, TypeEspace
 from mycounts.domain.import_releve import GenreCorrespondance
@@ -41,8 +40,8 @@ from PIL import Image as PilImage
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from tests.integration.test_api_auth import MOT_DE_PASSE, connecter
-from tests.integration.test_api_budget import session_ouverte
+from tests.integration.test_api_auth import MOT_DE_PASSE
+from tests.integration.test_api_budget import connecter_avec_mfa, session_ouverte
 
 # Le nom que pose `creer_compte` par défaut. Il ne sert plus de confirmation — c'est
 # l'ADRESSE qu'on retape pour supprimer son compte — mais reste utile pour retrouver le
@@ -162,15 +161,8 @@ def remplir_toutes_les_tables(
         == 204
     )
 
-    # Un second facteur enrôlé : sans lui, `code_de_secours` resterait vide et le test
-    # ne prouverait rien de cette table-là.
-    secret = client.post("/api/auth/moi/second-facteur/preparer").json()["secret"]
-    assert (
-        client.post(
-            "/api/auth/moi/second-facteur/activer", json={"code": pyotp.TOTP(secret).now()}
-        ).status_code
-        == 200
-    )
+    # `session_ouverte` a déjà enrôlé le second facteur : `code_de_secours` contient donc
+    # des lignes à effacer. Le refaire ici serait désormais, à juste titre, refusé.
 
     depot_budget.retenir_la_correspondance(
         session_bd,
@@ -180,6 +172,14 @@ def remplir_toutes_les_tables(
         categorie_id=uuid.UUID(categorie["id"]),
     )
     session_bd.commit()
+
+    # La récupération crée à la fois la preuve opaque et la boîte d'envoi. Le message
+    # n'est pas expédié pendant ce test, mais les deux lignes doivent suivre l'identité
+    # lors de sa suppression.
+    recuperation = client.post(
+        "/api/auth/mot-de-passe-oublie", json={"courriel": COURRIEL}
+    )
+    assert recuperation.status_code == 202, recuperation.text
 
 
 def test_la_suppression_ne_laisse_AUCUNE_ligne(client: TestClient, session_bd: Session) -> None:
@@ -258,17 +258,18 @@ def test_un_membre_invite_part_sans_emporter_le_foyer(
         courriel=normaliser_courriel(invite_courriel),
         nom_affichage="Invité",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
 
-    connecter(client, invite_courriel)
+    connecter_avec_mfa(client, session_bd, invite_courriel)
     depart = client.request("DELETE", "/api/auth/moi", json={"courriel": invite_courriel})
     assert depart.status_code == 204, depart.text
 
     # Le foyer est toujours là, et le propriétaire retrouve tout.
     session_bd.expire_all()
     assert session_bd.get(Foyer, foyer_id) is not None
-    connecter(client, COURRIEL)
+    connecter_avec_mfa(client, session_bd, COURRIEL)
     joints = client.get("/api/comptes", headers={"X-Mycounts-Vue": "foyer"}).json()
     assert [c["nom"] for c in joints] == ["Le joint"]
 
@@ -297,6 +298,7 @@ def test_le_proprietaire_ne_part_pas_en_laissant_des_membres(
         courriel=normaliser_courriel("invite@essai.fr"),
         nom_affichage="Invité",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
 
@@ -332,6 +334,7 @@ def test_un_seul_proprietaire_par_foyer(client: TestClient, session_bd: Session)
             courriel=normaliser_courriel("second@essai.fr"),
             nom_affichage="Second",
             empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+            courriel_verifie=True,
             est_proprietaire=True,
         )
         session_bd.commit()

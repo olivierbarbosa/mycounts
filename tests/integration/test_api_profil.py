@@ -13,17 +13,20 @@ l'ancienne session ouverte ailleurs viderait la mesure de son sens.
 from __future__ import annotations
 
 import io
+from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
 from mycounts.api.dependances import NOM_COOKIE
 from mycounts.domain.avatars import COTE, POIDS_MAXIMAL_OCTETS
 from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
+from mycounts.models.auth import CourrielSortant
 from mycounts.repository import auth as depot_auth
 from PIL import Image
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from tests.integration.test_api_auth import MOT_DE_PASSE, connecter, creer_compte
-from tests.integration.test_api_budget import session_ouverte
+from tests.integration.test_api_budget import connecter_avec_mfa, session_ouverte
 
 COURRIEL = "a@essai.fr"
 
@@ -67,7 +70,7 @@ def test_changer_son_mot_de_passe_ferme_les_AUTRES_sessions(
 
     # Une seconde session pour la même personne, comme un second appareil.
     autre = TestClient(client.app)
-    assert connecter(autre, COURRIEL).status_code == 200
+    connecter_avec_mfa(autre, session_bd, COURRIEL)
     assert autre.get("/api/auth/moi").status_code == 200
 
     reponse = client.post(
@@ -82,7 +85,7 @@ def test_changer_son_mot_de_passe_ferme_les_AUTRES_sessions(
     assert client.get("/api/auth/moi").status_code == 200
     # Et le nouveau secret est bien celui qui vaut.
     encore = TestClient(client.app)
-    assert connecter(encore, COURRIEL, "un nouveau mot de passe long").status_code == 200
+    connecter_avec_mfa(encore, session_bd, COURRIEL, "un nouveau mot de passe long")
     assert connecter(TestClient(client.app), COURRIEL, MOT_DE_PASSE).status_code == 401
 
 
@@ -98,7 +101,7 @@ def test_un_ancien_mot_de_passe_faux_ne_change_rien(
         json={"ancien": "ce n’est pas le bon", "nouveau": "un nouveau mot de passe long"},
     )
     assert refus.status_code == 400, refus.text
-    assert connecter(TestClient(client.app), COURRIEL, MOT_DE_PASSE).status_code == 200
+    connecter_avec_mfa(TestClient(client.app), session_bd, COURRIEL, MOT_DE_PASSE)
 
 
 def test_un_nouveau_mot_de_passe_trop_court_est_refuse(
@@ -131,7 +134,15 @@ def test_changer_son_adresse_change_lidentifiant_de_connexion(
     # même adresse, et deux comptes ne doivent pas pouvoir naître de cette différence.
     assert reponse.json()["courriel"] == "nouvelle@essai.fr"
 
-    assert connecter(TestClient(client.app), "nouvelle@essai.fr").status_code == 200
+    non_verifie = connecter(TestClient(client.app), "nouvelle@essai.fr")
+    assert non_verifie.status_code == 403
+    assert non_verifie.json()["detail"]["motif"] == "courriel_non_verifie"
+
+    session_bd.expire_all()
+    courriel = session_bd.execute(select(CourrielSortant)).scalar_one()
+    jeton = parse_qs(urlparse(courriel.donnees["lien"]).query)["verification"][0]
+    assert client.post("/api/auth/verification", json={"jeton": jeton}).status_code == 200
+    connecter_avec_mfa(TestClient(client.app), session_bd, "nouvelle@essai.fr")
     assert connecter(TestClient(client.app), COURRIEL).status_code == 401
 
 
@@ -151,6 +162,7 @@ def test_une_adresse_deja_prise_est_refusee_sans_le_dire(
         courriel=normaliser_courriel("bruno@essai.fr"),
         nom_affichage="Bruno",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
 
@@ -262,17 +274,18 @@ def test_lavatar_dun_membre_du_foyer_est_visible_pas_celui_dailleurs(
         courriel=normaliser_courriel("bruno@essai.fr"),
         nom_affichage="Bruno",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
     bruno = TestClient(client.app)
-    assert connecter(bruno, "bruno@essai.fr").status_code == 200
+    connecter_avec_mfa(bruno, session_bd, "bruno@essai.fr")
     assert bruno.get(f"/api/auth/utilisateurs/{alice_id}/avatar").status_code == 200
 
     # Carole, dans un AUTRE foyer : rien, et pas même l'aveu que le compte existe.
     creer_compte(session_bd, "carole@ailleurs.fr")
     session_bd.commit()
     carole = TestClient(client.app)
-    assert connecter(carole, "carole@ailleurs.fr").status_code == 200
+    connecter_avec_mfa(carole, session_bd, "carole@ailleurs.fr")
     refus = carole.get(f"/api/auth/utilisateurs/{alice_id}/avatar")
     assert refus.status_code == 404, refus.text
 
@@ -289,6 +302,7 @@ def test_la_liste_des_membres_dit_qui_a_un_avatar(
         courriel=normaliser_courriel("bruno@essai.fr"),
         nom_affichage="Bruno",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
     assert envoyer(client, image_png()).status_code == 204

@@ -29,6 +29,7 @@ def membre(session: Session, foyer_id: object, courriel: str) -> Principal:
         courriel=courriel,
         nom_affichage=courriel.split("@")[0],
         empreinte_mot_de_passe=hacher_mot_de_passe("correct cheval batterie agrafe"),
+        courriel_verifie=True,
     )
     session.commit()
     return Principal(utilisateur_id=utilisateur.id, foyer_id=utilisateur.foyer_id)

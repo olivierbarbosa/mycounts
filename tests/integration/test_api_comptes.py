@@ -15,8 +15,8 @@ from mycounts.domain.securite import hacher_mot_de_passe, normaliser_courriel
 from mycounts.repository import auth as depot_auth
 from sqlalchemy.orm import Session
 
-from tests.integration.test_api_auth import MOT_DE_PASSE, connecter
-from tests.integration.test_api_budget import session_ouverte
+from tests.integration.test_api_auth import MOT_DE_PASSE
+from tests.integration.test_api_budget import connecter_avec_mfa, session_ouverte
 
 
 def creer(client: TestClient, nom: str, produit: str = "compte_courant") -> dict:  # type: ignore[type-arg]
@@ -252,9 +252,10 @@ def test_un_membre_ne_peut_pas_supprimer_le_compte_joint_dun_autre(
         courriel=normaliser_courriel("bruno@essai.fr"),
         nom_affichage="Bruno",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
-    connecter(client, "bruno@essai.fr")
+    connecter_avec_mfa(client, session_bd, "bruno@essai.fr")
 
     refus = client.request(
         "DELETE", f"/api/comptes/{compte_id}", headers={"X-Mycounts-Vue": "foyer"}
@@ -483,9 +484,10 @@ def test_le_compte_prive_dun_autre_membre_reste_intouchable(
         courriel=normaliser_courriel("bruno@essai.fr"),
         nom_affichage="Bruno",
         empreinte_mot_de_passe=hacher_mot_de_passe(MOT_DE_PASSE),
+        courriel_verifie=True,
     )
     session_bd.commit()
-    connecter(client, "bruno@essai.fr")
+    connecter_avec_mfa(client, session_bd, "bruno@essai.fr")
 
     # Bruno ne le voit pas, même dans l'écran qui réunit les deux périmètres.
     assert client.get("/api/comptes?inclure_archives=true").json() == []

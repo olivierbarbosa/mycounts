@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
 async function ouvrirReglages(page: import('@playwright/test').Page) {
   await page.goto('/')
   await page.locator('nav, form').first().waitFor({ state: 'visible' })
-  if (!(await page.locator('nav').isVisible())) {
+  if (!(await page.getByRole('navigation', { name: 'Navigation principale' }).isVisible())) {
     await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
     await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
     await page.getByRole('button', { name: 'Se connecter' }).click()

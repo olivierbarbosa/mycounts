@@ -32,6 +32,9 @@ vraiment. Le choix est écrit ici pour qu'il ne se rediscute pas à chaque écra
 
 DUREE_SESSION: Final = dt.timedelta(days=30)
 DUREE_INVITATION: Final = dt.timedelta(days=7)
+DUREE_VERIFICATION_COURRIEL: Final = dt.timedelta(hours=24)
+DUREE_REINITIALISATION: Final = dt.timedelta(minutes=30)
+DUREE_APPAREIL_CONFIANCE: Final = dt.timedelta(days=30)
 
 _OCTETS_JETON: Final = 32  # 256 bits
 
@@ -127,6 +130,18 @@ def expiration_session(depuis: dt.datetime | None = None) -> dt.datetime:
 
 def expiration_invitation(depuis: dt.datetime | None = None) -> dt.datetime:
     return (depuis or maintenant()) + DUREE_INVITATION
+
+
+def expiration_verification_courriel(depuis: dt.datetime | None = None) -> dt.datetime:
+    return (depuis or maintenant()) + DUREE_VERIFICATION_COURRIEL
+
+
+def expiration_reinitialisation(depuis: dt.datetime | None = None) -> dt.datetime:
+    return (depuis or maintenant()) + DUREE_REINITIALISATION
+
+
+def expiration_appareil_confiance(depuis: dt.datetime | None = None) -> dt.datetime:
+    return (depuis or maintenant()) + DUREE_APPAREIL_CONFIANCE
 
 
 def est_expire(echeance: dt.datetime, a_l_instant: dt.datetime | None = None) -> bool:

@@ -3,11 +3,11 @@ import { expect, test, type Page } from '@playwright/test'
 async function connecter(page: Page) {
   await page.goto('/')
   await page.locator('nav, form').first().waitFor({ state: 'visible' })
-  if (await page.locator('nav').isVisible()) return
+  if (await page.getByRole('navigation', { name: 'Navigation principale' }).isVisible()) return
   await page.getByLabel('Adresse électronique').fill(process.env.MYCOUNTS_COURRIEL_TEST!)
   await page.getByLabel('Mot de passe').fill(process.env.MYCOUNTS_MOT_DE_PASSE_TEST!)
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.locator('nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
 }
 
 test.describe('installation sur iPhone', () => {
@@ -20,6 +20,17 @@ test.describe('installation sur iPhone', () => {
   test('explique l’ajout avant de demander les notifications, sans débordement', async ({
     page,
   }) => {
+    // L'explication n'apparaît que tant que rien n'a été décidé : un Chromium headless
+    // répond « denied » d'office, et l'écran dirait alors « bloquées » — le test
+    // mesurerait le navigateur de test, pas l'écran. L'état est figé à « default ».
+    await page.addInitScript(() => {
+      if ('Notification' in window) {
+        Object.defineProperty(window.Notification, 'permission', {
+          configurable: true,
+          get: () => 'default',
+        })
+      }
+    })
     await connecter(page)
     await page.getByRole('button', { name: /^Paramètres de / }).click()
     await page.getByRole('button', { name: 'Application' }).click()

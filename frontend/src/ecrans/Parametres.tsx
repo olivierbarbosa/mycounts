@@ -22,6 +22,7 @@ import type {
 import { ErreurApi, api } from '../api/client'
 import { Portrait } from '../composants/Portrait'
 import { ProfilPersonnel } from '../composants/ProfilPersonnel'
+import { AppareilsFiables } from '../composants/AppareilsFiables'
 import { SecondFacteur } from '../composants/SecondFacteur'
 import { ComptesBancaires } from '../composants/ComptesBancaires'
 import { type Origine, useEcranDeBulle } from '../composants/EcranDeBulle'
@@ -257,6 +258,7 @@ export function Parametres({
         <div className={styles.carte}>
           <ProfilPersonnel utilisateur={utilisateur} surChangement={surChangement} />
           <SecondFacteur />
+          <AppareilsFiables />
 
           {/* Supprimer son compte vit ICI, et non sur l'écran du foyer : ce qu'on efface
               est son identité et son argent, pas le partage. C'est la séparation que ce
