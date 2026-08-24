@@ -110,7 +110,7 @@ async function enrolerEtOuvrirLaSession(
            * d'un test à l'autre. Depuis qu'un périmètre sans compte n'affiche plus que
            * son invitation, un test laissé en vue foyer fait échouer le suivant. Poser
            * l'état ici plutôt que dans les vingt fichiers de tests : une valeur par
-           * défaut a un auteur. `vue-foyer.spec.ts` bascule explicitement, c'est son
+           * défaut a un auteur. `foyer-espace.spec.ts` bascule explicitement, c'est son
            * sujet. */
           origins: [
             { origin: ORIGINE, localStorage: [{ name: 'mycounts.vue', value: 'personnelle' }] },

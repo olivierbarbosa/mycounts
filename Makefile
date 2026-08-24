@@ -136,8 +136,8 @@ demo-migrer:
 		--ignorer-si-existe
 
 demo-arret:
-	@pkill -f "port $(PORT_API_DEMO)" 2>/dev/null || true
-	@pkill -f "MYCOUNTS_PORT_WEB=$(PORT_WEB_DEMO)" 2>/dev/null || true
+	@pkill -f "[p]ort $(PORT_API_DEMO)" 2>/dev/null || true
+	@pkill -f "[M]YCOUNTS_PORT_WEB=$(PORT_WEB_DEMO)" 2>/dev/null || true
 	@lsof -ti tcp:$(PORT_API_DEMO) 2>/dev/null | xargs kill 2>/dev/null || true
 	@lsof -ti tcp:$(PORT_WEB_DEMO) 2>/dev/null | xargs kill 2>/dev/null || true
 	@echo "Serveurs de démonstration arrêtés."

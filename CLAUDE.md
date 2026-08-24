@@ -179,12 +179,12 @@ ses bibliothèques système. Sans lui, la suite est rouge en 10 ms par test — 
   d'une date de création est une règle sans auteur.
 - **Arrêter de partager et disparaître sont deux actions, sur deux écrans.** Les
   confondre faisait perdre son compte à qui voulait seulement la première (ERREURS.md
-  #044). `DELETE /auth/foyer/partage` supprime les comptes JOINTS et rien d'autre — pas de
-  déconnexion, pas de perte des comptes personnels ; refusé si l'un porte de vraies
-  opérations, et le message les nomme. `DELETE /auth/moi` efface son compte, et emporte le
-  foyer seulement si c'est le dernier membre. Le propriétaire ne part pas tant qu'il reste
-  des membres : `Compte.proprietaire_id` pointerait vers un effacé, et plus personne ne
-  pourrait supprimer les comptes joints qu'il a ouverts.
+  #044). Depuis les espaces multiples : « Quitter ce foyer » et « Supprimer le foyer »
+  vivent dans la rubrique « Foyer » d'un espace FOYER ; `DELETE /auth/moi` efface son
+  compte depuis « Mon compte », qui n'existe que dans l'espace personnel. Les routes
+  historiques `DELETE /auth/foyer/partage` et `Utilisateur.est_proprietaire` restent
+  servies pendant la migration mais aucun écran ne les propose plus
+  (`frontend/e2e/danger-compte-et-partage.spec.ts` mesure la séparation).
 - **Une destruction se confirme en retapant ce qu'elle détruit** — l'ADRESSE pour son
   compte, jamais le nom du foyer, qui désignait la mauvaise chose. La barrière ne vise pas
   celui qui veut détruire, mais celui qui ne le veut pas et dont le doigt a glissé.
@@ -200,18 +200,12 @@ ses bibliothèques système. Sans lui, la suite est rouge en 10 ms par test — 
   avec l'en-tête du moment où l'on clique, et refuser dès qu'il ne concorde plus produirait
   un « introuvable » à propos de ce qui est à l'écran (ERREURS.md #043). Les écrans qui
   TOTALISENT gardent `compte_visible` : un solde ne mélange jamais les deux mondes.
-- **Le foyer est un conteneur technique, pas un groupe.** Tout compte en reçoit un
-  d'office (`foyer_id` non nullable) : tant qu'on est seul, l'écran dit « Partage » et non
-  « Membres », et n'affiche pas une liste d'une personne. Un modèle a le droit d'avoir ses
-  noms ; l'écran n'a pas le droit de les emprunter sans se demander ce qu'ils affirment
-  (ERREURS.md #046). La rubrique « Foyer » n'apparaît qu'une fois un compte joint créé :
-  l'espace commun naît de son premier compte, on y invite ensuite. **On ne peut pas QUITTER
-  un foyer** — il faudrait un foyer d'accueil,
-  le déplacement des comptes privés et la duplication des catégories, qui appartiennent au
-  foyer. Seul « supprimer mon compte » existe.
-- **Une action ne se propose pas quand son échec est certain.** « Dissoudre le partage »
-  n'apparaît que s'il existe un compte joint : l'écran sait, avant de proposer, que le
-  serveur refusera.
+- **Le foyer est un conteneur technique, pas un groupe.** Tant qu'on est seul, l'écran
+  dit « Partage » et non « Membres », et n'affiche pas une liste d'une personne. Un modèle
+  a le droit d'avoir ses noms ; l'écran n'a pas le droit de les emprunter sans se demander
+  ce qu'ils affirment (ERREURS.md #046). Les rubriques des paramètres suivent l'ESPACE
+  actif (`Parametres.tsx`, `estFoyer`) : « Mon compte » n'existe que chez soi, « Foyer »
+  que dans un foyer — chaque espace ne propose que ce qu'il administre.
 - **Un périmètre vide n'affiche AUCUNE mesure.** Sans compte joint, la vue foyer montre
   l'invitation et rien d'autre — pas de solde à 0,00 €, pas de jauge, pas de bouton de
   saisie. « Zéro » répond faux à une question dont la vraie réponse est « il n'y a rien à

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { basculerVers, creerCompteDans, foyerDeDemonstration, ouvrirParametres } from './espaces-aide'
+
 import { jourLocal } from './dates'
 
 /**
@@ -180,36 +182,27 @@ test('supprimer un compte qui porte des opérations est refusé, et l’archivag
   expect(revenus.map((compte) => compte.nom)).toContain(nom)
 })
 
-test('un compte joint se gère depuis la vue joints', async ({ page }) => {
+test('un compte joint se gère depuis le foyer', async ({ page }) => {
   /* Le sens de ce test a changé le 22 août 2026. Il vérifiait qu'un compte joint était
    * gérable depuis la vue PERSONNELLE, l'écran listant alors les deux mondes. Olivier a
-   * tranché l'inverse : chaque vue montre le sien. Ce qui reste tenu ici, c'est qu'un
-   * compte joint est bel et bien gérable — l'écran l'affiche avec son solde, et le
+   * tranché l'inverse : chaque monde montre le sien — et depuis les espaces multiples, le
+   * monde est l'ESPACE choisi dans le sélecteur. Ce qui reste tenu ici, c'est qu'un
+   * compte du foyer est bel et bien gérable — l'écran l'affiche avec son solde, et le
    * supprimer marche.
-   *
-   * La permission, elle, reste large des DEUX côtés : c'est un filet contre une action
-   * partie avec un en-tête de vue qui ne concorde plus avec la liste affichée. Mesuré
-   * côté intégration, dans `test_un_compte_joint_se_gere_depuis_la_vue_personnelle`.
    */
   const nom = `Joint ${Date.now()}`
   await connecter(page)
+  const foyer = await foyerDeDemonstration(page)
 
   // Le décor passe par l'API : créer un compte joint depuis l'écran a son propre test.
-  await page.request.post('/api/comptes', {
-    data: { nom, prive: false, produit: 'compte_courant', solde_ouverture_centimes: 1234 },
-    headers: { 'X-Mycounts-Vue': 'foyer' },
-  })
-  await page.reload()
+  await creerCompteDans(page, foyer, nom, 1234)
+  await basculerVers(page, foyer.nom)
 
   await page.getByRole('button', { name: /^Paramètres de / }).click()
-  await page
-    .getByRole('group', { name: 'Périmètre' })
-    .getByRole('button', { name: 'Comptes joints' })
-    .click()
   await page.getByRole('button', { name: 'Comptes du foyer' }).click()
   await expect(page.getByRole('heading', { name: 'Comptes bancaires' })).toBeVisible()
 
-  await expect(carte(page, nom), 'la vue joints montre ses comptes').toHaveCount(1)
+  await expect(carte(page, nom), 'le foyer montre ses comptes').toHaveCount(1)
   await expect(carte(page, nom), 'et leur solde').toContainText('12')
 
   await carte(page, nom)
@@ -220,5 +213,32 @@ test('un compte joint se gère depuis la vue joints', async ({ page }) => {
     .getByRole('button', { name: 'Supprimer', exact: true })
     .click()
   await expect(carte(page, nom), 'affiché donc supprimable').toHaveCount(0)
+  await fermer(page)
+})
+
+test('un compte joint se crée depuis le foyer', async ({ page }) => {
+  /* Sans cet écran, le foyer resterait vide pour toujours. La case « Compte joint du
+   * foyer » a disparu le 22 août 2026 : c'est l'ESPACE qui décide. Un contrôle dont
+   * l'usage le plus naturel fait disparaître son résultat ne se corrige pas par un
+   * avertissement. */
+  const nom = `Commun ${Date.now()}`
+  await connecter(page)
+  const foyer = await foyerDeDemonstration(page)
+  await basculerVers(page, foyer.nom)
+
+  /* Tout est cadré sur le PANNEAU : l'accueil reste monté derrière lui et porte, quand
+   * le foyer n'a aucun compte joint, un bouton « Créer un compte joint » du même nom. */
+  const panneau = await ouvrirParametres(page)
+  await panneau.getByRole('button', { name: 'Comptes du foyer' }).click()
+  await expect(panneau.getByRole('heading', { name: 'Comptes bancaires' })).toBeVisible()
+
+  await panneau.getByRole('button', { name: 'Créer un compte joint' }).last().click()
+  await panneau.getByLabel('Nom du compte').fill(nom)
+  await panneau.getByRole('button', { name: 'Créer le compte' }).click()
+  await expect(carte(page, nom), 'créé dans le foyer, visible dans le foyer').toHaveCount(1)
+
+  // Et il appartient bien au foyer, pas à l'espace personnel.
+  const personnels = (await (await page.request.get('/api/comptes')).json()) as { nom: string }[]
+  expect(personnels.map((compte) => compte.nom)).not.toContain(nom)
   await fermer(page)
 })
