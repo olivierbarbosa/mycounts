@@ -9,7 +9,17 @@ services:
       POSTGRES_PASSWORD: mycounts
       POSTGRES_DB: mycounts
     ports:
-      - "5434:5432"
+      # 127.0.0.1 EXPLICITEMENT, et pas « 5434:5432 ».
+      #
+      # Docker publie sur 0.0.0.0 par défaut ET insère ses règles DNAT AVANT
+      # celles du pare-feu : un ufw qui n'autorise que le SSH ne bloque rien
+      # d'un port publié par Docker. Sur le VPS, le 24 août 2026, cette base de
+      # développement — mot de passe « mycounts » — a écouté sur internet
+      # pendant deux heures avant qu'on s'en aperçoive.
+      #
+      # Le Makefile et la CI se connectent à localhost : cette restriction ne
+      # leur coûte rien.
+      - "127.0.0.1:5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
