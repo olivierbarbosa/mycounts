@@ -9,7 +9,7 @@ import type {
   RecurrencePublique,
   UtilisateurPublic,
 } from './api/client'
-import { api } from './api/client'
+import { ErreurApi, api } from './api/client'
 import { BarreOnglets, type Onglet } from './composants/BarreOnglets'
 import { Bulle } from './composants/Bulle'
 import { Portrait } from './composants/Portrait'
@@ -104,6 +104,27 @@ export function App() {
    * complet de la page — l'action réussissait et paraissait sans effet. Une liste de
    * choses à relire qui en oublie une ne se signale jamais elle-même. */
   const chargerReferentiels = useCallback(async (espaceVise?: string) => {
+    const parametres = new URLSearchParams(window.location.search)
+    const invitation = parametres.get('invitation')
+    if (invitation !== null) {
+      try {
+        await api.accepterInvitationEspace(invitation)
+      } catch (cause) {
+        // Un lien expiré ne doit jamais déconnecter une session valide. Les pannes
+        // réseau/serveur restent propagées pour ne pas masquer un vrai échec de charge.
+        if (!(cause instanceof ErreurApi && cause.statut >= 400 && cause.statut < 500)) {
+          throw cause
+        }
+      } finally {
+        parametres.delete('invitation')
+        const recherche = parametres.toString()
+        window.history.replaceState(
+          {},
+          '',
+          `${window.location.pathname}${recherche === '' ? '' : `?${recherche}`}`,
+        )
+      }
+    }
     const disponibles = await api.espaces()
     const memorise = espaceVise ?? espaceCourant()
     const cible =

@@ -22,6 +22,7 @@ class CourrielRendu:
 SUJETS: Final[dict[str, str]] = {
     "verification_courriel": "Vérifiez votre adresse MyCounts",
     "reinitialisation_mot_de_passe": "Réinitialisez votre accès MyCounts",
+    "invitation_espace": "Invitation à rejoindre un foyer MyCounts",
     "alerte_securite": "Sécurité de votre compte MyCounts",
 }
 
@@ -38,6 +39,13 @@ def rendre(modele: str, donnees: dict[str, str], *, support: str) -> CourrielRen
     elif modele == "reinitialisation_mot_de_passe":
         action = "Choisir un nouveau mot de passe"
         explication = "Ce lien est valable 30 minutes et ne peut servir qu’une fois."
+    elif modele == "invitation_espace":
+        action = "Rejoindre le foyer"
+        foyer = donnees.get("foyer", "ce foyer").strip() or "ce foyer"
+        explication = (
+            f"Vous êtes invité à rejoindre {foyer}. Le lien est valable sept jours, "
+            "pour cette adresse uniquement."
+        )
     else:
         action = "Ouvrir MyCounts"
         explication = donnees.get("message", "Un changement de sécurité a eu lieu.")

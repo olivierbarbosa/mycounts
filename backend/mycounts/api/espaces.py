@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -18,6 +19,7 @@ from mycounts.api.espaces_schemas import (
     InvitationEspaceCreee,
     MembreEspacePublic,
 )
+from mycounts.config import charger_configuration
 from mycounts.domain.espaces import RoleEspace, TypeEspace
 from mycounts.domain.securite import (
     empreinte_jeton,
@@ -29,6 +31,7 @@ from mycounts.models.auth import Appartenance, Espace
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot_budget
 from mycounts.repository import espaces as depot
+from mycounts.repository import identite as depot_identite
 
 routeur = APIRouter(prefix="/espaces", tags=["espaces"])
 
@@ -91,7 +94,7 @@ def inviter(
     jeton = engendrer_jeton()
     expire_le = expiration_invitation()
     try:
-        depot.creer_invitation(
+        invitation = depot.creer_invitation(
             session,
             principal,
             courriel=demande.courriel,
@@ -101,6 +104,26 @@ def inviter(
         )
     except (PermissionError, ValueError) as cause:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(cause)) from cause
+    courant = depot.appartenance_active(
+        session,
+        utilisateur_id=principal.utilisateur_id,
+        espace_id=principal.espace_id,
+    )
+    if courant is None:  # pragma: no cover - le principal vient de cette appartenance
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Espace indisponible.")
+    configuration = charger_configuration()
+    lien = (
+        f"{configuration.url_publique.rstrip('/')}/?"
+        + urlencode({"invitation": jeton})
+    )
+    depot_identite.mettre_en_file(
+        session,
+        utilisateur_id=principal.utilisateur_id,
+        cle_idempotence=f"invitation_espace:{invitation.id}",
+        destinataire=demande.courriel,
+        modele="invitation_espace",
+        donnees={"nom": "Bonjour", "lien": lien, "foyer": courant[0].nom},
+    )
     session.commit()
     return InvitationEspaceCreee(jeton=jeton, expire_le=expire_le)
 

@@ -186,13 +186,19 @@ export const api = {
       }),
     }),
 
-  inscription: (courriel: string, nomAffichage: string, motDePasse: string) =>
+  inscription: (
+    courriel: string,
+    nomAffichage: string,
+    motDePasse: string,
+    invitation?: string,
+  ) =>
     appeler<{ message: string }>('/auth/inscription', {
       method: 'POST',
       body: JSON.stringify({
         courriel,
         nom_affichage: nomAffichage,
         mot_de_passe: motDePasse,
+        ...(invitation === undefined ? {} : { invitation }),
       }),
     }),
 

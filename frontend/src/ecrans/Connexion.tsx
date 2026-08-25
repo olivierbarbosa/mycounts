@@ -28,6 +28,9 @@ export function Connexion({ surConnexion }: Props) {
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
   const [jetonRecuperation, setJetonRecuperation] = useState<string | null>(null)
+  const [jetonInvitation] = useState(() =>
+    new URLSearchParams(window.location.search).get('invitation'),
+  )
 
   useEffect(() => {
     const parametres = new URLSearchParams(window.location.search)
@@ -83,7 +86,15 @@ export function Connexion({ surConnexion }: Props) {
           setErreur('Les deux mots de passe ne correspondent pas.')
           return
         }
-        const resultat = await api.inscription(courriel, nom, motDePasse)
+        const resultat = await api.inscription(
+          courriel,
+          nom,
+          motDePasse,
+          jetonInvitation ?? undefined,
+        )
+        if (jetonInvitation !== null) {
+          window.history.replaceState({}, '', window.location.pathname)
+        }
         setMessage(resultat.message)
         setEtape('message')
         return

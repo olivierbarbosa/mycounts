@@ -11,6 +11,7 @@ from mycounts.services.courriels import rendre
     [
         ("verification_courriel", "24 heures"),
         ("reinitialisation_mot_de_passe", "30 minutes"),
+        ("invitation_espace", "sept jours"),
     ],
 )
 def test_les_liens_identite_annoncent_leur_duree(modele: str, duree: str) -> None:

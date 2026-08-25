@@ -1719,21 +1719,23 @@ export interface components {
             /** @default fonctionnement */
             usage: components["schemas"]["UsageEnveloppe"];
         };
+        /** DemandeInscription */
+        DemandeInscription: {
+            /** Courriel */
+            courriel: string;
+            /** Invitation */
+            invitation?: string | null;
+            /** Mot De Passe */
+            mot_de_passe: string;
+            /** Nom Affichage */
+            nom_affichage: string;
+        };
         /** DemandeInvitationEspace */
         DemandeInvitationEspace: {
             /** Courriel */
             courriel: string;
             /** @default membre */
             role: components["schemas"]["RoleEspace"];
-        };
-        /** DemandeInscription */
-        DemandeInscription: {
-            /** Courriel */
-            courriel: string;
-            /** Mot De Passe */
-            mot_de_passe: string;
-            /** Nom Affichage */
-            nom_affichage: string;
         };
         /** DemandeJetonIdentite */
         DemandeJetonIdentite: {
@@ -2920,10 +2922,7 @@ export interface operations {
     deconnexion_api_auth_deconnexion_post: {
         parameters: {
             query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-                "X-Mycounts-Espace"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: {
                 mycounts_session?: string | null;
@@ -3085,10 +3084,7 @@ export interface operations {
     moi_api_auth_moi_get: {
         parameters: {
             query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-                "X-Mycounts-Espace"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: {
                 mycounts_session?: string | null;
@@ -3195,6 +3191,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -3228,6 +3225,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
             };
             path: {
                 appareil_id: string;
@@ -3401,10 +3399,7 @@ export interface operations {
     etat_du_second_facteur_api_auth_moi_second_facteur_get: {
         parameters: {
             query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-                "X-Mycounts-Espace"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: {
                 mycounts_session?: string | null;
@@ -3471,10 +3466,7 @@ export interface operations {
     activer_le_second_facteur_api_auth_moi_second_facteur_activer_post: {
         parameters: {
             query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-                "X-Mycounts-Espace"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: {
                 mycounts_session?: string | null;
@@ -3509,10 +3501,7 @@ export interface operations {
     preparer_le_second_facteur_api_auth_moi_second_facteur_preparer_post: {
         parameters: {
             query?: never;
-            header?: {
-                "X-Mycounts-Vue"?: string | null;
-                "X-Mycounts-Espace"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: {
                 mycounts_session?: string | null;

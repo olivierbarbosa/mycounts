@@ -367,12 +367,25 @@ def inscription(
     demande: DemandeInscription, requete: Request, session: SessionBase
 ) -> AccuseIdentite:
     """Crée une identité non vérifiée; la bêta reste fermée par configuration."""
-    if not charger_configuration().inscriptions_ouvertes:
+    instant = maintenant()
+    invitation_espace = None
+    if demande.invitation is not None:
+        invitation_espace = depot_espaces.invitation_utilisable(
+            session,
+            empreinte_jeton=empreinte_jeton(demande.invitation),
+            courriel=demande.courriel,
+            a_l_instant=instant,
+        )
+        if invitation_espace is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cette invitation est inconnue, expirée ou destinée à une autre adresse.",
+            )
+    if not charger_configuration().inscriptions_ouvertes and invitation_espace is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Les inscriptions sont actuellement sur invitation.",
         )
-    instant = maintenant()
     seaux = _seaux_de_connexion(requete, demande.courriel)
     _refuser_si_limite_atteinte(session, seaux, instant=instant)
     _compter_un_echec(session, seaux, instant=instant)
@@ -393,6 +406,13 @@ def inscription(
             courriel_verifie=False,
         )
         depot_budget.creer_categories_initiales(session, espace_personnel.id)
+        if invitation_espace is not None:
+            depot_espaces.accepter_invitation(
+                session,
+                invitation_espace,
+                utilisateur_id=utilisateur.id,
+                a_l_instant=instant,
+            )
         _mettre_lien_identite_en_file(
             session, utilisateur=utilisateur, usage=USAGE_VERIFICATION
         )

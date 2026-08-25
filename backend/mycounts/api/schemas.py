@@ -42,6 +42,7 @@ class DemandeInscription(BaseModel):
     courriel: Courriel
     nom_affichage: str = Field(min_length=1, max_length=80)
     mot_de_passe: str = Field(min_length=LONGUEUR_MINIMALE_MOT_DE_PASSE)
+    invitation: str | None = Field(default=None, min_length=8, max_length=128)
 
 
 class DemandeJetonIdentite(BaseModel):

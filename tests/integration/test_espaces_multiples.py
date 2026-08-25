@@ -11,11 +11,13 @@ from mycounts.domain.agregats import EtatOperation
 from mycounts.domain.espaces import RoleEspace, TypeEspace
 from mycounts.domain.montants import Cents
 from mycounts.domain.securite import hacher_mot_de_passe
+from mycounts.models.auth import CourrielSortant, Utilisateur
 from mycounts.models.budget import Operation
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot_budget
 from mycounts.repository import espaces as depot
 from mycounts.repository.base import Principal
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -171,6 +173,56 @@ def test_un_compte_peut_rejoindre_plusieurs_foyers_et_les_donnees_restent_isolee
     assert (
         client.get("/api/comptes", headers={"X-Mycounts-Espace": str(bob.espace_id)}).json() == []
     )
+
+
+def test_une_invitation_email_autorise_linscription_fermee_et_joint_le_foyer(
+    client: TestClient, session_bd: Session
+) -> None:
+    alice, _ = _identite(session_bd, "alice@essai.fr", "Alice")
+    connecter_avec_mfa(client, session_bd, "alice@essai.fr")
+    foyer = client.post(
+        "/api/espaces",
+        headers={"X-Mycounts-Espace": str(alice.espace_id)},
+        json={"nom": "Famille"},
+    )
+    assert foyer.status_code == 201, foyer.text
+    invitation = client.post(
+        "/api/espaces/invitations",
+        headers={"X-Mycounts-Espace": foyer.json()["id"]},
+        json={"courriel": "nouvelle@essai.fr", "role": "administrateur"},
+    )
+    assert invitation.status_code == 201, invitation.text
+
+    session_bd.expire_all()
+    courriel = session_bd.execute(select(CourrielSortant)).scalar_one()
+    assert courriel.modele == "invitation_espace"
+    assert "invitation=" in courriel.donnees["lien"]
+    assert courriel.donnees["foyer"] == "Famille"
+
+    client.post("/api/auth/deconnexion")
+    inscription = client.post(
+        "/api/auth/inscription",
+        json={
+            "courriel": "nouvelle@essai.fr",
+            "nom_affichage": "Nouvelle",
+            "mot_de_passe": MOT_DE_PASSE,
+            "invitation": invitation.json()["jeton"],
+        },
+    )
+    assert inscription.status_code == 202, inscription.text
+
+    session_bd.expire_all()
+    nouvelle = session_bd.execute(
+        select(Utilisateur).where(Utilisateur.courriel == "nouvelle@essai.fr")
+    ).scalar_one()
+    assert depot.espace_personnel_de(session_bd, nouvelle.id) is not None
+    appartenance = depot.appartenance_active(
+        session_bd,
+        utilisateur_id=nouvelle.id,
+        espace_id=uuid.UUID(foyer.json()["id"]),
+    )
+    assert appartenance is not None
+    assert RoleEspace(appartenance[1].role) is RoleEspace.ADMINISTRATEUR
 
 
 def test_transfert_puis_depart_ne_touche_pas_les_espaces_personnels(
