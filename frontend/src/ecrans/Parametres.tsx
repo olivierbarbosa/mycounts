@@ -1,6 +1,7 @@
 import {
   ChevronLeft,
   ChevronRight,
+  FileUp,
   Landmark,
   LogOut,
   Palette,
@@ -42,6 +43,14 @@ type Props = {
   readonly surDeconnexion: () => void
   /** D'où le panneau doit naître. Voir `Bulle`. */
   readonly origine: Origine
+  /** Ouvre l'import de relevé, qui est un écran à part et non une rubrique.
+   *
+   *  Il a quitté la rangée du haut le 27 août 2026 : cinq objets y tenaient dans 351 px
+   *  utiles à 375 px, et l'import est le plus rare des trois gestes qui s'y trouvaient.
+   *  Il n'est pas devenu une PAGE de ce panneau pour autant — sa revue ligne à ligne
+   *  ferait le troisième niveau que ces réglages s'interdisent. L'entrée referme donc les
+   *  paramètres et ouvre l'écran depuis sa propre position. */
+  readonly surImport: (origine: Origine) => void
   /** Rubrique à ouvrir d'emblée, quand on arrive ici pour une raison précise — l'état
    *  vide de l'accueil, qui propose de créer un compte joint. Le défaut reste la racine :
    *  ouvrir les paramètres depuis l'avatar ne vise rien en particulier. */
@@ -67,6 +76,7 @@ export function Parametres({
   surFermeture,
   surDeconnexion,
   origine,
+  surImport,
   sousMenuInitial = null,
 }: Props) {
   const [sousMenu, setSousMenu] = useState<Cle | null>(sousMenuInitial)
@@ -614,6 +624,30 @@ export function Parametres({
                 </button>
               </li>
             ))}
+
+            {/* Action et non rubrique : elle REFERME les paramètres au lieu d'y descendre,
+                l'import ayant sa revue ligne à ligne qui ferait un troisième niveau. Placée
+                en fin de liste, après les réglages : c'est un geste, pas un réglage. La
+                position du bouton sert d'origine à l'animation, comme pour une bulle. */}
+            <li>
+              <button
+                type="button"
+                className={styles.entree}
+                tabIndex={page === null ? 0 : -1}
+                onClick={(evenement) => {
+                  const boite = evenement.currentTarget.getBoundingClientRect()
+                  surImport({
+                    x: boite.left + boite.width / 2,
+                    y: boite.top + boite.height / 2,
+                    taille: boite.height,
+                  })
+                }}
+              >
+                <FileUp size={18} strokeWidth={2} aria-hidden className={styles.icone} />
+                <span className={styles.libelle}>Importer un relevé</span>
+                <ChevronRight size={18} strokeWidth={2} aria-hidden className={styles.chevron} />
+              </button>
+            </li>
           </ul>
 
           <button

@@ -91,11 +91,65 @@ const MESURE = ([seuilNormal, seuilGrand, debit, plancherDebit]: [
    *  `linear-gradient` : la sonde composait alors sur le parent et annonçait 1,02:1 sur
    *  des boutons parfaitement lisibles. On extrait donc les arrêts pour tester le PIRE
    *  d'entre eux. Voir ERREURS.md #021. */
+  /** Découpe une liste de couches CSS sur les virgules de PREMIER niveau.
+   *
+   *  `String.split(',')` ne convient pas : un `linear-gradient(90deg, a, b)` en contient
+   *  trois qui lui appartiennent. Il faut suivre la profondeur des parenthèses pour
+   *  apparier chaque image à sa taille. */
+  const couches = (liste: string): string[] => {
+    const morceaux: string[] = []
+    let profondeur = 0
+    let debut = 0
+    for (let i = 0; i < liste.length; i += 1) {
+      if (liste[i] === '(') profondeur += 1
+      else if (liste[i] === ')') profondeur -= 1
+      else if (liste[i] === ',' && profondeur === 0) {
+        morceaux.push(liste.slice(debut, i).trim())
+        debut = i + 1
+      }
+    }
+    morceaux.push(liste.slice(debut).trim())
+    return morceaux
+  }
+
+  /** Hauteur en pixels d'une couche de fond, ou `null` si elle n'est pas exprimée en px.
+   *
+   *  `background-size` s'écrit « largeur hauteur ». Seule la hauteur nous intéresse : une
+   *  bande large de 100 % mais haute d'un pixel ne passe sous aucun texte. */
+  const hauteurDeCouche = (taille: string): number | null => {
+    const parties = taille.split(/\s+/)
+    const hauteur = parties.length > 1 ? parties[1] : parties[0]
+    const px = hauteur?.match(/^([\d.]+)px$/)
+    return px ? Number(px[1]) : null
+  }
+
+  /** Couleurs d'arrêt des dégradés QUI COUVRENT le texte, s'il y en a.
+   *
+   *  `getComputedStyle().backgroundColor` vaut `rgba(0,0,0,0)` quand le fond est un
+   *  `linear-gradient` : la sonde composait alors sur le parent et annonçait 1,02:1 sur
+   *  des boutons parfaitement lisibles. On extrait donc les arrêts pour tester le PIRE
+   *  d'entre eux. Voir ERREURS.md #021.
+   *
+   *  Les couches HAUTES DE QUELQUES PIXELS sont écartées, et c'est la cinquième fois que
+   *  cette sonde se trompait de sujet. Le Liquid Glass pose son reflet spéculaire en
+   *  `linear-gradient(…) top / 100% 1px` : une ligne blanche à 42 % sur l'arête
+   *  supérieure. La sonde la prenait pour le fond du bouton entier et annonçait 1,1:1 sur
+   *  du texte clair parfaitement lisible, posé en réalité sur le verre sombre. La barre
+   *  d'onglets n'y échappait que par accident — son libellé actif porte son propre
+   *  dégradé bleu, rencontré avant. Voir ERREURS.md #053. */
   const arretsDeDegrade = (element: Element): [number, number, number][] => {
-    const image = getComputedStyle(element).backgroundImage
+    const style = getComputedStyle(element)
+    const image = style.backgroundImage
     if (!image || image === 'none') return []
-    const trouves = image.match(/(?:rgba?|color)\([^)]+\)/g) ?? []
-    return trouves
+    const tailles = couches(style.backgroundSize)
+    return couches(image)
+      .filter((couche, index) => {
+        if (couche === 'none') return false
+        const hauteur = hauteurDeCouche(tailles[index] ?? tailles[tailles.length - 1] ?? 'auto')
+        // 4 px : au-delà, une bande peut réellement passer derrière une ligne de texte.
+        return hauteur === null || hauteur > 4
+      })
+      .flatMap((couche) => couche.match(/(?:rgba?|color)\([^)]+\)/g) ?? [])
       .map(lire)
       .filter(([, , , a]) => a > 0)
       .map(([r, v, b]) => [r, v, b] as [number, number, number])

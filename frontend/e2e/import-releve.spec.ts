@@ -41,11 +41,18 @@ async function connecter(page: Page) {
   await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
 }
 
-/** `dispatchEvent` : l'écran monte sa coquille sans attendre le réseau et recouvre la
- *  bulle dans la milliseconde, si bien que Playwright refuse de valider un clic dont
+/** L'import s'ouvre depuis les PARAMÈTRES depuis le 27 août 2026 : il a quitté la rangée
+ *  du haut, où cinq objets ne tenaient pas dans les 351 px utiles d'un iPhone SE, et il
+ *  est le plus rare des trois gestes qui s'y trouvaient.
+ *
+ *  `dispatchEvent` : l'écran monte sa coquille sans attendre le réseau et recouvre
+ *  l'entrée dans la milliseconde, si bien que Playwright refuse de valider un clic dont
  *  l'interception qui suit est justement le résultat attendu. */
 async function ouvrirImport(page: Page) {
-  await page.getByRole('button', { name: 'Importer un relevé' }).dispatchEvent('click')
+  await page.getByRole('button', { name: /^Paramètres de / }).click()
+  const parametres = page.getByRole('dialog', { name: 'Paramètres' })
+  await expect(parametres).toBeVisible()
+  await parametres.getByRole('button', { name: 'Importer un relevé' }).dispatchEvent('click')
   await expect(page.getByRole('dialog', { name: 'Importer un relevé' })).toBeVisible()
 }
 

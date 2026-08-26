@@ -5,6 +5,7 @@ import {
   basculerVers,
   creerCompteDans,
   foyerDeDemonstration,
+  listeDesEspaces,
   selecteurEspace,
 } from './espaces-aide'
 
@@ -41,17 +42,32 @@ const lireNoms = async (page: Page, espaceId?: string) =>
 test('le sélecteur marque l’espace actif, et la bascule revient', async ({ page }) => {
   await connecter(page)
   const foyer = await foyerDeDemonstration(page)
-  const moi = selecteurEspace(page).getByRole('button', { name: 'Moi', exact: true })
-  const maison = selecteurEspace(page).getByRole('button', { name: foyer.nom, exact: true })
+  const pilule = selecteurEspace(page)
 
-  await expect(moi, 'l’application ouvre sur le personnel').toHaveAttribute('aria-current', 'page')
-  await expect(maison).not.toHaveAttribute('aria-current', 'page')
+  /* Deux marques et non une : la pilule DIT l'espace courant en continu, la liste le
+     MARQUE quand on l'ouvre. Ne vérifier que la seconde laisserait passer une pilule qui
+     afficherait le mauvais nom — c'est pourtant elle qu'on lit toute la journée. */
+  await expect(pilule, 'l’application ouvre sur le personnel').toHaveText('Moi')
+
+  await pilule.click()
+  const liste = listeDesEspaces(page)
+  await expect(liste.getByRole('button', { name: 'Moi', exact: true })).toHaveAttribute(
+    'aria-current',
+    'true',
+  )
+  await expect(
+    liste.getByRole('button', { name: foyer.nom, exact: true }),
+    'un seul espace actif à la fois',
+  ).not.toHaveAttribute('aria-current', 'true')
+  // Cliquer l'espace DÉJÀ actif referme la liste sans rien basculer.
+  await liste.getByRole('button', { name: 'Moi', exact: true }).click()
+  await expect(liste).toBeHidden()
 
   await basculerVers(page, foyer.nom)
-  await expect(moi, 'un seul espace actif à la fois').not.toHaveAttribute('aria-current', 'page')
+  await expect(pilule).toHaveText(foyer.nom)
 
   await basculerVers(page, 'Moi')
-  await expect(moi).toHaveAttribute('aria-current', 'page')
+  await expect(pilule).toHaveText('Moi')
 })
 
 test('un compte du foyer n’apparaît PAS dans l’espace personnel', async ({ page }) => {

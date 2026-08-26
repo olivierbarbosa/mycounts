@@ -1,4 +1,4 @@
-import { CalendarDays, ChartColumn, ChartPie, FileUp, House, PiggyBank, Wallet } from 'lucide-react'
+import { CalendarDays, ChartColumn, ChartPie, House, PiggyBank, Wallet } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import type {
@@ -246,6 +246,9 @@ export function App() {
           espaces={espaces}
           espaceActif={espaceActif}
           enTransition={transitionEspace}
+          // Cet écran n'affiche aucune bulle : la pilule tient toute la rangée.
+          bullesAGauche={0}
+          bullesADroite={0}
           surChangement={basculerEspace}
           surNouveau={async (espace) => {
             setEspaces((actuels) => [...actuels, espace])
@@ -269,6 +272,12 @@ export function App() {
         espaces={espaces}
         espaceActif={espaceActif}
         enTransition={transitionEspace}
+        // L'avatar à gauche, le calendrier et les statistiques à droite. Ce décompte doit
+        // suivre les <Bulle> ci-dessous : le type littéral refusera de compiler si une
+        // troisième apparaît sans qu'on y pense. L'import a quitté la rangée le 27 août
+        // 2026 — cinq objets n'y tenaient pas à 375 px.
+        bullesAGauche={1}
+        bullesADroite={2}
         surChangement={basculerEspace}
         surNouveau={async (espace) => {
           setEspaces((actuels) => [...actuels, espace])
@@ -384,12 +393,6 @@ export function App() {
         }}
       />
 
-      {/* Troisième bulle, la plus à gauche : l'import est le geste le plus rare des trois,
-          et la place la plus accessible du pouce revient à ce qu'on ouvre le plus. */}
-      <Bulle cote="droite" rang={2} libelle="Importer un relevé" surOuverture={setOrigineImport}>
-        <FileUp size={20} strokeWidth={2} aria-hidden />
-      </Bulle>
-
       {origineImport !== null && (
         <ImportReleve
           origine={origineImport}
@@ -453,6 +456,12 @@ export function App() {
           categories={categories}
           comptes={comptes}
           surChangement={apresEcriture}
+          // Refermer AVANT d'ouvrir : les deux écrans occupent le même plan, et les
+          // laisser superposés ferait revenir sur les paramètres en quittant l'import.
+          surImport={(origine) => {
+            setOrigineParametres(null)
+            setOrigineImport(origine)
+          }}
           surFermeture={() => setOrigineParametres(null)}
           surDeconnexion={() => {
             setOrigineParametres(null)

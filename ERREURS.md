@@ -1603,3 +1603,58 @@ détecté ». Les deux réponses opposées sur la même machine, au même instan
 **Le piège suivant, déjà vu.** Un `docker compose up` lancé à la main reconstruit sans
 passer par `deployer.sh` : l'étiquette vaut alors « inconnue » et le déploiement
 automatique reconstruit. C'est voulu — un doute se résout en reconstruisant.
+
+## #053 — Onze jetons qui n'existaient pas, et personne pour le dire
+
+**Ce que je croyais.** Qu'Olivier me signalait un problème de design : « une barre qui
+s'affiche pas proprement, il faut la repenser ».
+
+**Ce qu'il s'est passé.** `SelecteurEspace.module.css` utilisait dix-neuf jetons CSS.
+Onze n'existaient pas : `--fond-verre`, `--bord-verre`, `--ombre-verre`, `--surface-forte`,
+`--texte-principal`, `--texte-secondaire`, `--accent`, `--danger`… Le projet génère ses
+noms PRÉFIXÉS par leur groupe (`--couleur-texte`, `--verre-flou`, `--rayon-pilule`), et ce
+fichier avait été écrit contre une convention qui n'y existe pas. Mesuré :
+`background-color` calculé à `rgba(0,0,0,0)` aux quatre largeurs testées.
+
+Conséquence : pas de fond, pas de bordure, pas d'ombre — et, les DEUX couleurs de texte
+étant également fantômes, plus rien ne distinguait l'espace actif de l'autre. Ce n'était
+pas un design à revoir, c'était un composant qui n'avait jamais été rendu tel qu'il avait
+été dessiné.
+
+**Pourquoi rien n'a prévenu.** Une variable CSS inconnue rend la déclaration invalide au
+calcul : le navigateur la jette, sans erreur, sans avertissement, sans trace en console.
+Le garde-fou n°9 cherche des couleurs EN DUR — l'erreur inverse, et la bruyante. Personne
+ne cherchait un jeton INVENTÉ, qui est la silencieuse. D'où le garde-fou n°12.
+
+**Ce que j'en retiens.** *Une faute qui n'a aucun symptôme sonore n'est pas une petite
+faute, c'est une faute qui dure.* Le projet répète qu'une donnée a un auteur ; il manquait
+le corollaire — que rien ne vérifiait que les CONSOMMATEURS appellent cet auteur par son
+nom.
+
+**Deux fois trompé pendant l'enquête, par mes propres sondes.**
+
+D'abord un `grep` du nom kebab dans `design/` : il déclarait `--accent` introuvable comme
+les onze autres, alors qu'`--accent`… l'est vraiment, mais aussi `--couleur-accent`, qui
+lui existe et ne contient jamais la chaîne recherchée puisque les noms sont générés depuis
+du camelCase. La sonde rendait le bon verdict pour la mauvaise raison, et l'aurait rendu
+identique sur un fichier sain.
+
+Ensuite le témoin de recouvrement : il simulait l'encoche en RÉÉCRIVANT le `top` des
+éléments flottants en `!important`. Il remplaçait donc la position du composant par la
+sienne, si bien qu'une position fautive devenait invisible dès qu'on simulait une encoche.
+La mutation ne faisait rougir que l'iPhone SE, le seul format sans simulation. Corrigé en
+AJOUTANT l'inset à ce que chaque élément calcule déjà — après quoi la mutation fait rougir
+les quatre formats.
+
+**Et une cinquième fois pour la sonde de contraste** (#011, #021, #035, #047). Elle
+annonçait 1,1:1 sur du texte clair parfaitement lisible. Le Liquid Glass pose son reflet
+spéculaire en `linear-gradient(…) top / 100% 1px` : une ligne blanche à 42 % sur l'arête
+supérieure. La sonde, qui ignore le `background-color` dès qu'un dégradé couvre
+l'élément, prenait cette ligne d'UN PIXEL pour le fond du bouton entier. La barre
+d'onglets n'y échappait que par accident — son libellé actif porte son propre dégradé
+bleu, rencontré avant dans la remontée. Le `background-size: 100% 1px` était pourtant
+dans le style calculé, et la sonde ne le lisait pas.
+
+**Le témoin.** Garde-fou n°12 : rouge sur les 23 usages fautifs, vert après la réécriture,
+rouge à nouveau sur un jeton fantôme introduit exprès dans un autre fichier. Recouvrement :
+vert aux quatre formats, rouge aux quatre sous mutation.

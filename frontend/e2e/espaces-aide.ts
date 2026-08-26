@@ -48,18 +48,28 @@ export async function creerCompteDans(
   return (await reponse.json()) as { id: string }
 }
 
+/** La pilule de la rangée du haut : elle dit l'espace COURANT et ouvre la liste.
+ *
+ *  Depuis le 27 août 2026 le sélecteur n'est plus une barre qui montre tous les espaces
+ *  en permanence, mais un seul bouton dans la rangée des bulles. Son nom accessible finit
+ *  par « Changer d'espace » et commence par l'espace courant, d'où l'ancre de fin. */
 export function selecteurEspace(page: Page) {
-  return page.getByRole('navigation', { name: 'Changer d’espace' })
+  return page.getByRole('button', { name: /Changer d’espace$/ })
 }
 
-/** Bascule par le sélecteur, comme l'utilisateur, et attend que l'espace soit ACTIF —
- *  le libellé et les données changent ensemble, un clic ne suffit donc pas à conclure. */
+export function listeDesEspaces(page: Page) {
+  return page.getByRole('dialog', { name: 'Changer d’espace' })
+}
+
+/** Bascule comme l'utilisateur — ouvrir, choisir — et attend que l'espace soit ACTIF.
+ *  Le libellé et les données changent ensemble : un clic ne suffit pas à conclure. */
 export async function basculerVers(page: Page, libelle: string) {
-  const bouton = selecteurEspace(page).getByRole('button', { name: libelle, exact: true })
-  if ((await bouton.getAttribute('aria-current')) === 'page') return
-  await bouton.click()
-  await expect(bouton).toHaveAttribute('aria-current', 'page')
-  await expect(selecteurEspace(page)).toHaveAttribute('aria-busy', 'false')
+  const pilule = selecteurEspace(page)
+  if ((await pilule.innerText()).trim() === libelle) return
+  await pilule.click()
+  await listeDesEspaces(page).getByRole('button', { name: libelle, exact: true }).click()
+  await expect(pilule).toHaveText(libelle)
+  await expect(pilule).toHaveAttribute('aria-busy', 'false')
 }
 
 export async function ouvrirParametres(page: Page) {

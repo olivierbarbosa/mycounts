@@ -5,8 +5,16 @@ import { CHEMIN_ETAT_SESSION } from './e2e/preparation'
 /** Trois tailles réelles : téléphone, tablette, bureau. Le garde-fou n°10 vérifie sur
  *  chacune qu'aucun débordement horizontal n'apparaît et que toute cible tactile atteint
  *  44 px — la mesure échoue immédiatement sur une grille figée en pixels. */
+/* Deux téléphones et non un seul, et l'un des deux sous Android : Olivier utilise
+   l'application en web app sur iPhone, mais un `env(safe-area-inset-*)` oublié ou une
+   largeur juste ne se voient qu'à la taille où ils cassent. 375 est le plus étroit encore
+   en service, 430 le plus large — c'est entre ces deux bornes que la rangée du haut doit
+   tenir. Le Pixel 7 y ajoute un inset haut différent de ceux d'iOS. */
 export const VIEWPORTS = [
-  { nom: 'mobile', width: 390, height: 844 },
+  { nom: 'iPhone SE', width: 375, height: 667 },
+  { nom: 'iPhone 14', width: 390, height: 844 },
+  { nom: 'Pixel 7', width: 412, height: 915 },
+  { nom: 'iPhone 15 Pro Max', width: 430, height: 932 },
   { nom: 'tablette', width: 820, height: 1180 },
   { nom: 'bureau', width: 1280, height: 800 },
 ] as const

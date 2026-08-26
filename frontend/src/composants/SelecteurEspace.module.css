@@ -1,96 +1,184 @@
-.selecteur {
+/* Sélecteur d'espace — une pilule dans la RANGÉE DES BULLES, pas un étage de plus.
+
+   Ce fichier a été réécrit le 27 août 2026. Le précédent utilisait onze noms de jetons
+   inexistants sur dix-neuf (`--fond-verre`, `--texte-principal`, `--accent`…) : les
+   déclarations étaient jetées en silence, et la barre s'affichait sans fond, sans bordure
+   et sans distinction entre l'espace actif et les autres. Les noms du projet sont TOUS
+   préfixés par leur groupe, et le garde-fou n°12 le vérifie désormais. ERREURS.md #053.
+
+   Le matériau est déclaré ici et non emprunté à la classe `Verre` : celle-ci impose un
+   `background` et un `backdrop-filter` que son hôte doit pouvoir contredire, ce qui a
+   déjà cassé deux mises en page (ERREURS.md #008 et #020). Même choix que
+   `BarreOnglets.module.css`, pour la même raison. */
+
+.pilule {
   position: fixed;
-  z-index: var(--plan-ecran);
-  top: max(12px, env(safe-area-inset-top));
-  left: 50%;
+  top: calc(var(--espace-m) + env(safe-area-inset-top, 0px));
+  z-index: var(--plan-bulle);
+
+  /* La place qui RESTE entre les bulles, calculée depuis leur nombre. La rangée compte
+     ses rangs depuis chaque bord, une cible tactile plus un intervalle par rang — même
+     arithmétique que `Bulle.module.css`, appliquée ici au décompte plutôt qu'au rang. */
+  left: calc(var(--espace-m) + var(--bulles-gauche) * (var(--cible-tactile) + var(--espace-s)));
+  right: calc(var(--espace-m) + var(--bulles-droite) * (var(--cible-tactile) + var(--espace-s)));
+
   display: flex;
-  width: min(52vw, 430px);
-  height: 52px;
-  padding: 4px;
-  transform: translateX(-50%);
-  border: 1px solid var(--bord-verre);
+  align-items: center;
+  gap: var(--espace-s);
+  height: var(--cible-tactile);
+  /* Le padding par défaut d'un `<button>` vaut `1px 6px` et déséquilibrerait la pilule
+     par la droite ; il est posé explicitement (ERREURS.md #048). */
+  padding: 0 var(--espace-m);
+  border: 0;
   border-radius: var(--rayon-pilule);
-  background: var(--fond-verre);
-  box-shadow: var(--ombre-verre);
-  backdrop-filter: blur(24px) saturate(145%);
+
+  /* Le Liquid Glass en quatre couches, comme la barre du bas : reflet spéculaire, teinte
+     très peu opaque, liserés internes qui donnent l'épaisseur, ombre portée qui décolle. */
+  background:
+    linear-gradient(90deg, transparent, var(--couleur-verre-speculaire), transparent) no-repeat top /
+      100% 1px,
+    color-mix(
+      in srgb,
+      var(--couleur-verre-teinte) calc(var(--verre-opacite) * 100%),
+      var(--couleur-verre-opaque)
+    );
+  backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  -webkit-backdrop-filter: blur(var(--verre-flou)) saturate(var(--verre-saturation));
+  box-shadow:
+    inset 0 1px 0 var(--couleur-contour-clair),
+    inset 0 -1px 0 var(--couleur-verre-bord-sombre),
+    inset 0 0 0 1px var(--couleur-verre-bord-sombre),
+    0 8px 32px var(--couleur-verre-bord-sombre);
+
+  color: var(--couleur-texte);
+  font: inherit;
+  font-size: 14px;
+  font-weight: var(--typo-gras-fort);
+  transition: scale 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-.liste {
-  display: flex;
+@supports not (backdrop-filter: blur(1px)) {
+  .pilule {
+    background: var(--couleur-verre-opaque);
+  }
+}
+
+.pilule:active {
+  scale: 0.98;
+}
+
+.pilule[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+/* `min-width: 0` sur l'élément qui rétrécit : sans lui, un contenu en flex refuse de
+   passer sous sa largeur intrinsèque et la pilule déborderait sur les bulles au lieu de
+   couper le nom. Mesuré à 375 px, la place utile pour le nom vaut 95 px. */
+.nom {
   min-width: 0;
   flex: 1;
-  gap: 3px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.liste::-webkit-scrollbar {
-  display: none;
+.chevron {
+  flex-shrink: 0;
+  color: var(--couleur-texte-attenue);
 }
 
-.espace,
-.espaceActif,
-.ajouter,
-.fermer,
-.modes button,
-.principal {
-  border: 0;
-  font: inherit;
-}
+/* ── La liste des espaces, et la création ────────────────────────────────────────── */
 
-.espace,
-.espaceActif {
-  display: inline-flex;
-  min-width: max-content;
-  min-height: 44px;
-  align-items: center;
-  gap: 6px;
-  padding: 0 12px;
-  border-radius: var(--rayon-pilule);
-  color: var(--texte-secondaire);
-  background: transparent;
-}
-
-.espaceActif {
-  color: var(--texte-principal);
-  background: var(--surface-forte);
-}
-
-.ajouter,
-.fermer {
-  display: grid;
-  width: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  place-items: center;
-  border-radius: 50%;
-  color: var(--texte-principal);
-  background: transparent;
-}
-
-.fond {
+.voile {
   position: fixed;
-  z-index: var(--plan-confirmation);
+  z-index: var(--plan-feuille);
   inset: 0;
   display: grid;
   place-items: center;
-  padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+  padding: max(var(--espace-m), env(safe-area-inset-top, 0px)) var(--espace-l)
+    max(var(--espace-m), env(safe-area-inset-bottom, 0px));
   background: var(--couleur-contour-sombre);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
+.feuille,
 .modale {
   display: grid;
   width: min(100%, 390px);
-  max-height: min(316px, calc(100dvh - 24px));
-  gap: 10px;
-  padding: 16px;
-  overflow: hidden;
-  border: 1px solid var(--bord-verre);
+  gap: var(--espace-m);
+  padding: var(--espace-l);
+  border: 1px solid var(--couleur-bordure);
   border-radius: var(--rayon-grand);
-  color: var(--texte-principal);
-  background: var(--fond-verre-opaque);
-  box-shadow: var(--ombre-forte);
+  color: var(--couleur-texte);
+  background: var(--couleur-verre-opaque);
+  box-shadow: 0 24px 64px var(--couleur-contour-sombre);
+}
+
+.feuille {
+  max-height: min(70dvh, 520px);
+  overflow-y: auto;
+}
+
+.titreFeuille {
+  margin: 0;
+  font-size: 17px;
+  font-weight: var(--typo-gras-display);
+}
+
+.espaces {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: var(--espace-xs);
+  list-style: none;
+}
+
+.ligne,
+.ajouter {
+  display: flex;
+  width: 100%;
+  min-height: var(--cible-tactile);
+  align-items: center;
+  gap: var(--espace-m);
+  padding: 0 var(--espace-m);
+  border: 0;
+  border-radius: var(--rayon-moyen);
+  color: var(--couleur-texte);
+  background: var(--couleur-surface);
+  font: inherit;
+  text-align: left;
+}
+
+.ligne[aria-current='true'] {
+  background: var(--couleur-surface-haute);
+  box-shadow: inset 0 0 0 1px var(--couleur-accent-clair);
+}
+
+.nomLigne {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iconeLigne {
+  flex-shrink: 0;
+  color: var(--couleur-texte-attenue);
+}
+
+.coche {
+  flex-shrink: 0;
+  color: var(--couleur-accent-clair);
+}
+
+.ajouter {
+  color: var(--couleur-accent-clair);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--couleur-bordure);
+  font-weight: var(--typo-gras-fort);
 }
 
 .modale header {
@@ -109,92 +197,115 @@
 }
 
 .surtitre {
-  color: var(--accent);
+  color: var(--couleur-accent-clair);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--typo-gras-fort);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
+.fermer {
+  display: grid;
+  width: var(--cible-tactile);
+  min-width: var(--cible-tactile);
+  min-height: var(--cible-tactile);
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--couleur-texte);
+  background: transparent;
+  font: inherit;
+}
+
 .modes {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   padding: 3px;
+  grid-template-columns: 1fr 1fr;
   border-radius: var(--rayon-moyen);
-  background: var(--surface-discrete);
+  background: var(--couleur-surface);
 }
 
 .modes button {
-  min-height: 44px;
+  min-height: var(--cible-tactile);
+  border: 0;
   border-radius: var(--rayon-petit);
-  color: var(--texte-secondaire);
+  color: var(--couleur-texte-attenue);
   background: transparent;
+  font: inherit;
 }
 
 .modes button[aria-pressed='true'] {
-  color: var(--texte-principal);
-  background: var(--surface-forte);
+  color: var(--couleur-texte);
+  background: var(--couleur-surface-haute);
+  font-weight: var(--typo-gras-fort);
 }
 
 .champ {
   display: grid;
   gap: 5px;
+  color: var(--couleur-texte-attenue);
   font-size: 12px;
-  color: var(--texte-secondaire);
 }
 
 .champ input {
   box-sizing: border-box;
   width: 100%;
-  height: 44px;
+  height: var(--cible-tactile);
   padding: 0 13px;
-  border: 1px solid var(--bord-verre);
+  border: 1px solid var(--couleur-bordure);
   border-radius: var(--rayon-petit);
-  color: var(--texte-principal);
-  background: var(--surface-discrete);
+  color: var(--couleur-texte);
+  background: var(--couleur-surface);
   font: inherit;
 }
 
 .aide {
   min-height: 30px;
-  color: var(--texte-secondaire);
+  color: var(--couleur-texte-attenue);
   font-size: 12px;
   line-height: 1.25;
 }
 
 .aide[role='alert'] {
-  color: var(--danger);
+  color: var(--couleur-alerte);
 }
 
 .principal {
-  min-height: 44px;
+  min-height: var(--cible-tactile);
+  border: 0;
   border-radius: var(--rayon-moyen);
-  color: var(--couleur-blanc-fixe);
-  background: var(--accent);
-  font-weight: 700;
+  color: var(--couleur-accent-contraste);
+  background: var(--couleur-accent);
+  font: inherit;
+  font-weight: var(--typo-gras-fort);
 }
 
 .principal:disabled {
   opacity: 0.5;
 }
 
-@media (max-width: 600px) {
-  .selecteur {
-    top: max(62px, calc(env(safe-area-inset-top) + 54px));
-    width: calc(100vw - 32px);
+/* Au-delà de 1024 px la rangée de gauche se range à droite du rail — même décalage que
+   `Bulle.module.css`, faute de quoi la pilule se poserait SUR le rail. */
+@media (min-width: 1024px) {
+  .pilule {
+    top: var(--espace-l);
+    left: calc(
+      var(--disposition-largeur-rail) + var(--espace-l) + var(--bulles-gauche) *
+        (var(--cible-tactile) + var(--espace-s))
+    );
+    right: calc(var(--espace-l) + var(--bulles-droite) * (var(--cible-tactile) + var(--espace-s)));
+    /* Le bureau a de la place : la pilule n'a pas à s'étirer sur toute la rangée. */
+    max-width: 320px;
   }
 }
 
-@media (max-height: 360px) {
-  .modale {
-    grid-template-columns: 1fr 1fr;
-    width: min(620px, 100%);
-    max-height: calc(100dvh - 16px);
+@media (prefers-reduced-motion: reduce) {
+  .pilule {
+    transition: none;
   }
 
-  .modale header,
-  .aide,
-  .principal {
-    grid-column: 1 / -1;
+  .pilule:active {
+    scale: 1;
   }
 }

@@ -284,7 +284,17 @@ ses bibliothèques système. Sans lui, la suite est rouge en 10 ms par test — 
   d'empilement.** Les composants n'écrivent que `var(--…)`, y compris pour les `z-index` :
   ils choisissent un RÔLE (`--plan-feuille`, `--plan-ecran`…), jamais un nombre. Deux
   nombres choisis dans deux fichiers avaient rendu un formulaire invisible derrière l'écran
-  qui l'ouvrait (ERREURS.md #038).
+  qui l'ouvrait (ERREURS.md #038). **Les noms sont TOUS préfixés par leur groupe** —
+  `--couleur-texte`, `--verre-flou`, `--rayon-pilule` — et le garde-fou n°12 refuse tout
+  nom qui n'est pas généré : un jeton inventé ne provoque aucune erreur, seulement une
+  déclaration jetée en silence (ERREURS.md #053).
+- **La rangée du haut est UNE rangée.** Avatar, pilule d'espace et bulles d'action y
+  partagent le même `top` et la même réserve `--disposition-reserve-bulle`. Rien ne s'y
+  ajoute sur un second étage : le sélecteur d'espace l'avait fait, en `position: fixed`
+  sans élargir la réserve écrite pour l'avatar seul, et recouvrait le premier titre de
+  chaque écran. La pilule connaît le NOMBRE de bulles qui l'entourent, par des types
+  littéraux qui refusent de compiler quand une bulle s'ajoute — un recouvrement muet ne
+  se découvre autrement que sur un téléphone.
 - **DA Liquid Glass sur palette bleu ardoise** — `#334155`, `#0EA5E9`, `#7DD3FC`,
   `#E0F2FE`, `#F1F5F9`. Un texte PEUT être posé sur du verre, à une condition mesurée —
   contraste AA de 4,5:1 vérifié dans les deux thèmes et les trois positions de transparence
@@ -310,15 +320,21 @@ ses bibliothèques système. Sans lui, la suite est rouge en 10 ms par test — 
 
 ## Garde-fous actifs
 
-Onze — dix bloquants et un avertisseur — tous prouvés en les faisant échouer devant la faute qu'ils
+Douze — onze bloquants et un avertisseur — tous prouvés en les faisant échouer devant la faute qu'ils
 prétendent détecter — **y compris les cibles du `Makefile` elles-mêmes** : `front-lint` a
 été vert sans rien vérifier pendant toute la vie du projet, faute de `-p` sur un tsconfig
 de références (ERREURS.md #034) : données bancaires (IBAN mod-97, PAN Luhn), secrets, dépendances LLM,
 tête Alembic unique, flottants dans le domaine, requêtes hors repository, couleurs en dur
-hors `tokens.ts`, et mise en page sur trois tailles d'écran. Le onzième avertit quand la base de
+hors `tokens.ts`, jetons CSS inexistants, et mise en page sur six tailles d'écran — quatre
+téléphones, une tablette, un bureau. L'avertisseur signale quand la base de
 DÉMONSTRATION est en retard sur les migrations : elle se migre séparément, son API refuse
 alors de démarrer, et l'application n'affiche plus rien (ERREURS.md #039). Chaque script documente en
 tête **ce qu'il ne détecte pas** — lire cette section avant de lui faire confiance.
+
+Le n°12 est né d'une faute strictement muette : onze `var(--…)` désignant des jetons
+inexistants, donc onze déclarations jetées par le navigateur sans une ligne de console.
+Le n°9 cherche des couleurs EN DUR, l'erreur bruyante ; personne ne cherchait le nom
+INVENTÉ, la silencieuse (ERREURS.md #053).
 
 ## Habitudes
 

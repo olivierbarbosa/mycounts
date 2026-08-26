@@ -67,6 +67,81 @@ for (const vue of VIEWPORTS) {
   })
 }
 
+/* Insets hauts réels des appareils testés. Chromium de bureau rend
+   `env(safe-area-inset-top)` à 0 : sans simulation, la seule configuration mesurée serait
+   celle où le problème ne se produit PAS — le recouvrement du 27 août 2026 valait 10 px
+   sans encoche et 26 px avec. Une mesure aveugle au cas fautif ne prouve rien. */
+const ENCOCHES: Readonly<Record<string, number>> = {
+  'iPhone SE': 0,
+  'iPhone 14': 47,
+  'Pixel 7': 24,
+  'iPhone 15 Pro Max': 59,
+}
+
+test.describe('la rangée du haut ne recouvre jamais le contenu', () => {
+  /* Régression du 27 août 2026 : le sélecteur d'espace occupait un second étage sous les
+     bulles, en `position: fixed`, sans que `--disposition-reserve-bulle` — écrite pour
+     l'avatar seul — ait été élargie. « Solde projeté » était coupé en deux sur l'appareil
+     d'Olivier. Voir ERREURS.md #053. */
+  for (const vue of VIEWPORTS.filter((v) => v.nom in ENCOCHES)) {
+    const inset = ENCOCHES[vue.nom]!
+
+    test(`${vue.nom} (encoche ${inset} px)`, async ({ page }) => {
+      await page.setViewportSize({ width: vue.width, height: vue.height })
+      await connecter(page)
+      /* Le contenu D'ABORD : `evaluate` ne décale que les nœuds présents à l'instant où
+         il s'exécute, contrairement à une feuille de style. Sans cette attente, la page
+         n'était pas encore montée, elle gardait son rembourrage d'origine, et le témoin
+         accusait un recouvrement de 11 px qui n'existait pas. */
+      await expect(page.getByText('Solde projeté')).toBeVisible()
+      if (inset > 0) {
+        /* L'inset est AJOUTÉ à ce que chaque élément calcule déjà, jamais substitué.
+           Une première version écrivait `top: calc(12px + inset)` en `!important` : elle
+           remplaçait la position du composant, si bien qu'une position fautive devenait
+           invisible dès qu'on simulait une encoche. Le témoin ne rougissait alors que sur
+           l'iPhone SE, le seul format sans simulation — une sonde qui neutralise le défaut
+           qu'elle cherche. */
+        await page.evaluate((decalage) => {
+          for (const noeud of document.querySelectorAll<HTMLElement>(
+            '[class*="bulle"], button[aria-haspopup="dialog"]',
+          )) {
+            const actuel = Number.parseFloat(getComputedStyle(noeud).top)
+            noeud.style.setProperty('top', `${actuel + decalage}px`, 'important')
+          }
+          const page_ = document.querySelector<HTMLElement>('main[class*="page"]')
+          if (page_) {
+            const actuel = Number.parseFloat(getComputedStyle(page_).paddingTop)
+            page_.style.setProperty('padding-top', `${actuel + decalage}px`, 'important')
+          }
+        }, inset)
+      }
+
+      const mesure = await page.evaluate(() => {
+        const flottants = [
+          ...document.querySelectorAll('[class*="bulle"], button[aria-haspopup="dialog"]'),
+        ].map((n) => n.getBoundingClientRect())
+        const titre = [...document.querySelectorAll('*')]
+          .find((n) => n.textContent?.trim() === 'Solde projeté' && n.children.length === 0)!
+          .getBoundingClientRect()
+        return {
+          basDesFlottants: Math.round(Math.max(...flottants.map((b) => b.bottom))),
+          hautDuTitre: Math.round(titre.top),
+          largeurVue: window.innerWidth,
+          debordeADroite: Math.round(Math.max(...flottants.map((b) => b.right))),
+        }
+      })
+
+      expect(
+        mesure.basDesFlottants,
+        `la rangée du haut recouvre « Solde projeté » de ${mesure.basDesFlottants - mesure.hautDuTitre} px`,
+      ).toBeLessThanOrEqual(mesure.hautDuTitre)
+      expect(mesure.debordeADroite, 'la rangée déborde à droite').toBeLessThanOrEqual(
+        mesure.largeurVue,
+      )
+    })
+  }
+})
+
 test.describe('navigation selon la taille', () => {
   test('téléphone : la navigation est en bas', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
