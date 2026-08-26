@@ -28,6 +28,15 @@ RUN pip install --no-cache-dir -e . \
 COPY infra/demarrer-api.sh /usr/local/bin/demarrer-api
 RUN chmod +x /usr/local/bin/demarrer-api
 
+# Révision déployée, estampillée sur l'IMAGE et non dans un fichier d'état : un fichier
+# écrit à côté du déploiement affirme ce qu'il croit avoir fait, l'étiquette dit ce qui
+# tourne réellement. C'est la seule information qui survit à un `docker compose up`
+# lancé à la main, et le déploiement automatique s'y fie pour savoir s'il a du retard.
+# Placée en fin d'image : une étiquette qui change à chaque commit n'invalide aucune
+# couche de dépendances.
+ARG MYCOUNTS_REVISION=inconnue
+LABEL org.opencontainers.image.revision="${MYCOUNTS_REVISION}"
+
 # Aucun privilège root : l'API ne écrit rien sur le disque, elle n'en a pas besoin.
 USER mycounts
 

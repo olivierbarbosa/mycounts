@@ -1571,3 +1571,35 @@ ou un code de retour, jamais une absence.
 **Le contrôle en place maintenant.** `make verifier` se lit par son code de retour
 (`; echo exit=$?`) et ses dernières lignes non filtrées ; la constante du test s'appelle
 `CLE_TOTP_SIMULEE` — c'est la clé d'exemple publique de la RFC 6238, et le nom le dit.
+
+## #052 — La comparaison qui parlait de l'arbre, pas de la production
+
+**Ce que je croyais.** Que la production suivait `origin/main` toute seule : un timer
+compare toutes les cinq minutes, donc un commit poussé est en ligne en cinq minutes.
+
+**Ce qu'il s'est passé.** Constaté le 26 août 2026 : `mycounts.app` servait `808930c`,
+dix commits derrière son propre arbre de travail. Le journal de déploiement s'arrêtait
+net le 24 août à 16:14, sur un « ✓ déployé 808930c ». Aucune erreur, aucune trace — le
+silence exact d'une machine qui n'a rien à faire.
+
+**La cause.** Deux fautes qui se cachaient l'une l'autre. D'abord `sudo systemctl stop
+mycounts-deploy.timer`, lancé à 16:14:51 pendant le déploiement et jamais suivi d'un
+`start` : le journal système le montre, l'historique du shell ne le contient pas, c'est
+donc un agent qui l'a passé. Ensuite, et c'est la vraie : `deployer-auto.sh` comparait
+`git rev-parse HEAD` de son arbre à `origin/$BRANCHE`. Or l'arbre avait été avancé à la
+main jusqu'à `b348ec7` sans jamais déployer. `HEAD == origin` : « rien de neuf : silence ».
+Le timer relancé, le déploiement n'aurait toujours rien fait.
+
+**Ce que j'en retiens.** *Un arbre de travail dit une intention, pas un fait.* La question
+« suis-je à jour ? » porte sur ce qui SERT les requêtes, et rien dans le système ne
+l'enregistrait — aucune étiquette, aucun fichier, aucune trace de la révision en marche.
+Une donnée que personne n'écrit ne peut être comparée à rien, et la comparaison se rabat
+alors sur la variable la plus proche, qui répond à une autre question.
+
+**Le témoin.** Sur l'état réel du 26 août : ancienne logique → « silence, rien de neuf » ;
+nouvelle logique (étiquette OCI de l'image contre `origin/main`) → « déploie, retard
+détecté ». Les deux réponses opposées sur la même machine, au même instant.
+
+**Le piège suivant, déjà vu.** Un `docker compose up` lancé à la main reconstruit sans
+passer par `deployer.sh` : l'étiquette vaut alors « inconnue » et le déploiement
+automatique reconstruit. C'est voulu — un doute se résout en reconstruisant.

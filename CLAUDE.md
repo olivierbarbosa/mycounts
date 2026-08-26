@@ -67,8 +67,12 @@ permettrait à un client de choisir lui-même l'origine utilisée par l'anti-bru
 fichiers d'environnement du VPS avant le premier déploiement de ce lot.
 
 Le déploiement est **tiré, pas poussé** : un timer systemd compare toutes les
-5 minutes `origin/main` et `origin/dev` aux deux arbres de travail du VPS
-(`~/mycounts` et `~/mycounts-dev`) et ne reconstruit que si la révision a bougé.
+5 minutes `origin/main` et `origin/dev` à **la révision qui tourne**, lue sur l'étiquette
+OCI `org.opencontainers.image.revision` de l'image de l'API, que `deployer.sh` estampille
+à la construction. Jamais au `HEAD` des arbres de travail (`~/mycounts` et
+`~/mycounts-dev`) : un arbre avancé à la main sans déploiement rendait alors le retard
+invisible, et la production est restée dix commits en arrière pendant deux jours en
+silence (ERREURS.md #052). Un arbre dit une intention, l'image dit un fait.
 Rien d'extérieur n'obtient de droit sur la machine. `infra/deployer-auto.sh` retient
 le commit qui a échoué et ne le rejoue pas en boucle ; `infra/deployer.sh` prend le
 verrou lui-même, de sorte qu'une exécution manuelle et le timer ne peuvent pas se

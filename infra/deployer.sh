@@ -85,6 +85,12 @@ else
 fi
 
 # ── 3. Construire et démarrer ────────────────────────────────────────────────
+# La révision voyage jusqu'à l'image, en SHA complet : le déploiement automatique la
+# relit sur le conteneur en marche pour savoir ce qui tourne vraiment. Un SHA abrégé
+# se comparerait mal à `rev-parse origin/$BRANCHE`, qui rend la forme longue.
+export MYCOUNTS_REVISION
+MYCOUNTS_REVISION=$(git -C "$REPO" rev-parse HEAD)
+
 etape "Construction des images"
 "${COMPOSE[@]}" build api web || echec "construction"
 

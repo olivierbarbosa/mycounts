@@ -45,6 +45,11 @@ services:
     build:
       context: ..
       dockerfile: infra/Dockerfile.api
+      args:
+        # Renseignée par `deployer.sh`. Vide en construction manuelle : l'image porte
+        # alors « inconnue », ce qui fait redéployer le déploiement automatique — un
+        # doute se résout en reconstruisant, jamais en supposant à jour.
+        MYCOUNTS_REVISION: ${MYCOUNTS_REVISION:-inconnue}
     container_name: ${MYCOUNTS_PILE}_api
     restart: unless-stopped
     environment:

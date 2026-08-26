@@ -40,7 +40,17 @@ for PILE in prod dev; do
 
     LOCAL=$(git -C "$ARBRE" rev-parse HEAD)
     DISTANT=$(git -C "$ARBRE" rev-parse "origin/$BRANCHE")
-    [[ "$LOCAL" == "$DISTANT" ]] && continue    # rien de neuf : silence
+
+    # Ce qui TOURNE, pas ce que l'arbre contient. Comparer `HEAD` à `origin` laissait
+    # une panne muette : le 24 août 2026, l'arbre a été avancé de dix commits à la main
+    # sans déploiement, si bien que `HEAD == origin` concluait « rien de neuf » pendant
+    # que la production servait toujours 808930c. L'arbre dit l'intention, l'étiquette
+    # de l'image dit le fait — seul le fait décide d'un déploiement.
+    DEPLOYEE=$(docker inspect --format \
+        '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+        "mycounts-${PILE}_api" 2>/dev/null || true)
+    DEPLOYEE=${DEPLOYEE:-aucune}
+    [[ "$DEPLOYEE" == "$DISTANT" ]] && continue    # déjà en ligne : silence
 
     # Cet arbre peut aussi servir ponctuellement à une intervention locale. Un ancien
     # comportement appelait alors `deployer.sh`, qui remettait brutalement l'arbre sur
@@ -83,7 +93,7 @@ for PILE in prod dev; do
             ;;
     esac
 
-    dire "[$PILE] ──────── ${LOCAL:0:7} → ${DISTANT:0:7}"
+    dire "[$PILE] ──────── ${DEPLOYEE:0:7} → ${DISTANT:0:7}"
     if "$ARBRE/infra/deployer.sh" "$PILE" >> "$JOURNAL" 2>&1; then
         dire "[$PILE] ✓ déployé ${DISTANT:0:7}"
         rm -f "$ECHEC"
