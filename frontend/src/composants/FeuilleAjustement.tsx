@@ -1,7 +1,8 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 
-import type { ComptePublic } from '../api/client'
+import type { ComptePublic, OperationPublique } from '../api/client'
 import { ErreurApi, api } from '../api/client'
+import { dateCivile } from '../design/dates'
 import { SaisieInvalide, enCentimes } from '../design/saisie'
 import { Montant } from './Montant'
 import { fermetureExterieure } from './fermetureExterieure'
@@ -33,10 +34,30 @@ export function FeuilleAjustement({ comptes, surFermeture, surEnregistrement }: 
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
 
+  /* Les corrections passées de CE compte. `null` tant qu'elles ne sont pas arrivées :
+     une liste vide et une liste en vol sont deux états distincts, et les confondre
+     afficherait « aucune correction » pendant la requête qui va en rendre trois. */
+  const [corrections, setCorrections] = useState<readonly OperationPublique[] | null>(null)
+
   const charger = useCallback(async () => {
     const montants = await api.soldesDesComptes()
     setSoldes(new Map(montants.map((s) => [s.compte_id, s.solde_centimes])))
   }, [])
+
+  useEffect(() => {
+    if (compteId === '') return
+    let vivant = true
+    setCorrections(null)
+    void api
+      .correctionsDuCompte(compteId)
+      .then((lignes) => vivant && setCorrections(lignes))
+      // Silencieux : ne pas pouvoir relire l'historique n'empêche pas de corriger, et une
+      // alerte ici ferait douter du formulaire lui-même.
+      .catch(() => vivant && setCorrections([]))
+    return () => {
+      vivant = false
+    }
+  }, [compteId, enCours])
 
   useEffect(() => {
     void charger()
@@ -137,6 +158,29 @@ export function FeuilleAjustement({ comptes, surFermeture, surEnregistrement }: 
             </button>
           </div>
         </form>
+
+        {/* L'historique, sous le formulaire. Il a quitté le journal de l'accueil — un
+            ajustement n'est pas un achat — et se retrouvait nulle part : une valeur posée
+            d'autorité, impossible à relire trois mois plus tard. C'est ici qu'il a du
+            sens, à côté du geste qui le produit. */}
+        {corrections !== null && corrections.length > 0 && (
+          <section className={styles.historique}>
+            <h3 className={styles.titreHistorique}>Corrections précédentes</h3>
+            <ul className={styles.listeCorrections}>
+              {corrections.map((correction) => (
+                <li key={correction.id} className={styles.correction}>
+                  <span className={styles.dateCorrection}>
+                    {new Intl.DateTimeFormat('fr-FR', {
+                      day: 'numeric',
+                      month: 'short',
+                    }).format(dateCivile(correction.date_operation))}
+                  </span>
+                  <Montant centimes={correction.montant_centimes} taille="ligne" />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </Portail>
   )

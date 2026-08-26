@@ -749,6 +749,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/comptes/{compte_id}/ajustements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historique Des Corrections
+         * @description Les corrections de solde d'un compte, la plus récente d'abord.
+         *
+         *     Elles ont quitté le journal de l'accueil le 22 août 2026 — un ajustement n'est pas un
+         *     achat, et le voir sous « Dépenses récentes » fait chercher une dépense qui n'existe
+         *     pas. Mais l'accueil étant le seul écran qui listait les opérations, elles étaient
+         *     devenues invisibles : une correction posée d'autorité, impossible à relire trois mois
+         *     plus tard. Cette route leur rend un endroit, celui où on les fait.
+         */
+        get: operations["historique_des_corrections_api_comptes__compte_id__ajustements_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/enveloppes": {
         parameters: {
             query?: never;
@@ -4131,6 +4157,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AjustementFait"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    historique_des_corrections_api_comptes__compte_id__ajustements_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mycounts-Vue"?: string | null;
+                "X-Mycounts-Espace"?: string | null;
+            };
+            path: {
+                compte_id: string;
+            };
+            cookie?: {
+                mycounts_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationPublique"][];
                 };
             };
             /** @description Validation Error */

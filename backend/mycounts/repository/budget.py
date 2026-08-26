@@ -505,10 +505,15 @@ def operations_visibles(
     depuis: dt.date | None = None,
     jusqu_a: dt.date | None = None,
     comptes: Sequence[uuid.UUID] | None = None,
+    seulement_ajustements: bool = False,
 ) -> list[Operation]:
     """Opérations des comptes que l'appelant a le droit de voir.
 
     Les bornes de date sont **incluses** des deux côtés, comme les périodes budgétaires.
+
+    `seulement_ajustements` sert l'historique des corrections. Le filtre est posé en SQL et
+    non sur la liste rendue : trier après coup obligerait à rapatrier toutes les opérations
+    d'un compte pour en garder trois.
     """
     # Les opérations annulées ne remontent jamais : elles n'existent en base que pour
     # empêcher le job de les recréer.
@@ -516,6 +521,8 @@ def operations_visibles(
         _comptes_autorises(principal),
         Operation.annulee.is_(False),
     ]
+    if seulement_ajustements:
+        conditions.append(Operation.est_ajustement.is_(True))
     if depuis is not None:
         conditions.append(Operation.date_operation >= depuis)
     if jusqu_a is not None:

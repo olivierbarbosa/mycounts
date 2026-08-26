@@ -398,6 +398,13 @@ export const api = {
 
   soldesDesComptes: () => appeler<SoldeDeCompte[]>('/comptes/soldes'),
 
+  /** Les corrections de solde d'un compte, la plus récente d'abord.
+   *
+   *  Elles ne figurent plus dans le journal de l'accueil — un ajustement n'est pas un
+   *  achat — et cet appel leur rend un endroit : celui où on les fait. */
+  correctionsDuCompte: (id: string) =>
+    appeler<OperationPublique[]>(`/comptes/${id}/ajustements`),
+
   /** Les soldes archivés compris, pour accompagner `comptesAGerer`. Sans lui, une carte
    *  archivée s'affichait sans montant — ce qui se lit comme un compte vide, pas comme
    *  une donnée absente. */

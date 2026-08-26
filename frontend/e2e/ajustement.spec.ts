@@ -131,3 +131,35 @@ test('un ajustement n’apparaît pas dans le journal des dépenses', async ({ p
     'un ajustement n’est pas une dépense',
   ).not.toContainText('Ajustement de solde')
 })
+
+test('les corrections passées se relisent là où on les fait', async ({ page }) => {
+  /* Elles ont quitté le journal de l'accueil le 22 août 2026 — un ajustement n'est pas un
+   * achat — et l'accueil étant le SEUL écran qui listait les opérations, elles étaient
+   * devenues invisibles : une valeur posée d'autorité, impossible à relire trois mois plus
+   * tard. Elles reparaissent ici, à côté du geste qui les produit.
+   */
+  await connecter(page)
+  const avant = await lire(page)
+
+  await page.getByRole('button', { name: 'Corriger le solde réel' }).click()
+  const vise = avant.solde_reel - 1_340
+  await page.getByLabel('Solde affiché par votre banque').fill(String(vise / 100).replace('.', ','))
+  await page.getByRole('button', { name: 'Corriger', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  // Rouvrir la feuille : la correction qu'on vient de faire y figure.
+  await page.getByRole('button', { name: 'Corriger le solde réel' }).click()
+  const feuille = page.getByRole('dialog')
+  const historique = feuille.getByRole('heading', { name: 'Corrections précédentes' })
+  await expect(historique).toBeVisible()
+  /* Sur la PREMIÈRE ligne, pas sur un décompte. La base de démonstration est partagée et
+     n'est jamais remise à zéro : compter les corrections de 13,40 € rendait ce test vert
+     seul et rouge en suite, puisqu'une exécution précédente avait laissé la sienne. La
+     propriété qui tient vraiment est « ma correction est la plus récente », et la route
+     départage par `cree_le` les corrections d'un même jour. */
+  await expect(feuille.getByRole('listitem').first()).toContainText('13,40')
+
+  // Et elle n'est toujours pas dans le journal des dépenses.
+  await page.getByRole('button', { name: 'Annuler' }).click()
+  await expect(page.locator('main')).not.toContainText('Ajustement de solde')
+})

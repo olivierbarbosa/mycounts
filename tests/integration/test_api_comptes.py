@@ -7,6 +7,8 @@ changerait de montant après coup.
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi.testclient import TestClient
 from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.comptes import CATALOGUE, TypeCompte
@@ -501,3 +503,83 @@ def test_le_compte_prive_dun_autre_membre_reste_intouchable(
     )
     assert renommage.status_code == 404, renommage.text
     assert client.delete(f"/api/comptes/{secret['id']}").status_code == 404
+
+
+def test_les_corrections_de_solde_restent_consultables(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Elles ont quitté le journal de l'accueil ; il leur fallait un autre endroit.
+
+    Sans cette route, une correction posée devenait invisible : impossible de relire trois
+    mois plus tard pourquoi le solde avait bougé de 13,40 €. Une valeur posée d'autorité,
+    exactement ce que l'ajustement cherche à ne pas être.
+
+    Les deux moitiés sont mesurées : la correction figure ici, et n'est PAS une opération
+    ordinaire du journal.
+    """
+    session_ouverte(client, session_bd)
+    compte = creer(client, "Courant")
+    client.post(
+        "/api/operations",
+        json={
+            "compte_id": compte["id"],
+            "libelle": "Un vrai achat",
+            "montant_centimes": -1_000,
+            "date_operation": aujourd_hui().isoformat(),
+        },
+    )
+    fait = client.post(
+        f"/api/comptes/{compte['id']}/ajustement", json={"solde_reel_centimes": -2_340}
+    )
+    assert fait.status_code == 200, fait.text
+
+    corrections = client.get(f"/api/comptes/{compte['id']}/ajustements").json()
+    assert len(corrections) == 1, corrections
+    assert corrections[0]["est_ajustement"] is True
+    assert corrections[0]["montant_centimes"] == -1_340
+
+    # L'achat, lui, n'est pas une correction : la route ne mélange pas les deux.
+    assert all(c["libelle"] != "Un vrai achat" for c in corrections)
+
+
+def test_deux_corrections_du_meme_jour_sortent_de_la_plus_recente(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Corriger deux fois le même jour est le cas ordinaire : on rectifie, on se ravise.
+
+    L'ordre appartient à `operations_visibles`, qui départage par `cree_le`. Ce témoin
+    existe parce que la route a d'abord retrié la liste elle-même, sur `date_operation`
+    seule : un second auteur, moins juste que le premier, et invisible — le bon résultat
+    arrivait quand même du repository. Muter la route ne fait donc rien rougir ; muter le
+    `order_by` du repository fait rougir ce test.
+    """
+    session_ouverte(client, session_bd)
+    compte = creer(client, "Courant")
+
+    premiere = client.post(
+        f"/api/comptes/{compte['id']}/ajustement", json={"solde_reel_centimes": -1_000}
+    )
+    assert premiere.status_code == 200, premiere.text
+    seconde = client.post(
+        f"/api/comptes/{compte['id']}/ajustement", json={"solde_reel_centimes": -2_500}
+    )
+    assert seconde.status_code == 200, seconde.text
+
+    corrections = client.get(f"/api/comptes/{compte['id']}/ajustements").json()
+    assert len(corrections) == 2, corrections
+    assert [c["date_operation"] for c in corrections] == [
+        corrections[0]["date_operation"],
+        corrections[0]["date_operation"],
+    ], "les deux doivent bien porter la MÊME date, sans quoi le tri ne prouve rien"
+    # La seconde amène le solde de -1000 à -2500, soit -1500 ; elle vient en tête.
+    assert corrections[0]["montant_centimes"] == -1_500
+    assert corrections[1]["montant_centimes"] == -1_000
+
+
+def test_lhistorique_des_corrections_respecte_le_perimetre(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Un identifiant de compte inconnu ne dit pas s'il existe ailleurs."""
+    session_ouverte(client, session_bd)
+    autre = uuid.uuid4()
+    assert client.get(f"/api/comptes/{autre}/ajustements").status_code == 404

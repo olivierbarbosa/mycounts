@@ -40,7 +40,7 @@ du compose VPS. Migration `e18c7d41a2b0_identite_publique.py`.
 **Manque** : couverture des enveloppes par compte, au sens du rapprochement — où
 l'argent EST contre où il devrait être (lot E2) ; chiffrement des libellés et des noms —
 les montants restent en clair, sans quoi soldes et plafonds quitteraient SQL (tranché le
-22 août 2026) ; quitter un foyer ; historique des corrections de solde.
+22 août 2026) ; quitter un foyer.
 
 **PWA livrée** : manifest et icônes standard/maskable ; installation guidée dans les
 paramètres ; métadonnées iOS et zones sûres ; mise à jour consentie ; shell hors ligne sans
@@ -261,9 +261,13 @@ ses bibliothèques système. Sans lui, la suite est rouge en 10 ms par test — 
   n'affiche « Saisi par » que si l'auteur est quelqu'un d'autre.
 - **Le journal de l'accueil montre ce qu'on a ACHETÉ.** Ni l'amorçage ni les ajustements
   n'y figurent : tous deux comptent pleinement dans les soldes, aucun n'est une dépense.
-  Conséquence assumée — cet écran étant le seul à lister les opérations, un ajustement
-  n'est plus consultable une fois écrit ; il reste corrigeable, l'écart étant recalculé par
-  le serveur à chaque nouvelle correction.
+  Les corrections se relisent donc ailleurs : `GET /comptes/{id}/ajustements`, affiché
+  sous le formulaire de la feuille de correction — à côté du geste qui les produit, et non
+  dans une liste de dépenses où elles feraient chercher un achat qui n'existe pas. L'ordre
+  vient du repository (`date_operation DESC, cree_le DESC`) et n'est jamais refait par la
+  route : corriger deux fois le même jour est le cas ordinaire, et un second tri qui
+  ignorait `cree_le` restait invisible, le bon résultat arrivant quand même du premier
+  auteur.
 - **Une modale se rend par `Portail`, dans `<body>`.** Un `z-index` n'est comparable
   qu'entre frères d'un même contexte d'empilement, et les écrans d'onglet en créent un —
   leur animation conserve un `transform`, fût-il l'identité. Une feuille écrite dans un

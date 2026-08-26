@@ -253,6 +253,31 @@ def supprimer_compte(
     session.commit()
 
 
+@routeur.get("/comptes/{compte_id}/ajustements", response_model=list[OperationPublique])
+def historique_des_corrections(
+    compte_id: uuid.UUID, session: SessionBase, principal: PrincipalCourant
+) -> list[OperationPublique]:
+    """Les corrections de solde d'un compte, la plus récente d'abord.
+
+    Elles ont quitté le journal de l'accueil le 22 août 2026 — un ajustement n'est pas un
+    achat, et le voir sous « Dépenses récentes » fait chercher une dépense qui n'existe
+    pas. Mais l'accueil étant le seul écran qui listait les opérations, elles étaient
+    devenues invisibles : une correction posée d'autorité, impossible à relire trois mois
+    plus tard. Cette route leur rend un endroit, celui où on les fait.
+    """
+    if depot.compte_visible(session, principal, compte_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
+    # L'ordre vient du repository — `date_operation DESC, cree_le DESC` — et n'est pas
+    # refait ici. Un second tri ferait un second auteur pour la même donnée, et celui-ci
+    # était en plus MOINS juste : il ignorait `cree_le`, alors que corriger deux fois le
+    # même jour est le cas ordinaire. Un tri qui recopie mal ce qu'il recopie ne se voit
+    # pas, parce que le bon résultat arrive quand même de l'autre auteur.
+    corrections = depot.operations_visibles(
+        session, principal, comptes=[compte_id], seulement_ajustements=True
+    )
+    return [OperationPublique.model_validate(o, from_attributes=True) for o in corrections]
+
+
 @routeur.post("/comptes/{compte_id}/ajustement", response_model=AjustementFait)
 def ajuster_le_solde(
     compte_id: uuid.UUID,

@@ -269,3 +269,44 @@
     transition: none;
   }
 }
+
+/* L'historique des corrections de solde, sous le formulaire d'ajustement. Séparé par un
+   filet : ce qu'on LIT n'est pas ce qu'on écrit, et les coller ferait passer la liste pour
+   une partie du formulaire. */
+.historique {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-xs);
+  padding-top: var(--espace-m);
+  margin-top: var(--espace-m);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.titreHistorique {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 13px;
+  font-weight: var(--typo-gras-moyen);
+}
+
+.listeCorrections {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.correction {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-m);
+  min-height: 32px;
+}
+
+.dateCorrection {
+  color: var(--couleur-texte-faible);
+  font-size: 13px;
+}
