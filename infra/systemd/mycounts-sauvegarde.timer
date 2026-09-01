@@ -1,0 +1,13 @@
+[Unit]
+Description=Sauvegarde mycounts chaque nuit à 4 h UTC
+
+[Timer]
+# 4 h UTC : 6 h à Paris en été, 5 h en hiver — personne ne saisit une dépense, et la
+# comparaison vivante/restaurée n'a donc aucune raison de diverger.
+OnCalendar=*-*-* 04:00:00 UTC
+# Un VPS éteint à 4 h rattrape la sauvegarde au démarrage plutôt que de sauter un jour.
+Persistent=true
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target

@@ -6,7 +6,7 @@ des prélèvements, plafonds par catégorie.
 **Ce fichier décrit l'état RÉEL du projet.** S'il diverge du code, le code a raison et ce
 fichier se corrige dans le même commit. Toute ligne ici doit pointer vers un fichier
 existant : une ligne sans fichier est une intention, sa place est dans le plan ou dans
-`BOUCLE.md`.
+`docs/V1-ROADMAP.md`.
 
 ## État
 
@@ -74,13 +74,47 @@ OCI `org.opencontainers.image.revision` de l'image de l'API, que `deployer.sh` e
 invisible, et la production est restée dix commits en arrière pendant deux jours en
 silence (ERREURS.md #052). Un arbre dit une intention, l'image dit un fait.
 Rien d'extérieur n'obtient de droit sur la machine. `infra/deployer-auto.sh` retient
-le commit qui a échoué et ne le rejoue pas en boucle ; `infra/deployer.sh` prend le
+le commit qui a échoué et ne le rejoue qu'après six heures ou un nouveau commit — jamais
+« plus jamais » : un jeton Docker Hub refusé une fois a bloqué la préproduction six jours
+(27 août 2026). `infra/deployer.sh` prend le
 verrou lui-même, de sorte qu'une exécution manuelle et le timer ne peuvent pas se
 croiser — faute constatée sur luminapp le 17 août 2026, deux `alembic upgrade head`
-concurrents sur la même base. La base est sauvegardée avant toute migration, et une
-sauvegarde de moins de 512 octets arrête le déploiement. Le timer ne déploie un commit
+concurrents sur la même base. La base est sauvegardée avant toute migration par
+`infra/sauvegarder.sh`, auteur unique du `pg_dump`, et une sauvegarde de moins de
+512 octets arrête le déploiement. Le timer ne déploie un commit
 qu'après le succès du job GitHub Actions `verifier` sur ce SHA exact ; `main` et `dev`
 passent tous deux cette CI.
+
+**Exploitation, livrée le 2 septembre 2026** — trois timers, dont les unités vivent dans
+`infra/systemd/` et s'installent par `sudo infra/installer-timers.sh` :
+- `mycounts-sauvegarde` : chaque nuit à 4 h UTC, `sauvegarder.sh` puis
+  `verifier-restauration.sh`, qui rejoue l'archive dans une base jetable du même
+  conteneur et compare révision Alembic, nombre d'opérations, somme des centimes,
+  comptes et identités. **Une archive jamais restaurée n'est pas une sauvegarde.**
+  Rétention quatorze jours, SUR LE VPS — pas de copie hors site, tranché le 2 septembre
+  2026 : une perte du disque emporte la base et ses sauvegardes, c'est la limite connue ;
+- `mycounts-surveiller` : toutes les 5 minutes, `surveiller.sh` mesure santé de l'API et
+  du worker, courriels en attente depuis plus d'une heure, HTTPS par Traefik, retard de
+  déploiement de plus d'une heure, sauvegarde de plus de 26 heures, 5xx des cinq
+  dernières minutes, disque au-delà de 85 % ;
+- les alertes partent en **push sur le téléphone** par `infra/alerter.sh`, seul point de
+  sortie, vers l'URL ntfy de `MYCOUNTS_ALERTE_URL` dans chaque `.env.<pile>`. Une alerte
+  est un CHANGEMENT d'état : une panne se signale une fois, son retour à la normale une
+  fois, et le silence est l'état normal. Le lundi à 8 h, un battement dit que la
+  surveillance elle-même est vivante — sans lui, un timer mort ressemblerait à une
+  machine en parfaite santé. Aucune donnée financière, aucune adresse dans un message.
+
+Le worker de courriels porte SA sonde : un battement de cœur écrit à chaque tour de
+boucle, relu par le compose. La sonde héritée de l'image interrogeait un port qu'il
+n'ouvre pas, et l'a déclaré malade six jours sans rien mesurer (ERREURS.md #054). L'API
+journalise chaque 5xx avec l'identifiant `X-Mycounts-Requete` qu'elle rend au client
+(`api/journalisation.py`) : la ligne du journal et la capture d'écran portent le même.
+
+**Préproduction, règle proposée le 2 septembre 2026, à confirmer** : tout commit qui porte
+une migration ou touche l'authentification passe par `dev` et se vérifie sur
+`dev.mycounts.app` depuis le téléphone avant d'être poussé sur `main`. Le reste va sur
+`main` directement, et `dev` est réaligné dessus par `git push origin main:dev`. Une
+préproduction seize commits en retard, comme trouvée ce jour-là, ne préproduit rien.
 
 Deux pièges payés au premier déploiement : `httpx` était déclaré en dépendance de
 DÉVELOPPEMENT alors que `categorisation_ia.py` l'importe au chargement du module, si
@@ -110,9 +144,15 @@ compatibilité des anciens scripts/routes, mais aucune requête V1 ne les utilis
 autorisation. La migration et les invariants vivent dans
 `backend/migrations/versions/e31a9b6427d0_espaces_et_foyers_multiples.py`.
 
-Le plan d'exécution détaillé vit dans `docs/PLAN.md` — il fixe pour chaque écran ce qu'il
-fait **et ce qu'il ne fait pas**. Cette seconde colonne existe parce que trois écrans ont
-été refaits deux ou trois fois faute de l'avoir écrite avant de coder.
+**La feuille de route est `docs/V1-ROADMAP.md`, et elle seule** — décidé le 2 septembre
+2026, quand trois documents disaient trois suites différentes : `docs/PLAN.md` annonçait
+encore l'écran Budget « à construire », BOUCLE.md datait son état du 20 août, et
+`V1-PRODUIT.md` disait remplacer les deux. `PLAN.md` a été supprimé ; BOUCLE.md garde les
+remarques brutes et l'historique, jamais la liste des tâches. Le principe de `PLAN.md`
+survit : avant d'écrire un écran, écrire ce qu'il fait **et ce qu'il ne fait pas**, en
+tête de son fichier — trois écrans ont été refaits deux ou trois fois faute de l'avoir
+fait. Direction confirmée le même jour : V1-PRODUIT en entier, enveloppes migrées vers le
+modèle V1 avant toute simplification de leur écran, exploitation d'abord.
 
 ## Stack
 

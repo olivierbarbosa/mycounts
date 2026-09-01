@@ -1,0 +1,14 @@
+[Unit]
+Description=Vérifie origin/main et origin/dev toutes les 5 minutes
+
+[Timer]
+# 5 minutes : un commit est en ligne dans les 5 minutes, ce qui est le but. Plus
+# court ne servirait à rien — le service sort immédiatement quand rien n'a bougé,
+# mais un git fetch toutes les minutes est du bruit sans contrepartie.
+OnBootSec=4min
+OnUnitActiveSec=5min
+# Sans cela, tous les timers de la machine se déclenchent à la seconde ronde.
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

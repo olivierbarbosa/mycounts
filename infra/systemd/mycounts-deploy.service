@@ -1,0 +1,22 @@
+[Unit]
+# Déploiement automatique de mycounts depuis origin/main et origin/dev.
+#
+# La machine va CHERCHER le code : rien d'extérieur n'obtient de droit sur elle.
+# On ne passe pas par un runner GitHub — le runner hébergé n'est plus alloué sur
+# ce compte, et le runner auto-hébergé tourne sur cette machine sans accès au
+# démon Docker. Le lui donner reviendrait à lui donner root sur la production.
+Description=Déploiement mycounts depuis origin/main et origin/dev
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=olivierbarbosa
+Group=olivierbarbosa
+WorkingDirectory=/home/olivierbarbosa/mycounts
+ExecStart=/home/olivierbarbosa/mycounts/infra/deployer-auto.sh
+# Deux piles à reconstruire peuvent être longues ; au-delà d'un quart d'heure
+# quelque chose ne va pas, et mieux vaut rendre la main que laisser un
+# déploiement figé tenir son verrou.
+TimeoutStartSec=900

@@ -44,8 +44,10 @@ garde-fous:
 tests:
 	$(PY) -m pytest tests/unit -q
 
+# Sans PostgreSQL, cette cible ROUGIT au lieu d'ignorer ses tests : elle sortait en
+# vert avec 273 tests skippés, ce qui se lisait comme une intégration validée.
 tests-integration:
-	$(PY) -m pytest tests/integration -q
+	MYCOUNTS_EXIGER_BASE=1 $(PY) -m pytest tests/integration -q
 
 # Compte de démonstration des tests de bout en bout. Ce n'est PAS un compte de
 # production : il n'existe que dans la base locale ou celle de la CI.

@@ -15,6 +15,15 @@
 
 name: ${MYCOUNTS_PILE:?MYCOUNTS_PILE requis (mycounts-prod ou mycounts-dev)}
 
+# Journaux bornés. Sans cette limite, le fichier json de chaque conteneur grossit
+# jusqu'à remplir le disque — le VPS était à 76 % le 2 septembre 2026, sans plafond.
+# Cinq fichiers de 20 Mo : dix jours de trafic ordinaire, assez pour relire un incident.
+x-journaux: &journaux
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
 
   # ── PostgreSQL ────────────────────────────────────────────────────────────
@@ -31,6 +40,7 @@ services:
       POSTGRES_DB: mycounts
     volumes:
       - donnees_db:/var/lib/postgresql/data
+    logging: *journaux
     networks:
       - interne
     healthcheck:
@@ -68,6 +78,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    logging: *journaux
     networks:
       - interne
       - web
@@ -89,6 +100,18 @@ services:
     container_name: ${MYCOUNTS_PILE}_courriels
     restart: unless-stopped
     command: ["python", "-m", "scripts.traiter_courriels"]
+    # La sonde HÉRITÉE de l'image interrogeait http://127.0.0.1:8000/health — un port
+    # que ce worker n'ouvre pas. Il a donc été « unhealthy » pendant six jours sans que
+    # cela mesure quoi que ce soit de lui (ERREURS.md #054). La sienne lit le battement
+    # que la boucle écrit à chaque tour : un fichier de plus de 60 s, c'est une boucle
+    # arrêtée, quelle qu'en soit la cause.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time() - os.stat('/tmp/mycounts-courriels-vivant').st_mtime < 60 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    logging: *journaux
     environment:
       MYCOUNTS_DATABASE_URL: postgresql+psycopg://mycounts:${MYCOUNTS_DB_MOT_DE_PASSE}@db:5432/mycounts
       MYCOUNTS_ENVIRONNEMENT: ${MYCOUNTS_ENVIRONNEMENT:?environnement requis}
@@ -117,6 +140,7 @@ services:
     restart: unless-stopped
     depends_on:
       - api
+    logging: *journaux
     networks:
       - web
     labels:

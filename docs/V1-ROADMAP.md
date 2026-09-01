@@ -27,14 +27,20 @@ Sortie : périmètre figé, fixtures représentatives et aucune question métier
 Durée indicative : 1 à 2 semaines.
 
 - Corriger les PATCH nullable et ajouter les tests de régression.
-- Faire vérifier PostgreSQL par `/health`.
-- Ajouter rate limiting pour connexion, MFA, récupération et invitations.
-- Empêcher la réutilisation TOTP et durcir les sessions.
+- Faire vérifier PostgreSQL par `/health`. **Fait.**
+- Ajouter rate limiting pour connexion, MFA, récupération et invitations. **Fait.**
+- Empêcher la réutilisation TOTP et durcir les sessions. **Fait.**
 - Ajouter monitoring, erreurs frontend/backend et alertes d'exploitation sans données
-  financières dans les logs.
-- Sauvegarde hors serveur, test réel de restauration et procédure de rollback.
+  financières dans les logs. **Fait le 2 septembre 2026** pour le serveur :
+  `infra/surveiller.sh`, alertes push par `infra/alerter.sh`, identifiant de requête sur
+  chaque 5xx. Reste : les erreurs du FRONTEND, qui ne remontent nulle part.
+- Sauvegarde, test réel de restauration et procédure de rollback. **Fait le 2 septembre
+  2026** pour la sauvegarde quotidienne et la restauration vérifiée chaque nuit —
+  sur le VPS, sans copie hors site (tranché ce jour-là). Reste : la procédure de
+  rollback écrite et rejouée.
 - Faire dépendre le déploiement du succès de la CI ; ajouter lint frontend, contrats et
-  smoke test de l'image de production.
+  smoke test de l'image de production. **Fait** pour la CI et le lint ; reste le smoke
+  test de l'image.
 
 Sortie : incident détectable, sauvegarde restaurable et déploiement réversible.
 

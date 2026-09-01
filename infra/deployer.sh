@@ -22,7 +22,6 @@ esac
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE=(docker compose -f "$REPO/infra/docker-compose.vps.yml" --env-file "$REPO/infra/.env.$PILE")
-SAUVEGARDES="$HOME/sauvegardes-mycounts"
 VERROU="$HOME/.mycounts-deploy-$PILE.lock"
 CONTENEUR_DB="mycounts-$PILE"_db
 
@@ -49,20 +48,10 @@ fi
 # une erreur, mais tout autre échec en est une.
 if docker ps --format '{{.Names}}' | grep -qx "$CONTENEUR_DB"; then
     etape "Sauvegarde de la base $PILE"
-    HORODATAGE=$(date +%F-%H%M%S)
-    mkdir -p "$SAUVEGARDES"
-    ARCHIVE="$SAUVEGARDES/$PILE-$HORODATAGE.sql.gz"
-    docker exec "$CONTENEUR_DB" pg_dump -U mycounts mycounts | gzip > "$ARCHIVE" \
-        || echec "sauvegarde de la base $PILE"
-    # Un fichier de quelques octets est une sauvegarde vide : mieux vaut refuser
-    # d'avancer que croire un fichier qui ne contient rien.
-    TAILLE=$(stat -c%s "$ARCHIVE")
-    [[ "$TAILLE" -lt 512 ]] && echec "sauvegarde suspecte ($TAILLE octets) : $ARCHIVE"
-    echo "  $ARCHIVE ($(numfmt --to=iec "$TAILLE"))"
-
-    # Sept jours suffisent : au-delà, une sauvegarde d'un schéma périmé ne se
-    # restaure plus sans travail, et elle remplit le disque en silence.
-    find "$SAUVEGARDES" -name "$PILE-*.sql.gz" -mtime +7 -delete
+    # Le pg_dump, sa borne de taille et sa rétention ont UN auteur : sauvegarder.sh,
+    # partagé avec la sauvegarde quotidienne.
+    ARCHIVE=$("$REPO/infra/sauvegarder.sh" "$PILE") || echec "sauvegarde de la base $PILE"
+    echo "  $ARCHIVE ($(numfmt --to=iec "$(stat -c%s "$ARCHIVE")"))"
 else
     echo "Pile $PILE encore jamais démarrée : aucune base à sauvegarder."
 fi

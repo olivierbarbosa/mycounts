@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from pathlib import Path
 
 from mycounts.config import charger_configuration
 from mycounts.domain.securite import maintenant
@@ -12,6 +13,10 @@ from mycounts.repository.base import fabrique_de_sessions
 from mycounts.services.courriels import envoyer, rendre
 
 journal = logging.getLogger("mycounts.courriels")
+
+# Même chemin que la sonde du compose (infra/docker-compose.vps.yml) : /tmp est le seul
+# répertoire où l'utilisateur sans privilège de l'image peut écrire.
+BATTEMENT = "/tmp/mycounts-courriels-vivant"
 
 
 def traiter_un() -> bool:
@@ -49,9 +54,27 @@ def traiter_un() -> bool:
         session.close()
 
 
+def battre() -> None:
+    """Écrit le battement de cœur que la sonde Docker relit.
+
+    Un worker sans port n'a rien d'autre à montrer qu'« encore en boucle ». La sonde
+    héritée de l'image interrogeait un port HTTP que ce processus n'ouvre pas, et l'a
+    déclaré malade pendant six jours sans rien mesurer de lui (ERREURS.md #054).
+    """
+    Path(BATTEMENT).touch()
+
+
 def main() -> None:
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    configuration = charger_configuration()
+    # Dire au démarrage ce qui va se passer : « SMTP absent » se lisait jusqu'ici
+    # comme « rien à envoyer », et un mot de passe oublié a attendu sept jours en file.
+    if configuration.smtp_configure:
+        journal.info("Worker de courriels démarré, SMTP configuré.")
+    else:
+        journal.warning("SMTP NON configuré : la file restera intacte, rien ne partira.")
     while True:
+        battre()
         if not traiter_un():
             time.sleep(5)
 

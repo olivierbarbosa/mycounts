@@ -3,9 +3,11 @@
 Statut : **décisions validées avec le fondateur le 24 août 2026**.
 
 Ce document décrit la cible V1. Il remplace les anciennes décisions produit de
-`docs/PLAN.md` et `CLAUDE.md` lorsqu'elles concernent l'inscription publique, le nombre
-de foyers, l'import PDF, les cycles de paie, les enveloppes ou le coach IA. Ces deux
-documents continuent de décrire l'état actuellement livré jusqu'à sa migration.
+`CLAUDE.md` lorsqu'elles concernent l'inscription publique, le nombre
+de foyers, l'import PDF, les cycles de paie, les enveloppes ou le coach IA. `CLAUDE.md`
+continue de décrire l'état actuellement livré jusqu'à sa migration ; `docs/PLAN.md` a été
+supprimé le 2 septembre 2026, et `docs/V1-ROADMAP.md` est la seule feuille de route.
+Direction confirmée ce jour-là : la V1 en entier, dans l'ordre critique de la roadmap.
 
 ## 1. Promesse
 

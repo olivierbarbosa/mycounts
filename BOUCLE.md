@@ -316,6 +316,26 @@ base64 — 670×470 et 1275×345, RGBA transparent. Trois constats avant de les 
 *L'icône seule — l'enveloppe ouverte — ferait un excellent favicon et une bonne icône
 d'application. À traiter dans un lot dédié : favicon, icônes PWA, écran de connexion.)*
 
+### 2026-09-02 — bilan global et cap
+
+> Regarde ou en est ce projet mycounts, ce qui ne vas pas a ton sens et ce que tu penses
+> qu'il faudrait améliorer
+
+> Attention je veux surtout ton avis sur le produit, le code enfaite tout le projet dans
+> sa globalité
+
+*(Quatre décisions prises en choix multiples : lui seul utilise l'application, tous les
+jours, depuis la mise en ligne ; direction = `docs/V1-PRODUIT.md` en entier ; enveloppes
+migrées vers le modèle V1 avant de simplifier leur écran ; exploitation d'abord.)*
+
+> la sauvegarde hors site oublie on le fera sur le vps, le canal d'alerte en push
+> notification téléphone, vps ok
+
+*(Un second audit, fait par un autre outil, a été fourni le même jour. Ses constats
+vérifiés : `make tests-integration` sortait vert avec tous ses tests ignorés ; vingt-deux
+avertissements oxlint ; pas de README racine. Ses constats faux : « seulement 3 fichiers
+E2E » — il y en a 25 pour 129 tests — et un `vite.svg` résiduel qui n'existe pas.)*
+
 ## Traduction en décisions
 
 | Remarque | Ce qui en a été tiré |
@@ -355,9 +375,11 @@ d'application. À traiter dans un lot dédié : favicon, icônes PWA, écran de 
 | « modifier / supprimer une dépense, et voir son détail » | **À faire** : l'API n'a ni PATCH ni DELETE sur les opérations. À ajouter des deux côtés, avec la même règle que les catégories — confirmation avant suppression. |
 | « surtout prévu pour mobile & tablette » | Mobile-first strict : `min-width` uniquement, tab bar basse, safe areas, cibles ≥ 44 px. |
 
-## État du chantier
+## État du chantier — ARCHIVÉ le 2026-09-02
 
-**Au 2026-08-20.** Ce bloc décrit l'état RÉEL. S'il diverge du code, le code a raison.
+**Ce bloc n'est plus la liste des tâches.** La feuille de route est `docs/V1-ROADMAP.md`,
+et elle seule ; l'état livré est dans `CLAUDE.md`. Ce qui suit est conservé pour
+l'historique des lots A à F, tel qu'il a été écrit le 20 août 2026.
 
 **Livré et vérifié** : authentification et foyer ; comptes privés avec catalogue de
 produits français ; catégories ; opérations (créer, modifier, supprimer, détailler) ;
@@ -534,12 +556,12 @@ tranché, et de ce qui reste ouvert.
 ## Prompt de boucle
 
 À coller après `/loop` pour me laisser avancer seul. Il est écrit ici et non ailleurs
-pour qu'il vieillisse avec le chantier : la liste des tâches vit dans « État du chantier »
-ci-dessus, et le prompt s'y réfère au lieu de la recopier.
+pour qu'il vieillisse avec le chantier : la liste des tâches vit dans
+`docs/V1-ROADMAP.md`, et le prompt s'y réfère au lieu de la recopier.
 
 ```
-Avance seul sur mycounts. Prends la PREMIÈRE tâche non faite de « Reste à faire » dans
-BOUCLE.md, finis-la entièrement, puis passe à la suivante.
+Avance seul sur mycounts. Prends le PREMIER lot non terminé de docs/V1-ROADMAP.md, dans
+l'ordre critique qu'il fixe, finis-le entièrement, puis passe au suivant.
 
 Avant de coder :
 - relis ERREURS.md, en entier si tu touches une zone où je me suis déjà trompé ;

@@ -21,6 +21,7 @@ from mycounts.api.dependances import SessionBase
 from mycounts.api.enveloppes import routeur as routeur_enveloppes
 from mycounts.api.espaces import routeur as routeur_espaces
 from mycounts.api.import_releve import routeur as routeur_import
+from mycounts.api.journalisation import configurer_le_journal, identifier_la_requete
 from mycounts.api.plafonds import routeur as routeur_plafonds
 from mycounts.api.statistiques import routeur as routeur_statistiques
 from mycounts.domain import limitation_auth
@@ -71,7 +72,10 @@ async def cycle_de_vie(_: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+configurer_le_journal()
 app = FastAPI(title="mycounts", version="0.0.0", lifespan=cycle_de_vie)
+# Identifiant sur chaque réponse, ligne de journal sur chaque 5xx : voir journalisation.py.
+app.middleware("http")(identifier_la_requete)
 
 # UN seul point de montage pour l'API. La liste des chemins à relayer vivait auparavant
 # dans vite.config.ts : c'était une seconde source de vérité, et elle a divergé dès la

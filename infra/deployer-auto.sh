@@ -66,9 +66,15 @@ for PILE in prod dev; do
     fi
 
     # Ce commit a déjà échoué : on ne le rejoue pas en boucle. On attend qu'un
-    # nouveau commit arrive, c'est-à-dire qu'un humain ait corrigé quelque chose.
-    if [[ -f "$ECHEC" ]] && [[ "$(cat "$ECHEC")" == "$DISTANT" ]]; then
-        continue
+    # nouveau commit arrive — ou que six heures passent. Sans ce délai, une panne
+    # PASSAGÈRE condamnait le commit pour toujours : la préproduction est restée
+    # bloquée six jours sur un jeton Docker Hub refusé une seule fois (27 août 2026),
+    # et rien ne le disait. Le fichier porte le SHA et l'instant de l'échec.
+    if [[ -f "$ECHEC" ]] && [[ "$(cut -d' ' -f1 "$ECHEC")" == "$DISTANT" ]]; then
+        INSTANT_ECHEC=$(cut -d' ' -f2 "$ECHEC")
+        DEPUIS=$(( $(date +%s) - ${INSTANT_ECHEC:-0} ))
+        (( DEPUIS < 6 * 3600 )) && continue
+        dire "[$PILE] nouvel essai de ${DISTANT:0:7} après $(( DEPUIS / 3600 )) h"
     fi
 
     # Le commit exact doit avoir passé le job GitHub Actions `verifier`. Un statut en
@@ -88,7 +94,9 @@ for PILE in prod dev; do
             ;;
         *)
             dire "[$PILE] CI en échec pour ${DISTANT:0:7} — commit refusé"
-            echo "$DISTANT" > "$ECHEC"
+            echo "$DISTANT $(date +%s)" > "$ECHEC"
+            "$ARBRE/infra/alerter.sh" "$PILE" deploiement panne "CI rouge" \
+                "Le commit ${DISTANT:0:7} a échoué en CI : il ne sera pas déployé."
             continue
             ;;
     esac
@@ -97,10 +105,13 @@ for PILE in prod dev; do
     if "$ARBRE/infra/deployer.sh" "$PILE" >> "$JOURNAL" 2>&1; then
         dire "[$PILE] ✓ déployé ${DISTANT:0:7}"
         rm -f "$ECHEC"
+        "$ARBRE/infra/alerter.sh" "$PILE" deploiement ok "Déploiement" "${DISTANT:0:7} est en ligne."
     else
         code=$?
-        dire "[$PILE] ✗ ÉCHEC (code $code) sur ${DISTANT:0:7} — pas de nouvelle tentative avant un nouveau commit"
-        echo "$DISTANT" > "$ECHEC"
+        dire "[$PILE] ✗ ÉCHEC (code $code) sur ${DISTANT:0:7} — nouvel essai dans six heures, ou au prochain commit"
+        echo "$DISTANT $(date +%s)" > "$ECHEC"
+        "$ARBRE/infra/alerter.sh" "$PILE" deploiement panne "Déploiement en échec" \
+            "Le commit ${DISTANT:0:7} n'a pas pu être déployé (code $code). Voir ~/mycounts-deploy.log."
     fi
 done
 

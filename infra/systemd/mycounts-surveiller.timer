@@ -1,0 +1,11 @@
+[Unit]
+Description=Surveille mycounts toutes les 5 minutes
+
+[Timer]
+# Décalé de 2 minutes par rapport au déploiement, pour lire un fetch déjà fait.
+OnBootSec=6min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

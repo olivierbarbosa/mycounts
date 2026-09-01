@@ -46,8 +46,10 @@ def base_propre() -> Iterator[None]:
             connexion.execute(text(f"truncate {', '.join(TABLES)} restart identity cascade"))
     except Exception as erreur:  # noqa: BLE001 — message actionnable
         message = f"PostgreSQL indisponible ({erreur.__class__.__name__})"
-        if os.environ.get("CI"):
-            pytest.fail(f"{message} — la CI doit fournir une base, pas ignorer les tests")
+        # La CI et `make tests-integration` exigent une base : un skip y serait un vert
+        # qui ne prouve rien. Seul un `pytest` lancé à la main peut encore ignorer.
+        if os.environ.get("CI") or os.environ.get("MYCOUNTS_EXIGER_BASE"):
+            pytest.fail(f"{message} — cette cible exige une base, pas des tests ignorés")
         pytest.skip(f"{message} — lancer « make db-haut »")
     yield
 

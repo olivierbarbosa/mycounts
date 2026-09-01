@@ -1658,3 +1658,43 @@ dans le style calculé, et la sonde ne le lisait pas.
 **Le témoin.** Garde-fou n°12 : rouge sur les 23 usages fautifs, vert après la réécriture,
 rouge à nouveau sur un jeton fantôme introduit exprès dans un autre fichier. Recouvrement :
 vert aux quatre formats, rouge aux quatre sous mutation.
+
+## #054 — Une sonde héritée qui mesurait un port fermé, et un mot de passe oublié qui attendait
+
+**Ce que je croyais.** Que la production était surveillée : Docker marque chaque
+conteneur `healthy` ou `unhealthy`, `deployer.sh` attend la santé RÉELLE de l'API avant
+de se déclarer réussi, et un timer compare la révision qui tourne à `origin/main`.
+
+**Ce qu'il s'est passé.** Constaté le 2 septembre 2026, en lisant `docker ps` sur le
+VPS pour un bilan : `mycounts-prod_courriels` était `unhealthy` depuis six jours. Le
+worker de courriels tourne dans l'image de l'API, dont il hérite la sonde — un
+`urlopen('http://127.0.0.1:8000/health')` — alors qu'il n'ouvre aucun port. La sonde
+répondait « connexion refusée » toutes les quinze secondes, sans mesurer quoi que ce soit
+du worker, et personne ne lisait ce rouge. Pendant ce temps, un courriel
+`reinitialisation_mot_de_passe` attendait en file depuis le 26 août, zéro tentative,
+aucune erreur : le SMTP n'est pas configuré, et le worker, dans ce cas, se tait et dort.
+Olivier a demandé un mot de passe oublié et n'a jamais rien reçu — et rien, nulle part, ne
+le disait.
+
+Trouvé au même moment, pour la même cause — personne ne regarde : la préproduction
+bloquée depuis le 27 août sur un jeton Docker Hub refusé une fois, que `deployer-auto.sh`
+avait retenu comme un échec « à ne jamais rejouer » ; et un serveur Vite de démonstration
+lancé le 24 août sur le VPS, toujours en écoute sur `0.0.0.0:5190` neuf jours plus tard.
+
+**La cause.** Trois mesures existaient, aucune n'avait de DESTINATAIRE. Un `unhealthy`
+que personne ne lit, un journal de déploiement que personne n'ouvre, un fichier d'échec
+que rien ne signale : ce sont des faits écrits pour un lecteur qui ne vient pas. Et la
+sonde du worker portait sur le mauvais sujet — la sixième fois que cette forme revient
+(#011, #021, #035, #047, #052).
+
+**Ce que j'en retiens.** *Une mesure sans destinataire n'est pas une surveillance, c'est
+une archive.* D'où trois choses : chaque sonde alerte le téléphone en cas de CHANGEMENT
+d'état ; le worker écrit un battement de cœur que SA sonde relit, au lieu d'hériter d'une
+question qui ne le concerne pas ; et un battement hebdomadaire prouve que le canal
+d'alerte lui-même est vivant — sinon un timer mort ressemblerait à une machine en
+parfaite santé, le silence de #041 à l'échelle de l'exploitation.
+
+**Le témoin.** `verifier-restauration.sh` a été lancé dans les deux sens sur la
+préproduction avant d'être commité : l'archive de la pile passe, l'archive de l'AUTRE
+pile diverge et sort en 1. `alerter.sh` : trois pannes identiques → une notification,
+un message différent → une seconde, deux « ok » → une seule, journal à quatre lignes.

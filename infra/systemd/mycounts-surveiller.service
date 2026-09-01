@@ -1,0 +1,12 @@
+[Unit]
+Description=Surveillance des piles mycounts (santé, retard, sauvegarde, 5xx, disque)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=olivierbarbosa
+Group=olivierbarbosa
+WorkingDirectory=/home/olivierbarbosa/mycounts
+ExecStart=/home/olivierbarbosa/mycounts/infra/surveiller.sh
+TimeoutStartSec=120
