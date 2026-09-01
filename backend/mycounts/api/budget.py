@@ -32,7 +32,7 @@ from mycounts.api.budget_schemas import (
 )
 from mycounts.api.dependances import PrincipalCourant, SessionBase
 from mycounts.domain import comptes as domaine_comptes
-from mycounts.domain.agregats import Agregat, calculer
+from mycounts.domain.agregats import Agregat, EtatOperation, OperationCalcul, calculer
 from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.comptes import TypeCompte
 from mycounts.domain.epargne import MouvementEpargne, mois_precedents, repartir_par_mois
@@ -42,6 +42,7 @@ from mycounts.jobs.materialisation import materialiser
 from mycounts.models.budget import Compte
 from mycounts.repository import auth as depot_auth
 from mycounts.repository import budget as depot
+from mycounts.repository import recurrences as depot_recurrences
 
 routeur = APIRouter(tags=["budget"])
 
@@ -580,10 +581,39 @@ def resume_de_la_periode(
     # 4 000 € alors que 3 500 sont mis de côté, et la décision de dépenser se prendrait
     # sur un chiffre faux. L'épargne a son propre total, sur sa propre page.
     courants = depot.ids_des_comptes(session, principal, type_compte=TypeCompte.COURANT)
+    operations = depot.operations_pour_calcul(session, principal, comptes=courants)
+    paies = depot.dates_de_paie(session, principal, comptes=courants)
+    jour = aujourd_hui()
+    sans_echeances_futures = resumer(
+        operations,
+        paies,
+        aujourd_hui=jour,
+        paies_par_cycle=paies_par_cycle,
+    )
+
+    # Les récurrences futures n'existent volontairement pas dans `operation` : l'agenda
+    # les projette à la volée et le job ne les matérialise qu'à leur date. Le résumé doit
+    # faire la même projection, sinon une charge pourtant visible au calendrier ne réduit
+    # ni le solde projeté ni la capacité d'épargne proposée au début du cycle.
+    comptes_courants = set(courants)
+    operations.extend(
+        OperationCalcul(
+            montant=Cents(recurrence.montant_centimes),
+            date_operation=date_echeance,
+            etat=EtatOperation.PREVUE,
+        )
+        for recurrence, date_echeance in depot_recurrences.echeances_projetees(
+            session,
+            principal,
+            depuis=jour,
+            jusqu_a=sans_echeances_futures.periode.fin,
+        )
+        if recurrence.compte_id in comptes_courants
+    )
     return resumer(
-        depot.operations_pour_calcul(session, principal, comptes=courants),
-        depot.dates_de_paie(session, principal, comptes=courants),
-        aujourd_hui=aujourd_hui(),
+        operations,
+        paies,
+        aujourd_hui=jour,
         paies_par_cycle=paies_par_cycle,
     )
 

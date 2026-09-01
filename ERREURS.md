@@ -1698,3 +1698,23 @@ parfaite santé, le silence de #041 à l'échelle de l'exploitation.
 préproduction avant d'être commité : l'archive de la pile passe, l'archive de l'AUTRE
 pile diverge et sort en 1. `alerter.sh` : trois pannes identiques → une notification,
 un message différent → une seconde, deux « ok » → une seule, journal à quatre lignes.
+
+## #055 — Le calendrier savait ce qui allait partir, le disponible l'ignorait
+
+**Ce que je croyais.** Qu'une charge affichée dans l'agenda entrait naturellement dans
+le solde projeté et, par transitivité, dans la capacité d'épargne.
+
+**Ce qu'il s'est passé.** L'agenda calculait les échéances futures à la volée, tandis que
+le résumé ne lisait que la table des opérations. Or le job ne matérialise volontairement
+une récurrence qu'à sa date : avant ce jour, la charge était visible mais l'argent restait
+annoncé comme disponible.
+
+**La cause.** Deux lectures correctes prises séparément, mais aucune composition entre
+elles. Stocker le futur aurait faussé le solde réel ; l'ignorer faussait le projeté.
+
+**Ce que j'en retiens.** *Une prévision n'est pas une écriture, mais elle reste une entrée
+du calcul projeté.* Le résumé réutilise désormais la projection de l'agenda dans la seule
+fenêtre du cycle et sous l'état `PREVUE`.
+
+**Le témoin.** Avec 2 500 € réels et une charge future de 1 000 €, PostgreSQL rend 2 500 €
+réels, 1 500 € projetés et zéro dépense constatée avant le prélèvement.

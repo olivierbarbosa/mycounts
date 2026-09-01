@@ -53,6 +53,36 @@ def test_creer_une_recurrence_et_voir_ses_echeances(
     assert agenda == sorted(agenda, key=lambda e: e["date_echeance"]), "agenda non trié"
 
 
+def test_une_charge_future_reduit_le_solde_projete_du_cycle(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le calendrier doit réserver l'argent avant le prélèvement, pas le jour même."""
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    client.post(
+        "/api/operations",
+        json={
+            "compte_id": compte_id,
+            "libelle": "Salaire",
+            "montant_centimes": 250000,
+            "date_operation": (AUJOURD_HUI - dt.timedelta(days=5)).isoformat(),
+            "est_paie": True,
+        },
+    )
+    creer_recurrence_api(
+        client,
+        compte_id,
+        AUJOURD_HUI + dt.timedelta(days=3),
+        montant_centimes=-100000,
+    )
+
+    resume = client.get("/api/resume").json()
+
+    assert resume["solde_reel"] == 250000
+    assert resume["solde_projete"] == 150000
+    assert resume["depenses_de_periode"] == 0, "une prévision n'est pas encore dépensée"
+
+
 def test_lagenda_ne_montre_que_le_futur_non_materialise(
     client: TestClient, session_bd: Session
 ) -> None:
