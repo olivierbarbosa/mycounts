@@ -171,7 +171,10 @@ def test_une_operation_dit_qui_la_saisie(client: TestClient, session_bd: Session
             "compte_id": joint["id"],
             "libelle": "Courses de Bruno",
             "montant_centimes": -3_000,
-            "date_operation": "2026-08-21",
+            # Le jour même, jamais une date figée : la relecture ci-dessous lit la
+            # PÉRIODE COURANTE, et une date d'août a fait rougir ce test le 1er
+            # septembre 2026 sans qu'aucun code n'ait changé.
+            "date_operation": aujourd_hui().isoformat(),
         },
         headers=FOYER,
     )
