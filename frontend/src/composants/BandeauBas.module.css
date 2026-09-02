@@ -1,0 +1,44 @@
+/* Position commune des messages posés au bord inférieur de l'écran — mise à jour prête,
+   réseau coupé. UN auteur pour cette position : chaque message qui la recopiait choisissait
+   son propre `bottom`, et celui de la mise à jour se posait SUR la barre d'onglets.
+
+   Sous 1024 px, la barre est flottante en bas : le message se pose au-dessus d'elle, dans
+   la réserve `--disposition-reserve-navigation`. Au-delà, la navigation est un rail à
+   gauche : le message se range en bas à droite, hors de son chemin. */
+.bandeau {
+  position: fixed;
+  z-index: var(--plan-confirmation);
+  right: var(--espace-m);
+  bottom: calc(var(--disposition-reserve-navigation) + env(safe-area-inset-bottom, 0px));
+  left: var(--espace-m);
+  display: flex;
+  align-items: center;
+  gap: var(--espace-s);
+  padding: var(--espace-s);
+  padding-left: var(--espace-l);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-grand);
+  background: var(--couleur-surface-opaque);
+  box-shadow: 0 12px 30px var(--couleur-verre-bord-sombre);
+}
+
+.texte {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+@media (min-width: 600px) {
+  .bandeau {
+    left: auto;
+    width: min(440px, calc(100vw - 2 * var(--espace-xl)));
+  }
+}
+
+@media (min-width: 1024px) {
+  .bandeau {
+    bottom: calc(var(--espace-m) + env(safe-area-inset-bottom, 0px));
+  }
+}

@@ -1,26 +1,9 @@
 .message {
-  position: fixed;
-  z-index: var(--plan-confirmation);
-  right: var(--espace-m);
-  bottom: calc(var(--espace-m) + env(safe-area-inset-bottom, 0px));
-  left: var(--espace-m);
-  display: flex;
-  align-items: center;
-  gap: var(--espace-s);
-  padding: var(--espace-s);
-  padding-left: var(--espace-l);
-  border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-grand);
-  background: var(--couleur-surface-opaque);
-  box-shadow: 0 12px 30px var(--couleur-verre-bord-sombre);
+  composes: bandeau from './BandeauBas.module.css';
 }
 
 .texte {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.35;
+  composes: texte from './BandeauBas.module.css';
 }
 
 .action,
@@ -51,9 +34,3 @@
   background: transparent;
 }
 
-@media (min-width: 600px) {
-  .message {
-    left: auto;
-    width: min(440px, calc(100vw - 2 * var(--espace-xl)));
-  }
-}

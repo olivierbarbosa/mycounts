@@ -181,6 +181,12 @@ export const disposition = {
   /** Place réservée en haut de chaque écran pour la bulle d'avatar, qui est fixe et ne
    *  pousse donc rien : sans cette réserve, elle recouvrirait le premier titre. */
   reserveBulle: '56px',
+  /** Place réservée en BAS, au-dessus de la barre d'onglets flottante, pour tout message
+   *  posé au bord inférieur — mise à jour prête, réseau coupé. La barre est fixe et ne
+   *  pousse rien : un message posé à `espace-m` du bord la recouvrait, et cachait la
+   *  seule sortie de l'écran. Au-delà de 1024 px la navigation est un rail latéral et
+   *  cette réserve ne s'applique plus. */
+  reserveNavigation: '88px',
 }
 
 export const textureSombre = {

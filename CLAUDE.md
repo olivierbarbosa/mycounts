@@ -43,8 +43,15 @@ les montants restent en clair, sans quoi soldes et plafonds quitteraient SQL (tr
 22 août 2026) ; quitter un foyer.
 
 **PWA livrée** : manifest et icônes standard/maskable ; installation guidée dans les
-paramètres ; métadonnées iOS et zones sûres ; mise à jour consentie ; shell hors ligne sans
-aucune réponse API financière en cache. La frontière de plateforme et la configuration
+paramètres ; métadonnées iOS et zones sûres ; mise à jour consentie, vérifiée aussi au
+retour au premier plan ; shell hors ligne sans aucune réponse API financière en cache.
+**Une coupure réseau en cours de session ne remplace pas l'écran** : un bandeau
+(`frontend/src/composants/BandeauReseau.tsx`) dit l'état et la saisie en cours reste ;
+l'écran plein `EtatHorsLigne` ne vaut qu'au démarrage sans réseau, quand rien n'est à
+préserver. Tout message posé en bas — mise à jour, réseau — partage la position de
+`BandeauBas.module.css`, au-dessus de la barre d'onglets (`--disposition-reserve-navigation`),
+mesurée par `frontend/e2e/pwa-fiabilite.spec.ts` avec les erreurs de console sur
+375/390/430/820 px. La frontière de plateforme et la configuration
 Capacitor préparent iOS/Android ; le transport natif reste volontairement inactif tant que
 le trousseau et les jetons courts serveur ne sont pas livrés.
 

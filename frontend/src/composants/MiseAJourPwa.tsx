@@ -16,6 +16,12 @@ export function MiseAJourPwa() {
       // changé ; l'utilisateur garde ensuite le dernier mot via le bouton ci-dessous.
       if (enregistrement !== undefined) {
         window.setInterval(() => void enregistrement.update(), 60 * 60 * 1000)
+        // Une PWA passée en arrière-plan voit ses minuteries gelées par le système :
+        // l'heure ci-dessus ne s'écoule pas pendant qu'elle dort. Le retour au premier
+        // plan est donc le vrai moment où l'on revient, et celui où l'on vérifie.
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') void enregistrement.update()
+        })
       }
     },
   })

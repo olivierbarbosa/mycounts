@@ -35,6 +35,7 @@ import { PremierCompte } from './ecrans/PremierCompte'
 import { Statistiques } from './ecrans/Statistiques'
 import { Parametres } from './ecrans/Parametres'
 import { EtatHorsLigne } from './composants/EtatHorsLigne'
+import { BandeauReseau } from './composants/BandeauReseau'
 import { plateforme } from './plateforme'
 
 const ONGLETS: readonly Onglet[] = [
@@ -193,7 +194,13 @@ export function App() {
   // Le shell fonctionne hors ligne, les données financières non. Montrer la connexion
   // après un échec réseau laisserait croire que la session a expiré et inciterait à
   // retaper un mot de passe inutilement.
-  if (!enLigne) return <EtatHorsLigne />
+  //
+  // L'écran plein ne vaut que tant que RIEN n'est chargé. Une fois l'espace affiché, la
+  // coupure se dit par un bandeau et l'écran reste : `offline` part sur iOS au simple
+  // passage du Wi-Fi au cellulaire, et remplacer l'écran à cet instant démontait la
+  // feuille de saisie avec le montant qu'on y tapait.
+  if (!enLigne && (utilisateur === null || espaceActif === null)) return <EtatHorsLigne />
+  const bandeauReseau = enLigne ? null : <BandeauReseau />
 
   if (!reconnexionInitialeTerminee) return null
 
@@ -256,6 +263,7 @@ export function App() {
           }}
         />
         <PremierCompte surCreation={apresEcriture} />
+        {bandeauReseau}
       </>
     )
   }
@@ -510,6 +518,7 @@ export function App() {
           surEnregistrement={apresEcriture}
         />
       )}
+      {bandeauReseau}
     </>
   )
 }

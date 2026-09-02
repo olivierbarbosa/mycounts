@@ -36,8 +36,11 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
-        orientation: 'portrait-primary',
+        // Pas de « window-controls-overlay » : ce mode pose les boutons de la fenêtre
+        // PAR-DESSUS la rangée du haut, et aucune feuille de style ne réserve
+        // `env(titlebar-area-*)`. Pas d'`orientation` non plus : elle verrouillait le
+        // portrait jusque sur tablette, là où le rail latéral est fait pour le paysage.
+        display_override: ['standalone', 'minimal-ui'],
         background_color: '#0F172A',
         theme_color: '#0F172A',
         categories: ['finance', 'productivity'],

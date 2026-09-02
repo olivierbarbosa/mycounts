@@ -1,0 +1,15 @@
+.bandeau {
+  composes: bandeau from './BandeauBas.module.css';
+  gap: var(--espace-m);
+  padding-right: var(--espace-l);
+}
+
+.texte {
+  composes: texte from './BandeauBas.module.css';
+}
+
+.icone {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--couleur-texte-attenue);
+}
