@@ -76,6 +76,12 @@ class Compte(Base):
     __tablename__ = "compte"
     __table_args__ = (
         CheckConstraint("devise = 'EUR'", name="ck_compte_devise_eur"),
+        # Dérivée de l'énumération, jamais recopiée : une valeur ajoutée au domaine sans
+        # migration ferait échouer l'écriture ici plutôt que disparaître des totaux.
+        CheckConstraint(
+            "type_compte in (" + ", ".join(f"'{t.value}'" for t in TypeCompte) + ")",
+            name="ck_compte_type_connu",
+        ),
         UniqueConstraint("foyer_id", "nom", name="uq_compte_nom_par_foyer"),
     )
 
@@ -93,9 +99,12 @@ class Compte(Base):
     # opération, sans quoi recalculer un historique réécrirait le passé.
     devise: Mapped[str] = mapped_column(String(3), default="EUR", server_default="EUR")
     archive: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    # Courant ou épargne. Le défaut est `courant` : un compte créé sans qu'on se pose la
-    # question est un compte du quotidien, et se tromper dans ce sens ne cache rien à
-    # personne — l'inverse retirerait de l'argent du solde affiché sans le dire.
+    # Courant, épargne ou placement. Le défaut est `courant` : un compte créé sans qu'on
+    # se pose la question est un compte du quotidien, et se tromper dans ce sens ne cache
+    # rien à personne — l'inverse retirerait de l'argent du solde affiché sans le dire.
+    # Les valeurs admises sont énumérées dans `ck_compte_type_connu` : une quatrième
+    # valeur écrite par un script ne serait lue par AUCUN total, et l'argent disparaîtrait
+    # des écrans sans erreur.
     type_compte: Mapped[TypeCompte] = mapped_column(
         String(16), default=TypeCompte.COURANT, server_default=TypeCompte.COURANT.value
     )

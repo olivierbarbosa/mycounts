@@ -1,10 +1,18 @@
 """Nature d'un compte.
 
-**Auteur unique** de la question « ce compte fait-il partie de l'argent du quotidien ? ».
+**Auteur unique** de deux questions : « ce compte fait-il partie de l'argent du
+quotidien ? » et « cet argent est-il DISPONIBLE, c'est-à-dire reprenable demain sans
+perte ? ».
 
 La distinction n'est pas décorative. Mélanger un livret au compte courant fait croire à
 une aisance qui n'existe pas : le solde de l'accueil annoncerait 4 000 € alors que 3 500
 sont mis de côté, et la décision de dépenser se prendrait sur un chiffre faux.
+
+La seconde question compte autant que la première (V1-FIN-A1, 2 septembre 2026). Un PEA
+à 12 000 € n'est pas une réserve : le reprendre demain, c'est vendre au cours du jour,
+peut-être à perte, parfois avec une pénalité ou un blocage — un PER ne se débloque
+qu'à la retraite. Le compter dans ce que les enveloppes découpent promettrait de l'argent
+qu'on ne peut pas tenir. D'où trois natures, et non deux.
 """
 
 from __future__ import annotations
@@ -19,10 +27,26 @@ class TypeCompte(StrEnum):
     """Argent du quotidien. Entre dans les soldes affichés sur l'accueil."""
 
     EPARGNE = "epargne"
-    """Argent mis de côté. Compté à part, jamais dans le solde du quotidien.
+    """Argent mis de côté ET disponible : Livret A, LEP, PEL… — l'épargne à capital
+    stable de V1-ARCHITECTURE (`EPARGNE_STABLE`). Jamais dans le solde du quotidien ;
+    c'est la RÉSERVE que les enveloppes découpent.
 
     Un compte d'épargne reste un compte du foyer : il a des opérations, un solde, et il
     s'alimente par virement. Ce qui change est l'écran qui le totalise.
+    """
+
+    PLACEMENT = "placement"
+    """Argent placé, à valorisation variable ou bloqué : PEA, PEE, compte-titres,
+    assurance vie, PER.
+
+    Ni quotidien, ni réserve. Il a un solde par compte comme les autres — ce qu'on y a
+    versé, ce qu'on en a repris — mais aucun total du foyer ne le mélange à l'épargne
+    disponible : les enveloppes n'y puisent pas, le résumé de l'accueil l'ignore. Le LEP
+    n'en fait PAS partie : c'est un livret, reprenable sans perte.
+
+    La valeur de marché n'est pas modélisée (hors V1 : « placements à valorisation
+    variable », V1-PRODUIT). Le solde d'un placement est donc ce qu'on y a mis, jamais ce
+    qu'il vaut.
     """
 
 
@@ -61,17 +85,22 @@ CATALOGUE: Final[tuple[ProduitBancaire, ...]] = (
     ProduitBancaire("pel", "PEL — épargne logement", TypeCompte.EPARGNE),
     ProduitBancaire("cel", "CEL — compte épargne logement", TypeCompte.EPARGNE),
     ProduitBancaire("compte_a_terme", "Compte à terme", TypeCompte.EPARGNE),
-    ProduitBancaire("pea", "PEA — plan d'épargne en actions", TypeCompte.EPARGNE),
-    ProduitBancaire("pea_pme", "PEA-PME", TypeCompte.EPARGNE),
-    ProduitBancaire("compte_titres", "Compte-titres ordinaire", TypeCompte.EPARGNE),
-    ProduitBancaire("assurance_vie", "Assurance vie", TypeCompte.EPARGNE),
-    ProduitBancaire("per", "PER — plan d'épargne retraite", TypeCompte.EPARGNE),
+    # Placements : hors quotidien ET hors réserve. Les clés ci-dessous sont recopiées à
+    # l'identique dans la migration `placements_hors_reserve`, qui reclasse les comptes
+    # existants — c'est le SEUL endroit où une donnée change de colonne, et il le dit.
+    ProduitBancaire("pea", "PEA — plan d'épargne en actions", TypeCompte.PLACEMENT),
+    ProduitBancaire("pea_pme", "PEA-PME", TypeCompte.PLACEMENT),
+    ProduitBancaire("pee", "PEE — épargne entreprise", TypeCompte.PLACEMENT),
+    ProduitBancaire("compte_titres", "Compte-titres ordinaire", TypeCompte.PLACEMENT),
+    ProduitBancaire("assurance_vie", "Assurance vie", TypeCompte.PLACEMENT),
+    ProduitBancaire("per", "PER — plan d'épargne retraite", TypeCompte.PLACEMENT),
     ProduitBancaire("especes", "Espèces", TypeCompte.COURANT),
     # Deux entrées et non une avec un réglage à part : le comportement se DÉDUIT du
     # produit, toujours. Laisser le client l'envoyer en plus créerait deux façons de dire
     # la même chose, qui finiraient par se contredire.
     ProduitBancaire("autre_courant", "Autre — argent du quotidien", TypeCompte.COURANT),
     ProduitBancaire("autre_epargne", "Autre — mis de côté", TypeCompte.EPARGNE),
+    ProduitBancaire("autre_placement", "Autre — placé", TypeCompte.PLACEMENT),
 )
 
 PAR_CLE: Final[dict[str, ProduitBancaire]] = {produit.cle: produit for produit in CATALOGUE}

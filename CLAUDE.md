@@ -320,6 +320,14 @@ ses bibliothèques système. Sans lui, la suite est rouge en 10 ms par test — 
   leur animation conserve un `transform`, fût-il l'identité. Une feuille écrite dans un
   écran passait donc sous la barre de navigation avec le bon numéro de plan (ERREURS.md
   #049).
+- **Trois natures de compte, et la disponibilité est la troisième question** —
+  `domain/comptes.TypeCompte` : `courant` (quotidien), `epargne` (mis de côté ET reprenable
+  demain sans perte : livrets, LEP, PEL — la réserve que les enveloppes découpent),
+  `placement` (PEA, PEE, compte-titres, assurance vie, PER : ni quotidien, ni réserve).
+  Le solde par compte est le même pour les trois ; seuls les TOTAUX diffèrent, et aucun
+  total n'additionne jamais placements et épargne. La nature se déduit du produit, et un
+  reclassement de données existantes n'a qu'un auteur : une migration qui nomme ses clés
+  (`7b3e9c2a5d41`).
 - **Un virement n'est ni une dépense ni un revenu** : l'argent change de poche sans
   quitter le foyer. Il reste dans les soldes des deux comptes, sort des dépenses et des
   plafonds.

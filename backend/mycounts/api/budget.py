@@ -638,20 +638,28 @@ def epargne(session: SessionBase, principal: PrincipalCourant) -> EpargnePubliqu
     periode = resume_de_la_periode(session, principal).periode
     aujourd_hui_ = aujourd_hui()
 
-    par_compte: list[CompteEpargne] = []
-    for compte in depot.comptes_visibles(session, principal, type_compte=TypeCompte.EPARGNE):
-        solde = calculer(
-            Agregat.SOLDE_REEL,
-            depot.operations_pour_calcul(session, principal, comptes=[compte.id]),
-            aujourd_hui=aujourd_hui_,
-            fin_de_fenetre=max(aujourd_hui_, periode.fin),
-        )
-        par_compte.append(
-            CompteEpargne(id=compte.id, nom=compte.nom, solde_centimes=int(solde))
-        )
+    def soldes_des(type_compte: TypeCompte) -> list[CompteEpargne]:
+        rendus: list[CompteEpargne] = []
+        for compte in depot.comptes_visibles(session, principal, type_compte=type_compte):
+            solde = calculer(
+                Agregat.SOLDE_REEL,
+                depot.operations_pour_calcul(session, principal, comptes=[compte.id]),
+                aujourd_hui=aujourd_hui_,
+                fin_de_fenetre=max(aujourd_hui_, periode.fin),
+            )
+            rendus.append(CompteEpargne(id=compte.id, nom=compte.nom, solde_centimes=int(solde)))
+        return rendus
+
+    par_compte = soldes_des(TypeCompte.EPARGNE)
+    # Les placements sont rendus À PART et jamais additionnés au total : un PEA n'est pas
+    # une réserve, et « versé sur la période » ne les compte pas non plus — ce chiffre dit
+    # ce qu'on a mis de côté, pas ce qu'on a placé.
+    placements = soldes_des(TypeCompte.PLACEMENT)
 
     return EpargnePublique(
         total_centimes=sum(c.solde_centimes for c in par_compte),
+        placements=placements,
+        total_placements_centimes=sum(c.solde_centimes for c in placements),
         verse_sur_la_periode_centimes=int(
             depot.total_verse_par_virement(
                 session,

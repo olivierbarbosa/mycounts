@@ -31,8 +31,8 @@ données disparaissent ensemble.
 
 ### Comptes et opérations
 
-`Compte` appartient à un espace et possède un type au minimum `COURANT` ou
-`EPARGNE_STABLE`. Les comptes en devise non EUR sont refusés en V1.
+`Compte` appartient à un espace et possède un type `COURANT`, `EPARGNE_STABLE`
+(`epargne` en base) ou `PLACEMENT` — ce dernier hors quotidien et hors réserve. Les comptes en devise non EUR sont refusés en V1.
 
 `Operation` conserve : compte, espace, montant en centimes, date civile, catégorie,
 créateur, source, référence d'import, récurrence éventuelle et nature spéciale éventuelle

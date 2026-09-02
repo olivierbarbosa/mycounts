@@ -296,9 +296,20 @@ class EpargnePublique(BaseModel):
     """
 
     total_centimes: int
+    """Somme des livrets DISPONIBLES — la réserve que les enveloppes découpent. Jamais
+    les placements : les additionner promettrait de l'argent qu'on ne peut pas reprendre
+    demain sans perte."""
+
     verse_sur_la_periode_centimes: int
     periode: PeriodePublique
     comptes: list[CompteEpargne]
+    """Les comptes `epargne`, et eux seuls."""
+
+    placements: list[CompteEpargne]
+    """PEA, PEE, assurance vie, PER… — ce qu'on y a versé, jamais ce que ça vaut."""
+
+    total_placements_centimes: int
+    """À part de `total_centimes`, jamais additionné avec lui."""
 
 
 class ModificationCompte(BaseModel):

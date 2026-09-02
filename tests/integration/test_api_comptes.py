@@ -36,9 +36,11 @@ def test_le_catalogue_traduit_chaque_produit_en_comportement(
     produits = client.get("/api/comptes/catalogue").json()
 
     assert len(produits) == len(CATALOGUE)
-    assert {p["type_compte"] for p in produits} == {TypeCompte.COURANT, TypeCompte.EPARGNE}
+    assert {p["type_compte"] for p in produits} == set(TypeCompte)
     par_cle = {p["cle"]: p for p in produits}
     assert par_cle["livret_a"]["type_compte"] == TypeCompte.EPARGNE
+    assert par_cle["lep"]["type_compte"] == TypeCompte.EPARGNE
+    assert par_cle["pea"]["type_compte"] == TypeCompte.PLACEMENT
     assert par_cle["compte_courant"]["type_compte"] == TypeCompte.COURANT
 
 
@@ -51,6 +53,7 @@ def test_le_comportement_est_deduit_du_produit(client: TestClient, session_bd: S
     session_ouverte(client, session_bd)
     assert creer(client, "Livret", "livret_a")["type_compte"] == TypeCompte.EPARGNE
     assert creer(client, "Courant", "compte_courant")["type_compte"] == TypeCompte.COURANT
+    assert creer(client, "PEA", "pea")["type_compte"] == TypeCompte.PLACEMENT
 
 
 def test_un_produit_inconnu_est_refuse(client: TestClient, session_bd: Session) -> None:
