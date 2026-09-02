@@ -1,0 +1,20 @@
+{
+  "name": "diag-b",
+  "short_name": "diag-b",
+  "start_url": "/diag-b.html",
+  "scope": "/",
+  "display": "fullscreen",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "//pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ]
+}
