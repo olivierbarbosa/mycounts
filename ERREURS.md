@@ -1754,3 +1754,24 @@ ne compte pas encore les déploiements par heure.
 **Le témoin.** `~/mycounts-deploy.log` sur le VPS : 26 lignes `[dev] ✓ déployé c91fbcd` le
 26 août, 243 le 27 ; puis, le 2 septembre à 00:42 et 00:46 UTC, deux `06d5fa4` — la
 seconde image porte enfin son étiquette, et le tick de 00:51 n'a rien reconstruit.
+
+## #057 — Le proxy vivait dans la pile luminapp
+
+**Ce que je croyais.** Que `luminapp_traefik` était « le Traefik du VPS », un socle stable
+dont mycounts pouvait dépendre par son nom.
+
+**Ce qu'il s'est passé.** Le 2 septembre 2026 à 12:38 UTC, le déploiement automatique de
+`d6b7c51` a échoué : « Proxy fiable introuvable : luminapp_traefik », API marquée
+unhealthy pendant deux minutes. Le conteneur Traefik de luminapp était absent — alors que
+mycounts n'a aucun lien fonctionnel avec luminapp.
+
+**La cause.** Le proxy était partagé mais hébergé par un autre projet : recréé ou absent
+au gré des déploiements de celui-ci, et mycounts le résolvait par un nom qu'il ne
+contrôlait pas.
+
+**Ce que j'en retiens.** *Un composant partagé par plusieurs projets ne doit appartenir à
+aucun d'eux.* Traefik dédié dans `~/proxy` (conteneur `traefik`, réseau `web`, volume
+`proxy_letsencrypt`), bascule le 2 septembre à 15:14 Europe/Paris avec 2,8 s de coupure.
+
+**Le témoin.** `~/mycounts-deploy.log` à 12:38 UTC, et `infra/demarrer-api.sh` dont le
+défaut est désormais `traefik`.

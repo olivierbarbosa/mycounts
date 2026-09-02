@@ -68,7 +68,8 @@ envoie `/api` vers l'API et le reste vers nginx. `/health` reste interne à Dock
 l'exposer permettrait de consommer le pool PostgreSQL depuis Internet. Un sous-domaine
 `api.` — que les enregistrements DNS laissaient croire — casserait l'authentification.
 
-**Le seul proxy fiable est `luminapp_traefik`.** `infra/demarrer-api.sh` résout son IP au
+**Le seul proxy fiable est `traefik`, le conteneur du proxy dédié `~/proxy` (réseau
+`web`), qui n'appartient à aucune application.** `infra/demarrer-api.sh` résout son IP au
 démarrage et la passe à `--forwarded-allow-ips`; la valeur `*` est interdite, car elle
 permettrait à un client de choisir lui-même l'origine utilisée par l'anti-bruteforce.
 `MYCOUNTS_CLE_HMAC_AUTH` doit contenir au moins 32 caractères aléatoires dans les deux
