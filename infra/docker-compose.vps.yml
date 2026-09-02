@@ -70,7 +70,7 @@ services:
       MYCOUNTS_CLE_HMAC_AUTH: ${MYCOUNTS_CLE_HMAC_AUTH:?clé HMAC d'authentification requise}
       # Seul ce conteneur a le droit de définir X-Forwarded-For. Le point d'entrée résout
       # son IP au démarrage et la passe explicitement à Uvicorn.
-      MYCOUNTS_PROXY_FIABLE_HOTE: ${MYCOUNTS_PROXY_FIABLE_HOTE:-luminapp_traefik}
+      MYCOUNTS_PROXY_FIABLE_HOTE: ${MYCOUNTS_PROXY_FIABLE_HOTE:-traefik}
       MYCOUNTS_CLE_OPENROUTER: ${MYCOUNTS_CLE_OPENROUTER:-}
       MYCOUNTS_MODELE_IA: ${MYCOUNTS_MODELE_IA:-mistralai/mistral-nemo}
       MYCOUNTS_INSCRIPTIONS_OUVERTES: ${MYCOUNTS_INSCRIPTIONS_OUVERTES:-false}
@@ -158,7 +158,7 @@ networks:
   interne:
     driver: bridge
   web:
-    external: true      # Réseau partagé avec Traefik, créé par la pile luminapp
+    external: true      # Réseau partagé avec Traefik, créé par le proxy dédié ~/proxy
 
 volumes:
   donnees_db:

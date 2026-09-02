@@ -10,7 +10,10 @@ echo "Migrations : application de la tête Alembic…"
 alembic upgrade head
 
 echo "Démarrage d'uvicorn sur le port 8000…"
-PROXY_FIABLE_HOTE="${MYCOUNTS_PROXY_FIABLE_HOTE:-luminapp_traefik}"
+# « traefik » est le conteneur du proxy dédié (~/proxy sur le VPS), joint sur le réseau
+# « web ». Il n'appartient à aucune application : quand il vivait dans la pile luminapp,
+# un déploiement de ce projet suffisait à le faire disparaître (ERREURS.md #057).
+PROXY_FIABLE_HOTE="${MYCOUNTS_PROXY_FIABLE_HOTE:-traefik}"
 PROXY_FIABLE_IP="$(getent hosts "$PROXY_FIABLE_HOTE" | sed -n '1s/ .*//p')"
 if [ -z "$PROXY_FIABLE_IP" ]; then
     echo "Proxy fiable introuvable : $PROXY_FIABLE_HOTE" >&2
