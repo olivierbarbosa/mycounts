@@ -1725,3 +1725,32 @@ attendu dans trois jours donnaient 3 000 € projetés, et la capacité d'éparg
 de placer 500 € qui n'étaient pas sur le compte. Une charge se réserve avant de partir ;
 un revenu ne se dépense qu'une fois arrivé. Seules les sorties sont projetées, et le cas
 est gardé par un test qui était rouge avant la correction.
+
+## #056 — Deux cent soixante-neuf déploiements d'une préproduction qui n'avait pas changé
+
+**Ce que je croyais.** Que le déploiement tiré, en comparant `origin/dev` à l'étiquette
+OCI de l'image qui tourne, ne reconstruirait une pile que lorsqu'un commit arrive.
+
+**Ce qu'il s'est passé.** Les 26 et 27 août 2026, la pile dev a été reconstruite et
+redémarrée 269 fois de suite, toutes les cinq minutes, sur le même commit `c91fbcd` —
+avec une sauvegarde à chaque tour. Personne ne l'a vu : le service finissait toujours en
+succès. Le 2 septembre, le premier déploiement de `06d5fa4` a produit une image dont
+l'étiquette de révision disait encore « inconnue ».
+
+**La cause.** `deployer-auto.sh` lit l'étiquette, mais c'est le `deployer.sh` de
+l'ARBRE de la pile qui la pose — et l'arbre dev portait une version du script antérieure à
+l'étiquette. Une image sans étiquette n'est jamais égale au commit distant, donc le doute
+se résolvait « en reconstruisant » à chaque tick, exactement comme le commentaire du compose
+l'annonce. L'arrêt du flapping n'a rien dû à une correction : la CI rouge de `1a9243b` a
+simplement cessé d'autoriser le déploiement.
+
+**Ce que j'en retiens.** *Un mécanisme qui se corrige « au tour suivant » ne se corrige que
+si le tour suivant utilise le nouveau code.* Le script qui décide et le script qui
+étiquette vivent dans deux arbres ; leur version doit être la même, ou la décision doit
+refuser une étiquette absente au lieu de reconstruire indéfiniment. Et un service qui
+réussit 269 fois d'affilée la même chose est une alerte, pas un succès : la surveillance
+ne compte pas encore les déploiements par heure.
+
+**Le témoin.** `~/mycounts-deploy.log` sur le VPS : 26 lignes `[dev] ✓ déployé c91fbcd` le
+26 août, 243 le 27 ; puis, le 2 septembre à 00:42 et 00:46 UTC, deux `06d5fa4` — la
+seconde image porte enfin son étiquette, et le tick de 00:51 n'a rien reconstruit.
