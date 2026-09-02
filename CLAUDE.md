@@ -52,7 +52,11 @@ l'écran plein `EtatHorsLigne` ne vaut qu'au démarrage sans réseau, quand rien
 préserver. Tout message posé en bas — mise à jour, réseau — partage la position de
 `BandeauBas.module.css`, au-dessus de la barre d'onglets (`--disposition-reserve-navigation`),
 mesurée par `frontend/e2e/pwa-fiabilite.spec.ts` avec les erreurs de console sur
-375/390/430/820 px. La frontière de plateforme et la configuration
+375/390/430/820 px. **iOS 26 retire 62 px sous toute application web installée** — mesuré le
+2 septembre 2026 sur iPhone (viewport 812 px pour 874, `safe-area-inset-bottom` à 0,
+identique en `standalone`, `fullscreen`, avec ou sans balise Apple) : cette bande est
+peinte par le système, aucun style ne l'atteint, seule l'application native la rendra.
+La barre d'onglets se pose donc à `max(marge, zone sûre)` et jamais à leur somme. La frontière de plateforme et la configuration
 Capacitor préparent iOS/Android ; le transport natif reste volontairement inactif tant que
 le trousseau et les jetons courts serveur ne sont pas livrés.
 

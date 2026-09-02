@@ -20,8 +20,14 @@
   position: fixed;
   left: var(--espace-l);
   right: var(--espace-l);
-  /* env() est obligatoire : sans lui, la barre passe sous l'indicateur d'accueil iOS. */
-  bottom: calc(var(--espace-l) + env(safe-area-inset-bottom, 0px));
+  /* env() est obligatoire : sans lui, la barre passe sous l'indicateur d'accueil iOS.
+     `max()` et non une addition : la zone sûre EST déjà une marge. L'additionner à la
+     nôtre posait la barre à 58 px du bas du viewport, mesuré sur iPhone le 2 septembre
+     2026, alors qu'iOS 26 retire en plus 62 px sous toute application web installée
+     (viewport de 812 px sur un écran de 874, `safe-area-inset-bottom` à 0) : deux marges
+     empilées au-dessus d'une bande que le système peint lui-même, et la barre semblait
+     flotter au milieu de l'écran. */
+  bottom: max(var(--espace-s), env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
   gap: var(--espace-s);
