@@ -48,10 +48,38 @@
   font-size: 13px;
 }
 
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-s);
+}
+
 .titreListe {
   margin: 0;
   font-size: 16px;
   font-weight: var(--typo-gras-fort);
+}
+
+/* Une phrase pour qui n'a jamais lu le modèle : même couleur que le libellé de l'en-tête,
+   dont le contraste est déjà mesuré (contraste.spec.ts). */
+.explication {
+  margin: 0;
+  color: var(--couleur-texte-attenue);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Le total des placements se lit comme une ligne de plus, sans bordure : ce n'est pas un
+   compte qu'on ouvre, et un cadre ferait chercher le chevron. */
+.total {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-l);
+  padding: var(--espace-s) var(--espace-l) 0;
+  color: var(--couleur-texte-attenue);
+  font-weight: var(--typo-gras-moyen);
 }
 
 .liste {

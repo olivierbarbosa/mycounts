@@ -173,3 +173,63 @@ test('le + de la barre rend la bascule après un passage par l’Épargne', asyn
   const feuille = page.getByRole('dialog', { name: 'Saisir une opération' })
   await expect(feuille.getByRole('button', { name: 'Dépense', exact: true })).toBeVisible()
 })
+
+test('un placement est listé à part et ne gonfle pas l’épargne disponible', async ({ page }) => {
+  // Un PEA n'est pas une réserve : on ne le vide pas pour payer le loyer. Il doit donc
+  // apparaître sur la page — le faire disparaître était la régression du 2 septembre
+  // 2026 — mais dans SA rubrique, et hors du total. Trois mesures, chacune capable de
+  // rendre la réponse inverse : la ligne est dans « Placements », elle n'est PAS dans
+  // « Mes comptes », et `total_centimes` n'a pas bougé pendant que `total_placements`
+  // a pris exactement le solde d'ouverture.
+  await connecter(page)
+
+  // Un livret D'ABORD, pour que « Mes comptes » existe : sans lui, la rubrique est absente
+  // et l'assertion « le PEA n'y est pas » serait vraie pour une mauvaise raison — mesuré
+  // le 2 septembre 2026, le test restait vert avec le placement mêlé aux comptes.
+  const livret = `Livret témoin ${Date.now()}`
+  await creerEpargne(page, livret, '0')
+
+  const lire = async () =>
+    (await (await page.request.get('/api/epargne')).json()) as {
+      total_centimes: number
+      total_placements_centimes: number
+    }
+  const avant = await lire()
+
+  const pea = `PEA ${Date.now()}`
+  await page.getByRole('button', { name: /^Paramètres de / }).click()
+  await page.getByRole('button', { name: 'Comptes bancaires' }).click()
+  await page.getByRole('button', { name: 'Ajouter un compte' }).click()
+  await page.getByLabel('Nom du compte').fill(pea)
+  await page.getByLabel('Type de compte').selectOption('pea')
+  await page.getByLabel('Solde actuel (facultatif)').fill('300,00')
+  await page.getByRole('button', { name: 'Créer le compte' }).click()
+  await expect(page.getByRole('button', { name: 'Ajouter un compte' })).toBeVisible()
+  await page.getByRole('button', { name: 'Retour', exact: true }).click()
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click()
+
+  const apres = await lire()
+  expect(
+    apres.total_centimes,
+    'un placement compté dans l’épargne disponible promettrait un argent qu’on ne reprend pas',
+  ).toBe(avant.total_centimes)
+  expect(apres.total_placements_centimes - avant.total_placements_centimes).toBe(30_000)
+
+  await page.getByRole('button', { name: 'Épargne' }).click()
+  const principal = page.locator('main')
+  const placements = principal.getByRole('list', { name: 'Placements' })
+  await expect(placements.locator('li', { hasText: pea })).toContainText('300')
+  await expect(principal).toContainText('Total placé')
+  // La preuve inverse : mis dans la liste des comptes d'épargne, le PEA ferait rougir ici.
+  // La liste est d'abord prouvée PRÉSENTE par le livret, sinon « absent » ne dirait rien.
+  const comptes = principal.getByRole('list', { name: 'Mes comptes' })
+  await expect(comptes.locator('li', { hasText: livret })).toBeVisible()
+  await expect(
+    comptes.locator('li', { hasText: pea }),
+    'un placement ne se range pas parmi les comptes d’épargne',
+  ).toHaveCount(0)
+
+  // La ligne reste un bouton vers le détail du compte, comme un livret.
+  await placements.getByRole('button', { name: `Détail de ${pea}` }).click()
+  await expect(page.getByRole('heading', { name: pea })).toBeVisible()
+})

@@ -2080,8 +2080,12 @@ export interface components {
             /** Comptes */
             comptes: components["schemas"]["CompteEpargne"][];
             periode: components["schemas"]["PeriodePublique"];
+            /** Placements */
+            placements: components["schemas"]["CompteEpargne"][];
             /** Total Centimes */
             total_centimes: number;
+            /** Total Placements Centimes */
+            total_placements_centimes: number;
             /** Verse Sur La Periode Centimes */
             verse_sur_la_periode_centimes: number;
         };
@@ -2736,7 +2740,7 @@ export interface components {
          * TypeCompte
          * @enum {string}
          */
-        TypeCompte: "courant" | "epargne";
+        TypeCompte: "courant" | "epargne" | "placement";
         /**
          * TypeEspace
          * @enum {string}

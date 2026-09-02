@@ -15,8 +15,9 @@ retinter, archiver, supprimer — et **créer à la volée** depuis la saisie ou
 opérations (créer, modifier, supprimer, détailler) ; période budgétaire de paie à paie ;
 soldes et liste ; amorçage avec solde d'ouverture ; récurrences, matérialisation
 idempotente, calendrier mensuel et file « à confirmer » ; plafonds par catégorie avec leur
-écran et les jauges de l'accueil ; virements ; page Épargne et détail d'un livret ;
-correction du solde par ajustement ; enveloppes avec leurs réglages et la préparation
+écran et les jauges de l'accueil ; virements ; page Épargne — livrets, et placements
+listés À PART avec leur propre total — et détail d'un livret ; correction du solde par
+ajustement ; enveloppes avec leurs réglages et la préparation
 mensuelle ; statistiques et constats chiffrés ; import de relevé CSV avec écran de revue ;
 profil personnel — nom, adresse, mot de passe — et **image de profil**.
 Interface Liquid Glass sur palette **bleu ardoise**, mobile d'abord, rail latéral au-delà
