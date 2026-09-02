@@ -7,6 +7,8 @@ n'existe pas — le compte dit où l'argent EST, l'enveloppe à quoi il est PROM
 
 from __future__ import annotations
 
+import datetime as dt
+
 from fastapi.testclient import TestClient
 from mycounts.domain.calendrier import aujourd_hui
 from sqlalchemy.orm import Session
@@ -517,3 +519,45 @@ def test_la_reponse_dune_ecriture_montre_letat_dapres(
     assert reponse.status_code == 201, reponse.text
     assert enveloppe_nommee(reponse.json(), "Vacances")["solde_centimes"] == 20_000
     assert reponse.json()["reserve_centimes"] == 20_000
+
+
+def test_la_capacite_depargne_reserve_les_charges_a_venir(
+    client: TestClient, session_bd: Session
+) -> None:
+    """La capacité est le solde PROJETÉ du quotidien : une charge visible au calendrier la
+    réduit avant son prélèvement, sinon la préparation proposerait de placer l'argent du
+    loyer. Un revenu récurrent, lui, n'y entre pas avant d'être encaissé."""
+    session_ouverte(client, session_bd)
+    courant = creer_compte(client, "Courant", "compte_courant")
+    creer_compte(client, "Livret", "livret_a", 500_000)
+    creer_enveloppe(
+        client, "Vacances", cible_centimes=100_000, contribution_mensuelle_centimes=20_000
+    )
+    jour = aujourd_hui()
+    paie = client.post(
+        "/api/operations",
+        json={
+            "compte_id": courant,
+            "libelle": "Salaire",
+            "montant_centimes": 250_000,
+            "date_operation": (jour - dt.timedelta(days=5)).isoformat(),
+            "est_paie": True,
+        },
+    )
+    assert paie.status_code == 201, paie.text
+    for montant in (-100_000, 50_000):
+        recurrence = client.post(
+            "/api/recurrences",
+            json={
+                "compte_id": courant,
+                "libelle": "Loyer" if montant < 0 else "Allocation",
+                "montant_centimes": montant,
+                "ancre": (jour + dt.timedelta(days=3)).isoformat(),
+                "unite": "mois",
+            },
+        )
+        assert recurrence.status_code == 201, recurrence.text
+
+    preparation = client.get("/api/enveloppes/preparation").json()
+
+    assert preparation["capacite_epargne_centimes"] == 150_000

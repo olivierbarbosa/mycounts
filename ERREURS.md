@@ -1718,3 +1718,10 @@ fenêtre du cycle et sous l'état `PREVUE`.
 
 **Le témoin.** Avec 2 500 € réels et une charge future de 1 000 €, PostgreSQL rend 2 500 €
 réels, 1 500 € projetés et zéro dépense constatée avant le prélèvement.
+
+**Précision du 2 septembre 2026, à la revue croisée.** La première version projetait
+TOUTES les récurrences, signe compris : 2 500 € réels + un revenu récurrent de 500 €
+attendu dans trois jours donnaient 3 000 € projetés, et la capacité d'épargne proposait
+de placer 500 € qui n'étaient pas sur le compte. Une charge se réserve avant de partir ;
+un revenu ne se dépense qu'une fois arrivé. Seules les sorties sont projetées, et le cas
+est gardé par un test qui était rouge avant la correction.

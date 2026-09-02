@@ -407,3 +407,97 @@ def test_les_bornes_du_mois_sont_le_mois_civil_pas_la_periode_de_paie(
     assert (fin + dt.timedelta(days=1)).month != fin.month
     # Et le mois est bien celui d'aujourd'hui, pas un voisin.
     assert (debut.year, debut.month) == (AUJOURD_HUI.year, AUJOURD_HUI.month)
+
+
+def _paie_il_y_a_cinq_jours(client: TestClient, compte_id: str) -> None:
+    reponse = client.post(
+        "/api/operations",
+        json={
+            "compte_id": compte_id,
+            "libelle": "Salaire",
+            "montant_centimes": 250000,
+            "date_operation": (AUJOURD_HUI - dt.timedelta(days=5)).isoformat(),
+            "est_paie": True,
+        },
+    )
+    assert reponse.status_code == 201, reponse.text
+
+
+def test_un_revenu_recurrent_futur_ne_gonfle_pas_le_projete(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Un revenu espéré n'est pas un revenu encaissé : il n'augmente rien avant sa date.
+
+    Mesuré avant cette règle : 2 500 € réels + 500 € attendus dans trois jours donnaient
+    3 000 € projetés, et la capacité d'épargne proposait de placer de l'argent absent.
+    """
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    _paie_il_y_a_cinq_jours(client, compte_id)
+    creer_recurrence_api(
+        client, compte_id, AUJOURD_HUI + dt.timedelta(days=3), montant_centimes=50000
+    )
+
+    resume = client.get("/api/resume").json()
+
+    assert resume["solde_projete"] == 250000, "un revenu futur ne se dépense pas d'avance"
+    assert resume["solde_a_confirmer"] == 0
+
+
+def test_une_echeance_du_jour_materialisee_ne_compte_pas_deux_fois(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le jour J, l'échéance devient une opération à confirmer ET reste dans la fenêtre de
+    projection : elle ne doit entrer qu'une fois, par la première voie."""
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    _paie_il_y_a_cinq_jours(client, compte_id)
+    creer_recurrence_api(client, compte_id, AUJOURD_HUI, montant_centimes=-100000)
+
+    resume = client.get("/api/resume").json()
+
+    assert resume["solde_reel"] == 250000
+    assert resume["solde_a_confirmer"] == -100000, "matérialisée, donc à confirmer"
+    assert resume["solde_projete"] == 150000, "et pas 50 000 : une seule fois"
+
+
+def test_une_echeance_apres_la_fin_du_cycle_nest_pas_projetee(
+    client: TestClient, session_bd: Session
+) -> None:
+    """La fenêtre s'arrête à la fin de la période : ce qui part au cycle suivant ne réduit
+    pas ce cycle-ci. Paie il y a cinq jours, fin estimée dans un mois, échéance dans 40 jours."""
+    session_ouverte(client, session_bd)
+    compte_id = creer_compte_api(client)
+    _paie_il_y_a_cinq_jours(client, compte_id)
+    creer_recurrence_api(
+        client, compte_id, AUJOURD_HUI + dt.timedelta(days=40), montant_centimes=-100000
+    )
+
+    resume = client.get("/api/resume").json()
+
+    assert resume["solde_projete"] == 250000
+    assert resume["solde_a_confirmer"] == 0
+
+
+def test_une_charge_sur_un_livret_ne_touche_pas_le_resume_du_quotidien(
+    client: TestClient, session_bd: Session
+) -> None:
+    """Le résumé ne porte que sur les comptes COURANTS, projection comprise."""
+    session_ouverte(client, session_bd)
+    courant = creer_compte_api(client)
+    _paie_il_y_a_cinq_jours(client, courant)
+    livret = client.post(
+        "/api/comptes", json={"nom": "Livret", "prive": True, "produit": "livret_a"}
+    )
+    assert livret.status_code == 201, livret.text
+    creer_recurrence_api(
+        client,
+        str(livret.json()["id"]),
+        AUJOURD_HUI + dt.timedelta(days=3),
+        montant_centimes=-100000,
+    )
+
+    resume = client.get("/api/resume").json()
+
+    assert resume["solde_projete"] == 250000
+    assert resume["solde_a_confirmer"] == 0

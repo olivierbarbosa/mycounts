@@ -32,6 +32,7 @@ from mycounts.api.budget_schemas import (
 )
 from mycounts.api.dependances import PrincipalCourant, SessionBase
 from mycounts.domain import comptes as domaine_comptes
+from mycounts.domain import periode as domaine_periode
 from mycounts.domain.agregats import Agregat, EtatOperation, OperationCalcul, calculer
 from mycounts.domain.calendrier import aujourd_hui
 from mycounts.domain.comptes import TypeCompte
@@ -584,17 +585,24 @@ def resume_de_la_periode(
     operations = depot.operations_pour_calcul(session, principal, comptes=courants)
     paies = depot.dates_de_paie(session, principal, comptes=courants)
     jour = aujourd_hui()
-    sans_echeances_futures = resumer(
-        operations,
-        paies,
-        aujourd_hui=jour,
-        paies_par_cycle=paies_par_cycle,
+    # La borne de projection est celle de `resumer`, lue chez le même auteur : un premier
+    # `resumer` complet ne servait qu'à lire `periode.fin` et doublait le calcul de
+    # l'endpoint le plus sollicité de l'application.
+    periode = domaine_periode.periode_courante(
+        paies, aujourd_hui=jour, paies_par_cycle=paies_par_cycle
     )
 
     # Les récurrences futures n'existent volontairement pas dans `operation` : l'agenda
     # les projette à la volée et le job ne les matérialise qu'à leur date. Le résumé doit
     # faire la même projection, sinon une charge pourtant visible au calendrier ne réduit
     # ni le solde projeté ni la capacité d'épargne proposée au début du cycle.
+    #
+    # Les SORTIES seulement. Une récurrence positive — allocation, remboursement, salaire
+    # saisi en récurrence — n'est qu'un revenu ESPÉRÉ : le projeter gonflait le disponible
+    # et la capacité d'épargne d'argent pas encore encaissé, mesuré à 3 000 € pour 2 500 €
+    # réels (ERREURS.md #055). Une charge se réserve avant de partir ; un revenu ne se
+    # dépense qu'une fois arrivé. Il entre dans le solde à sa matérialisation, comme
+    # toute opération constatée.
     comptes_courants = set(courants)
     operations.extend(
         OperationCalcul(
@@ -606,9 +614,9 @@ def resume_de_la_periode(
             session,
             principal,
             depuis=jour,
-            jusqu_a=sans_echeances_futures.periode.fin,
+            jusqu_a=periode.fin,
         )
-        if recurrence.compte_id in comptes_courants
+        if recurrence.compte_id in comptes_courants and recurrence.montant_centimes < 0
     )
     return resumer(
         operations,
